@@ -9,7 +9,7 @@
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x8da9b5);scene.fog=new THREE.FogExp2(0x8da9b5,.017);
-const camera=new THREE.PerspectiveCamera(68,innerWidth/innerHeight,.1,350);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,350);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
 scene.add(new THREE.HemisphereLight(0xcfeaff,0x3b414e,2));const sun=new THREE.DirectionalLight(0xffffff,2.1);sun.position.set(25,55,30);scene.add(sun);
 const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260),new THREE.MeshStandardMaterial({color:0x596d70,roughness:.92}));ground.rotation.x=-Math.PI/2;scene.add(ground);
 const grid=new THREE.GridHelper(260,52,0x8bb4b0,0x6b8588);grid.position.y=.015;scene.add(grid);
