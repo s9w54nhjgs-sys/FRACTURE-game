@@ -39,6 +39,37 @@ part(w*1.24,1.1,d*1.22,0,h-.55,0,alloy);part(w*1.38,.17,d*1.3,0,h+.08,0,alloyEdg
 cladTower(-19,-37,9,36,8);cladTower(33,41,13,57,10);cladTower(-49,17,11,46,9);
 function deck(x,z,w,d){slab(x,.15,z,w,.3,d,darkConcrete);for(let i=0;i<Math.floor(w/3);i++){const xx=x-w/2+1.5+i*3;slab(xx,.32,z, .055,.045,d*.96,seam)}for(let j=0;j<Math.floor(d/4);j++)slab(x,.33,z-d/2+2+j*4,w*.98,.05,.07,seam)}
 deck(0,0,22,20);deck(18,-14,15,16);
+
+// PROTOCOL ARRIVAL COURT — visually dominant architecture visible immediately on spawn.
+// Canvas-generated industrial panels: no downloads or extra draw-call-heavy postprocessing.
+function surfaceTexture(kind){const canvas=document.createElement('canvas');canvas.width=canvas.height=512;const ctx=canvas.getContext('2d');ctx.fillStyle=kind==='metal'?'#66757c':'#969b99';ctx.fillRect(0,0,512,512);let seed=kind==='metal'?381:731;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+for(let i=0;i<18000;i++){const x=rand()*512,y=rand()*512,sz=.5+rand()*3;ctx.fillStyle=rand()>.5?'rgba(12,21,25,.13)':'rgba(235,242,240,.11)';ctx.fillRect(x,y,sz,sz)}
+for(let y=0;y<512;y+=128)for(let x=0;x<512;x+=128){ctx.strokeStyle='rgba(16,25,29,.57)';ctx.lineWidth=3;ctx.strokeRect(x+3,y+3,122,122);ctx.strokeStyle='rgba(237,240,235,.22)';ctx.lineWidth=1;ctx.strokeRect(x+7,y+7,114,114);for(const dx of [14,113])for(const dy of [14,113]){ctx.fillStyle='#303c40';ctx.fillRect(x+dx,y+dy,4,4)}if(kind==='metal'){ctx.fillStyle='rgba(9,19,24,.17)';ctx.fillRect(x+12,y+21,104,5);ctx.fillStyle='rgba(228,233,230,.12)';ctx.fillRect(x+12,y+30,104,2)}}
+for(let i=0;i<110;i++){const x=rand()*512,y=rand()*512;ctx.strokeStyle='rgba(19,23,23,.17)';ctx.lineWidth=1+rand()*3;ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+(rand()-.5)*65,y+rand()*45);ctx.stroke()}
+const t=new THREE.CanvasTexture(canvas);t.colorSpace=THREE.SRGBColorSpace;t.anisotropy=Math.min(renderer.capabilities.getMaxAnisotropy(),4);return t}
+const castConcrete=new THREE.MeshStandardMaterial({color:0xabb0ae,map:surfaceTexture('concrete'),roughness:.96,metalness:.03});
+const armoredSteel=new THREE.MeshStandardMaterial({color:0x87969e,map:surfaceTexture('metal'),roughness:.42,metalness:.7});
+const wetStone=new THREE.MeshStandardMaterial({color:0x46565e,roughness:.23,metalness:.36});
+const recessMat=new THREE.MeshStandardMaterial({color:0x17252b,roughness:.88,metalness:.18});
+const warmLine=new THREE.MeshBasicMaterial({color:0xe2c49d});
+function detailBox(x,y,z,w,h,d,mat=castConcrete){return slab(x,y,z,w,h,d,mat)}
+// A monumental overhead crossbeam frames the first view; supports stand outside the initial movement corridor.
+for(const side of [-1,1]){const x=side*14;detailBox(x,16,-22,4,32,8,castConcrete);detailBox(x,16,-17.85,4.4,28,.32,armoredSteel);detailBox(x,16,-26.2,4.4,28,.32,armoredSteel);for(let i=0;i<7;i++)detailBox(x,3+i*4,-17.61,4.2,.09,.1,recessMat);detailBox(x,31,-22,5,2.5,10,armoredSteel)}
+detailBox(0,31,-22,31,4.2,9,castConcrete);detailBox(0,32,-17.35,30,2.7,.38,armoredSteel);detailBox(0,29.1,-17.25,28,.3,.25,recessMat);detailBox(0,28.9,-17.17,23,.12,.1,warmLine);
+for(let i=-4;i<=4;i++){detailBox(i*3.2,33.2,-17.05,2.7,1.2,.2,armoredSteel)}
+// Deep layered steel facade to the left, with ribs and contrasting recessed bays.
+detailBox(-29,21,-6,11,42,34,castConcrete);detailBox(-22.9,20,-6,.6,37,32,armoredSteel);
+for(let i=0;i<7;i++){const z=-20+i*4.5;detailBox(-22.5,21,z,.3,31,1.05,armoredSteel);detailBox(-22.7,21,z+1.4,.25,27,1.4,recessMat)}
+for(let i=1;i<9;i++)detailBox(-22.45,i*4.5,-6,.16,.15,32,wetStone);
+// Right-hand industrial tower with suspended horizontal armor plates.
+detailBox(27,27,-32,13,54,15,castConcrete);detailBox(27,27,-24.3,13.6,51,.5,armoredSteel);
+for(let i=0;i<9;i++){detailBox(27,5+i*5.5,-23.9,14.5,.35,1.1,recessMat);detailBox(27,6+i*5.5,-23.65,12.5,.12,.2,armoredSteel)}
+for(let i=0;i<4;i++)detailBox(27,15+i*11,-32,17,1.1,18,armoredSteel);
+// Foreground cracked paving, shallow dark joints and glossy wet patches.
+for(let i=-3;i<=3;i++){detailBox(i*3.6,.075,-5, .055,.035,24,recessMat)}
+for(let i=0;i<5;i++){detailBox(0,.08,-16+i*5,23,.035,.055,recessMat)}
+for(const [x,z,w,d] of [[-7,-10,4,2.4],[5,-2,3,4],[9,-15,4,2],[-3,6,3,2]])detailBox(x,.095,z,w,.025,d,wetStone);
+// Far silhouettes are kept untextured to reduce GPU load.
 const pillarMat=new THREE.MeshStandardMaterial({color:0x92e9df,emissive:0x2c9d9b,emissiveIntensity:.5});
 const player=new THREE.Group();const shell=new THREE.Mesh(new THREE.OctahedronGeometry(.95,0),new THREE.MeshStandardMaterial({color:0xa4e6e9,metalness:.65,roughness:.25,flatShading:true,emissive:0x184a55,emissiveIntensity:.45}));player.add(shell);const core=new THREE.Mesh(new THREE.OctahedronGeometry(.36),new THREE.MeshBasicMaterial({color:0xe4ffff,wireframe:true}));player.add(core);scene.add(player);player.position.set(0,1.3,0);
 const crystals=[];function crystal(x,z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.55),pillarMat);m.position.set(x,.85,z);scene.add(m);crystals.push(m)}
