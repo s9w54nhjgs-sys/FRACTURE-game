@@ -69,6 +69,40 @@ for(let i=0;i<4;i++)detailBox(27,15+i*11,-32,17,1.1,18,armoredSteel);
 for(let i=-3;i<=3;i++){detailBox(i*3.6,.075,-5, .055,.035,24,recessMat)}
 for(let i=0;i<5;i++){detailBox(0,.08,-16+i*5,23,.035,.055,recessMat)}
 for(const [x,z,w,d] of [[-7,-10,4,2.4],[5,-2,3,4],[9,-15,4,2],[-3,6,3,2]])detailBox(x,.095,z,w,.025,d,wetStone);
+
+// PROTOCOL MEGASTRUCTURES — non-human scale, sculptural silhouettes rather than city blocks.
+// Geometry is shared where possible; distant structures remain outside the traversable court.
+const voidMetal=new THREE.MeshStandardMaterial({color:0x303d45,metalness:.72,roughness:.37,flatShading:true});
+const abyss=new THREE.MeshStandardMaterial({color:0x111b22,metalness:.42,roughness:.82,side:THREE.DoubleSide});
+const edgeSilver=new THREE.MeshStandardMaterial({color:0x78868b,metalness:.8,roughness:.34});
+const dimCyan=new THREE.MeshBasicMaterial({color:0x6b9a9e});
+function megaBeam(x,y,z,w,h,d,angle=0,mat=voidMetal){const m=detailBox(x,y,z,w,h,d,mat);m.rotation.z=angle;return m}
+function floatingCore(x,y,z,r){const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
+// The sky is divided by an enormous vertical ring, with no building-like windows or roof.
+const halo=new THREE.Group();halo.position.set(5,88,-120);halo.rotation.y=.28;architecture.add(halo);
+const haloBody=new THREE.Mesh(new THREE.TorusGeometry(70,5.5,7,64),voidMetal);halo.add(haloBody);
+const haloRecess=new THREE.Mesh(new THREE.TorusGeometry(70,1.1,5,64),edgeSilver);haloRecess.position.z=4.5;halo.add(haloRecess);
+const haloVoid=new THREE.Mesh(new THREE.TorusGeometry(62,.5,4,64),dimCyan);haloVoid.position.z=2;halo.add(haloVoid);
+for(let i=0;i<12;i++){const a=i*Math.PI/6;const m=new THREE.Mesh(new THREE.BoxGeometry(7,13,11),armoredSteel);m.position.set(Math.sin(a)*70,Math.cos(a)*70,0);m.rotation.z=-a;halo.add(m)}
+// A vast suspended cross-structure dominates the view over the initial gateway.
+megaBeam(0,74,-65,106,12,24,0,castConcrete);
+megaBeam(-52,46,-65,12,57,25,-.17,voidMetal);
+megaBeam(52,46,-65,12,57,25,.17,voidMetal);
+megaBeam(0,66,-51,96,1.5,2,0,edgeSilver);
+for(let i=-5;i<=5;i++){const x=i*9;megaBeam(x,73,-51.3,1.1,10,1.4,0,abyss)}
+// Hanging segmented keels give the roof a mechanical, impossible underside.
+for(let i=-3;i<=3;i++){const x=i*14;const tip=new THREE.Mesh(new THREE.ConeGeometry(4.6,22,4),voidMetal);tip.position.set(x,57,-65);tip.rotation.y=Math.PI/4;architecture.add(tip);megaBeam(x,72,-52,3,2,5,0,edgeSilver)}
+floatingCore(0,53,-78,13);
+// Left and right sheer structures: sloped monolithic fins instead of stacked skyscrapers.
+for(const side of [-1,1]){const x=side*74;megaBeam(x,48,-72,21,96,39,side*.13,castConcrete);megaBeam(x-side*13,55,-54,5,88,4,side*.13,voidMetal);megaBeam(x-side*20,56,-52,1.5,77,2,side*.13,edgeSilver);for(let i=0;i<5;i++){megaBeam(x-side*11,18+i*16,-51,14,.7,5,side*.13,abyss)}}
+// A second, distant vertical spine carries an inverted pyramid suspended in open air.
+megaBeam(-106,83,-166,20,166,27,-.11,voidMetal);
+megaBeam(-106,168,-166,43,6,34,0,castConcrete);
+const inverted=new THREE.Mesh(new THREE.ConeGeometry(24,58,4),castConcrete);inverted.rotation.z=Math.PI;inverted.rotation.y=Math.PI/4;inverted.position.set(91,93,-151);architecture.add(inverted);
+megaBeam(91,132,-151,48,7,48,0,voidMetal);
+for(const x of [-36,36]){megaBeam(x,42,-112,4,70,8,x<0?-.35:.35,edgeSilver)}
+// Sparse scale cues: near-ground retaining walls and deep inset black openings.
+for(const side of [-1,1]){detailBox(side*44,8,-69,4,16,36,castConcrete);detailBox(side*41.8,8,-67,1,12,26,abyss);detailBox(side*41,8,-67,.4,10,18,voidMetal)}
 // Far silhouettes are kept untextured to reduce GPU load.
 const pillarMat=new THREE.MeshStandardMaterial({color:0x92e9df,emissive:0x2c9d9b,emissiveIntensity:.5});
 // Ramiel-inspired geometric morph: four detached armored petals and a forward thrusting spike.
