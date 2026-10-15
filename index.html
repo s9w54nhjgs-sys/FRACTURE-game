@@ -24,6 +24,21 @@ function distantTower(x,z,h,w){slab(x,h/2,z,w,h,w*.75,darkConcrete);slab(x,h+1.1
 for(let i=0;i<18;i++){const a=i*2.399,r=65+(i%5)*11,x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.hypot(x-38,z+25)<16)continue;distantTower(x,z,18+(i%6)*9,5+(i%4)*3)}
 for(let i=0;i<45;i++){const a=i*2.71,r=20+(i%12)*6,x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.hypot(x,z)<10||Math.hypot(x-38,z+25)<9)continue;const w=1.1+(i%4)*.6,h=.4+(i%3)*.5;const m=slab(x,h/2,z,w,h,1.5+(i%5)*.5,i%3?darkConcrete:concreteMat);m.rotation.y=a}
 const lightStripMat=new THREE.MeshBasicMaterial({color:0x8bd9d4});for(const [x,z] of [[-33,-32],[48,33],[-64,45]]){slab(x,.08,z,9,.12,.16,lightStripMat)}
+// Metal-clad composite structures: panel seams, ribs, oxidized surfaces and restrained highlights
+const alloy=new THREE.MeshStandardMaterial({color:0x394952,metalness:.78,roughness:.42,map:concreteTex});
+const alloyEdge=new THREE.MeshStandardMaterial({color:0x84939b,metalness:.82,roughness:.34});
+const seam=new THREE.MeshStandardMaterial({color:0x19252c,metalness:.5,roughness:.8});
+function cladTower(x,z,w,h,d){const g=new THREE.Group();g.position.set(x,0,z);architecture.add(g);
+const part=(a,b,c,px,py,pz,mat)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(a,b,c),mat);m.position.set(px,py,pz);g.add(m);return m};
+part(w,h,d,0,h/2,0,concreteMat);
+for(let side of [-1,1]){part(.28*w,h*.93,d*1.04,side*w*.44,h*.5,0,alloy);part(.13*w,h*.98,d*1.12,side*w*.48,h*.5,0,alloyEdge)}
+for(let level=1;level<7;level++){const y=h*level/7;part(w*1.05,.085,d*1.09,0,y,0,seam);part(w*.78,.12,.15,0,y,d*.53,alloyEdge)}
+for(let j=0;j<3;j++){const px=(j-1)*w*.26;part(w*.13,h*.88,.13,px,h*.49,d*.54,alloy)}
+part(w*1.24,1.1,d*1.22,0,h-.55,0,alloy);part(w*1.38,.17,d*1.3,0,h+.08,0,alloyEdge);
+}
+cladTower(-19,-37,9,36,8);cladTower(33,41,13,57,10);cladTower(-49,17,11,46,9);
+function deck(x,z,w,d){slab(x,.15,z,w,.3,d,darkConcrete);for(let i=0;i<Math.floor(w/3);i++){const xx=x-w/2+1.5+i*3;slab(xx,.32,z, .055,.045,d*.96,seam)}for(let j=0;j<Math.floor(d/4);j++)slab(x,.33,z-d/2+2+j*4,w*.98,.05,.07,seam)}
+deck(0,0,22,20);deck(18,-14,15,16);
 const pillarMat=new THREE.MeshStandardMaterial({color:0x92e9df,emissive:0x2c9d9b,emissiveIntensity:.5});
 const player=new THREE.Group();const shell=new THREE.Mesh(new THREE.OctahedronGeometry(.95,0),new THREE.MeshStandardMaterial({color:0xa4e6e9,metalness:.65,roughness:.25,flatShading:true,emissive:0x184a55,emissiveIntensity:.45}));player.add(shell);const core=new THREE.Mesh(new THREE.OctahedronGeometry(.36),new THREE.MeshBasicMaterial({color:0xe4ffff,wireframe:true}));player.add(core);scene.add(player);player.position.set(0,1.3,0);
 const crystals=[];function crystal(x,z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.55),pillarMat);m.position.set(x,.85,z);scene.add(m);crystals.push(m)}
