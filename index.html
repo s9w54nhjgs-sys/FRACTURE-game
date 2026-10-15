@@ -141,6 +141,24 @@ const domeEdges=new THREE.LineSegments(new THREE.EdgesGeometry(domeGeometry,1),n
 const domeNodeGeometry=new THREE.IcosahedronGeometry(.85,0),domeNodeMaterial=new THREE.MeshBasicMaterial({color:0x66777b,fog:false});
 const domeNodes=new THREE.InstancedMesh(domeNodeGeometry,domeNodeMaterial,domeSegments*domeRings),nodeDummy=new THREE.Object3D();let nodeCount=0;
 for(let j=1;j<=domeRings;j++){const phi=j/domeRings*Math.PI/2;for(let i=0;i<domeSegments;i++){const theta=i/domeSegments*Math.PI*2;nodeDummy.position.set(Math.sin(phi)*Math.cos(theta)*domeRadius,domeBase+Math.cos(phi)*domeRadius,Math.sin(phi)*Math.sin(theta)*domeRadius);nodeDummy.scale.setScalar(j%3===0?1.1:.7);nodeDummy.updateMatrix();domeNodes.setMatrixAt(nodeCount++,nodeDummy.matrix)}}domeNodes.instanceMatrix.needsUpdate=true;scene.add(domeNodes);
+
+// Enclosed PROTOCOL sky: colossal low-saturation geodesic ceiling, viewed from inside.
+// No bright arcade bulbs; pale neutral nodes and thin metal struts against near-black panels.
+const domeRadius=165,domeCenter=new THREE.Vector3(0,-5,0);
+const domeGeo=new THREE.SphereGeometry(domeRadius,28,12,0,Math.PI*2,0,Math.PI/2);
+const domeShell=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({color:0x10191f,side:THREE.BackSide,fog:false,depthWrite:true}));
+domeShell.position.copy(domeCenter);scene.add(domeShell);
+const domeStruts=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({color:0x536068,wireframe:true,transparent:true,opacity:.57,side:THREE.BackSide,fog:false,depthWrite:false}));
+domeStruts.position.copy(domeCenter);scene.add(domeStruts);
+const domeNodeGeo=new THREE.IcosahedronGeometry(.72,0);
+const domeNodeMat=new THREE.MeshBasicMaterial({color:0x84939a,fog:false});
+const domeNodes=new THREE.InstancedMesh(domeNodeGeo,domeNodeMat,500);
+const domeDummy=new THREE.Object3D();const nodePositions=new Set();const positions=domeGeo.attributes.position;let domeNodeCount=0;
+for(let i=0;i<positions.count;i++){const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i);if(y<4)continue;const key=Math.round(x*100)+'/'+Math.round(y*100)+'/'+Math.round(z*100);if(nodePositions.has(key))continue;nodePositions.add(key);domeDummy.position.set(x+domeCenter.x,y+domeCenter.y,z+domeCenter.z);const variation=(i%17===0)?1.6:(i%7===0?1.15:.65);domeDummy.scale.setScalar(variation);domeDummy.updateMatrix();domeNodes.setMatrixAt(domeNodeCount++,domeDummy.matrix);if(domeNodeCount>=500)break}
+domeNodes.count=domeNodeCount;domeNodes.instanceMatrix.needsUpdate=true;domeNodes.frustumCulled=false;scene.add(domeNodes);
+// A second, broken inner arc adds industrial scale without filling the sky with color.
+const ceilingRib=new THREE.Mesh(new THREE.TorusGeometry(119,2.3,5,72,Math.PI*1.35),new THREE.MeshStandardMaterial({color:0x313e46,metalness:.78,roughness:.46,side:THREE.DoubleSide,fog:false}));
+ceilingRib.rotation.x=Math.PI/2;ceilingRib.position.set(0,61,-20);scene.add(ceilingRib);
 // Far silhouettes are kept untextured to reduce GPU load.
 const pillarMat=new THREE.MeshStandardMaterial({color:0x92e9df,emissive:0x2c9d9b,emissiveIntensity:.5});
 // Ramiel-inspired geometric morph: four detached armored petals and a forward thrusting spike.
