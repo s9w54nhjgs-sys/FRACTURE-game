@@ -111,6 +111,35 @@ megaBeam(-106,168,-166,43,6,34,0,castConcrete);
 const inverted=new THREE.Mesh(new THREE.ConeGeometry(24,58,4),castConcrete);inverted.rotation.z=Math.PI;inverted.rotation.y=Math.PI/4;inverted.position.set(91,93,-151);architecture.add(inverted);
 megaBeam(91,132,-151,48,7,48,0,voidMetal);
 for(const x of [-36,36]){megaBeam(x,42,-112,4,70,8,x<0?-.35:.35,edgeSilver)}
+// MONOLITHIC EXOSKELETONS: offset thick armor shells and hollow negative spaces.
+// No windows or floors: these are impossible industrial machines rather than buildings.
+const shellGunmetal=new THREE.MeshStandardMaterial({color:0x53636b,metalness:.86,roughness:.3});
+const shellBlack=new THREE.MeshStandardMaterial({color:0x111b21,metalness:.58,roughness:.67,side:THREE.DoubleSide});
+function armoredFin(x,y,z,w,h,d,rz,ry=0,mat=shellGunmetal){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.rotation.set(0,ry,rz);architecture.add(m);return m}
+for(const side of [-1,1]){
+  const x=side*74;
+  // Deep V-shaped channel carved visually between separate slabs.
+  armoredFin(x+side*7,54,-49,9,103,13,side*.24,side*.08);
+  armoredFin(x-side*7,49,-86,12,88,18,-side*.18,side*.11);
+  armoredFin(x-side*1,68,-45,3,86,3,side*.24,0,shellBlack);
+  armoredFin(x+side*11,103,-69,28,6,53,side*.1,side*.12);
+  for(let i=0;i<3;i++)armoredFin(x+side*(4+i*3),24+i*21,-41,2.2,15,5,side*.24,0,shellBlack);
+}
+// A massive split shell framing the portal, with a visible dark void between its halves.
+for(const side of [-1,1]){
+  armoredFin(side*43,78,-86,14,105,26,-side*.27,side*.12);
+  armoredFin(side*36,124,-87,19,7,38,side*.17,side*.1);
+  armoredFin(side*28,55,-92,4,65,12,-side*.27,0,shellBlack);
+}
+armoredFin(0,131,-89,66,9,37,.08,0,shellGunmetal);
+armoredFin(0,124,-69,47,3,8,0,0,shellBlack);
+// Suspended asymmetric blades create strong depth and unfamiliar silhouettes.
+for(const [x,y,z,h,rz] of [[-28,102,-102,54,-.42],[22,108,-108,66,.36],[5,90,-125,38,.21]]){
+  armoredFin(x,y,z,8,h,19,rz,.22);
+  armoredFin(x+3,y-4,z+11,2,h*.73,3,rz,.22,shellBlack);
+}
+// Small geometric bevel strips catch light along selected structural edges.
+for(const side of [-1,1]){armoredFin(side*78,63,-41,1.1,76,1.2,side*.24,0,edgeSilver);armoredFin(side*39,97,-70,1.1,64,1.4,-side*.27,0,edgeSilver)}
 // Sparse scale cues: near-ground retaining walls and deep inset black openings.
 for(const side of [-1,1]){detailBox(side*44,8,-69,4,16,36,castConcrete);detailBox(side*41.8,8,-67,1,12,26,abyss);detailBox(side*41,8,-67,.4,10,18,voidMetal)}
 
