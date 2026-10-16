@@ -120,6 +120,20 @@ const starPositions=[],starColors=[];let seed=11971;function skyRandom(){seed=(s
 for(let i=0;i<410;i++){const theta=skyRandom()*Math.PI*2,phi=skyRandom()*Math.PI*.47,r=canopyRadius-3;const x=Math.cos(theta)*Math.sin(phi)*r,y=Math.cos(phi)*r+canopyCenterY,z=Math.sin(theta)*Math.sin(phi)*r;starPositions.push(x,y,z);const shade=.23+skyRandom()*.35;starColors.push(shade*.84,shade*.94,shade)}
 const starGeo=new THREE.BufferGeometry();starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));starGeo.setAttribute('color',new THREE.Float32BufferAttribute(starColors,3));
 const skyStars=new THREE.Points(starGeo,new THREE.PointsMaterial({size:1.15,vertexColors:true,sizeAttenuation:false,transparent:true,opacity:.65,fog:false,depthWrite:false}));scene.add(skyStars);
+// OUTER CITY: non-traversable collapsed skyline, deliberately sparse and distant.
+const ruinMat=new THREE.MeshStandardMaterial({color:0x39464b,roughness:.98,metalness:.05,flatShading:true});
+const ruinDark=new THREE.MeshStandardMaterial({color:0x202c32,roughness:.92,metalness:.15,flatShading:true});
+const ruinSteel=new THREE.MeshStandardMaterial({color:0x485359,roughness:.78,metalness:.37});
+const outerCity=new THREE.Group();scene.add(outerCity);
+function ruinSlab(x,y,z,w,h,d,mat=ruinMat,tilt=0){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);m.rotation.z=tilt;outerCity.add(m);return m}
+const ruinSites=[[-164,-176,23,116,.13],[-116,-211,18,91,-.17],[-56,-238,28,143,.07],[18,-248,24,99,-.21],[88,-224,19,129,.19],[163,-174,30,101,-.14],[-209,36,26,105,.2],[207,55,27,123,-.12],[-146,191,22,111,-.16],[112,203,27,136,.15]];
+for(let i=0;i<ruinSites.length;i++){const [x,z,w,h,tilt]=ruinSites[i];ruinSlab(x,h*.43,z,w,h*.86,w*.72,i%3===0?ruinDark:ruinMat,tilt);ruinSlab(x+tilt*25,h*.86,z,w*.77,h*.2,w*.66,ruinSteel,tilt*.6);if(i%2===0){ruinSlab(x-w*.28,h*.56,z+w*.4,w*.17,h*.68,w*.16,ruinDark,tilt);ruinSlab(x+w*.26,h*.4,z-w*.37,w*.15,h*.5,w*.13,ruinSteel,tilt)}}
+// Two broken elevated links imply a city network beyond the playable court.
+for(const [x,z,angle] of [[-112,-155,-.18],[120,-170,.22]]){const span=ruinSlab(x,34,z,112,4,9,ruinDark,angle);span.rotation.y=angle*.8;ruinSlab(x-45,17,z,9,34,11,ruinMat);ruinSlab(x+46,12,z,9,24,11,ruinMat)}
+// Architectural depth: inset dark seams, heavy metal ribs and rain stains on the arrival gateway.
+const stainMat=new THREE.MeshBasicMaterial({color:0x26343a,transparent:true,opacity:.28,depthWrite:false});
+for(const side of [-1,1]){const x=side*14;for(let j=0;j<5;j++){detailBox(x+(j-2)*.63,11+j*2.7,-17.46,.21,7+j*.65,.045,stainMat)}for(let j=0;j<4;j++)detailBox(x,7+j*6,-17.39,4.3,.13,.12,recessMat)}
+for(let j=0;j<7;j++){const x=-12+j*4;detailBox(x,32,-17.09,.12,2.8,.15,recessMat);detailBox(x,32.4,-16.99,.055,1.6,.1,alloyEdge)}
 // Far silhouettes are kept untextured to reduce GPU load.
 const pillarMat=new THREE.MeshStandardMaterial({color:0x92e9df,emissive:0x2c9d9b,emissiveIntensity:.5});
 // Ramiel-inspired geometric morph: four detached armored petals and a forward thrusting spike.
