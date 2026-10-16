@@ -289,19 +289,26 @@ const eggMat=new THREE.MeshStandardMaterial({color:0x392d38,roughness:.83,metaln
 const eggVein=new THREE.MeshStandardMaterial({color:0x794959,roughness:.64,emissive:0x211017});
 // Treat each physical building as one nest site; allow 1 or 2 eggs per building.
 const eggSites=[...walls.map(w=>({x:w.x,z:w.z,w:w.w,d:w.d})),...ruinSites.filter(r=>r[1]<-15).map(r=>({x:r[0],z:r[1],w:r[2],d:r[2]*.72})),...[[ -55,-54,14,12],[-112,-92,17,13]].map(p=>({x:p[0],z:p[1],w:p[2],d:p[3]}))];
-let eggIndex=0;
-for(const site of eggSites){if(site.z>-12||site.z< -115||Math.abs(site.x)>110)continue;
- const count=1+(Math.abs(Math.sin(site.x*3.17+site.z*2.31))>.5?1:0);
- for(let k=0;k<count;k++){const side=k===0?1:-1;
- const x=THREE.MathUtils.clamp(site.x+side*(site.w*.5+1.5),-116,116),z=THREE.MathUtils.clamp(site.z+(k===0?1:-1)*site.d*.35,-115,-15);
- if(Math.hypot(x,z)<18||swarmEggs.some(e=>Math.hypot(e.g.position.x-x,e.g.position.z-z)<3))continue;
+// One randomly placed egg per two eligible southern buildings, rerolled each launch.
+const eligibleEggSites=eggSites.filter(s=>s.z<=-12&&s.z>=-115&&Math.abs(s.x)<=110);
+for(let i=eligibleEggSites.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[eligibleEggSites[i],eligibleEggSites[j]]=[eligibleEggSites[j],eligibleEggSites[i]]}
+const eggLimit=Math.floor(eligibleEggSites.length/2);
+for(const site of eligibleEggSites.slice(0,eggLimit)){
+ const side=Math.random()<.5?1:-1;
+ const x=THREE.MathUtils.clamp(site.x+side*(site.w*.5+1.5),-116,116);
+ const z=THREE.MathUtils.clamp(site.z+(Math.random()-.5)*site.d*.7,-115,-15);
+ if(Math.hypot(x,z)<18)continue;
  const g=new THREE.Group(),egg=new THREE.Mesh(new THREE.IcosahedronGeometry(.82,1),eggMat);egg.scale.set(.9,1.25,.95);egg.position.y=.85;g.add(egg);
  for(let j=0;j<5;j++){const vein=new THREE.Mesh(new THREE.TorusGeometry(.5+j*.055,.027,4,16),eggVein);vein.position.y=.65+j*.13;vein.rotation.x=.25;g.add(vein)}
  g.position.set(x,0,z);scene.add(g);swarmEggs.push({g,egg,hatched:false,destroyed:false,lastBirth:0,children:0,alive:0,birthLevel:0,hp:9});
- }
 }
 // NORTH (+Z): only four stalkers at most, initially low against shadowed buildings.
-const stalkerSites=[[-38,36],[49,24],[-72,57],[76,68]];
+// Four random northern territories, with 80m minimum initial separation.
+const stalkerSites=[];
+for(let tries=0;tries<1200&&stalkerSites.length<4;tries++){
+ const x=-116+Math.random()*232,z=18+Math.random()*98;
+ if(stalkerSites.every(p=>Math.hypot(x-p[0],z-p[1])>=80)&&!collides(x,z))stalkerSites.push([x,z]);
+}
 for(const [x,z] of stalkerSites)special('pursuer',x,z);
 for(const [x,z] of [[-17,-29],[34,18],[5,-43]])special('aerial',x,z);
 const watcher=new THREE.Group();const watcherBlack=new THREE.MeshBasicMaterial({color:0x080c0f,fog:false});
@@ -357,7 +364,7 @@ function updateSpecial(t,dt){if(done)return;
  let repelX=0,repelZ=0;
  for(const other of specialEnemies){if(other===u||other.type!=='pursuer')continue;
  const sx=g.position.x-other.g.position.x,sz=g.position.z-other.g.position.z,sd=Math.hypot(sx,sz);
- if(sd>0.01&&sd<32){const strength=(32-sd)/32;repelX+=sx/sd*strength*38;repelZ+=sz/sd*strength*38}
+ if(sd>0.01&&sd<80){const strength=(80-sd)/80;repelX+=sx/sd*strength*95;repelZ+=sz/sd*strength*95}
  }
  tx+=repelX;tz+=repelZ;
  const ax=tx-g.position.x,az=tz-g.position.z,ad=Math.hypot(ax,az)||1;
