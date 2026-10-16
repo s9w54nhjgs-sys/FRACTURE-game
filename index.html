@@ -381,7 +381,7 @@ function updateSpecial(t,dt){if(done)return;
  // One apparition in the entire world. Appears behind the player's facing direction.
  if(watcherMode==='waiting'&&t>watcherNext){const a=yaw+(Math.random()-.5)*.6;watcher.position.set(player.position.x+Math.sin(a)*15,0,player.position.z+Math.cos(a)*15);watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);watcher.visible=true;watcherMode='watch';watcherStart=0}
  if(watcherMode==='watch'){watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);const dx=watcher.position.x-player.position.x,dz=watcher.position.z-player.position.z,angle=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));const looking=Math.abs(diff)<.19&&Math.hypot(dx,dz)<28;
- if(looking){watcherGazeMs+=dt*1000;if(watcherGazeMs>=10000){watcherMode='charge';watcherCharge=t;for(const eye of watcherEyes)eye.material=eyeRed;notify('THREE EYES // DO NOT LOOK')}}else watcherStart=0;
+ if(looking){watcherGazeMs+=dt*1000;if(watcherGazeMs>=10000){watcherMode='charge';watcherCharge=t;for(const eye of watcherEyes)eye.material=eyeRed;notify('THREE EYES // DO NOT LOOK')}}
  if(t-watcherNext>33000){watcher.visible=false;watcherMode='waiting';watcherNext=t+25000+Math.random()*18000;for(const eye of watcherEyes)eye.material=eyeWhite}
  }else if(watcherMode==='charge'){const dx=player.position.x-watcher.position.x,dz=player.position.z-watcher.position.z,d=Math.hypot(dx,dz)||.01;watcher.position.x+=dx/d*70*dt;watcher.position.z+=dz/d*70*dt;if(d<2||t-watcherCharge>1600){hp=0;$('hp').textContent='0';finish(false);$('resultText').textContent='三つの眼に見つめ返された。';watcherMode='finished'}}
 }
