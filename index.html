@@ -194,8 +194,8 @@ for(let i=0;i<5;i++){const a=2.95+i*.115,r=150+i*4,x=Math.sin(a)*r,z=Math.cos(a)
 // BLACK TRANSIT V2: a seamless blunt-headed sperm-whale silhouette.
 // Rear (+Z) sky. The right-hand bow stays tall and blunt; the left-hand stern tapers.
 const blackVessel=new THREE.Group();scene.add(blackVessel);
-const hullBlack=new THREE.MeshStandardMaterial({color:0x242b30,metalness:.26,roughness:.86,side:THREE.DoubleSide});
-const hullDark=new THREE.MeshStandardMaterial({color:0x151b20,metalness:.16,roughness:.96,side:THREE.DoubleSide});
+const hullBlack=new THREE.MeshStandardMaterial({color:0x242b30,metalness:.82,roughness:.34,side:THREE.DoubleSide});
+const hullDark=new THREE.MeshStandardMaterial({color:0x151b20,metalness:.68,roughness:.46,side:THREE.DoubleSide});
 function vesselPiece(geo,mat,x,y,z){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);blackVessel.add(m);return m}
 // Continuous eight-sided hull loft; NO pointed nose, no sphere and no stacked cones.
 const vesselRings=[[-91,4,5],[-75,9,10],[-49,13,15],[-15,16,19],[25,18,22],[65,19,23],[86,19,23],[89,18,22]];
@@ -204,6 +204,21 @@ for(const [x,ry,rz] of vesselRings){for(let j=0;j<sides;j++){const angle=(j+.5)*
 for(let i=0;i<vesselRings.length-1;i++)for(let j=0;j<sides;j++){const a=i*sides+j,b=i*sides+(j+1)%sides,d=(i+1)*sides+j,e=(i+1)*sides+(j+1)%sides;vesselFaces.push(a,b,d,b,e,d)}
 for(let j=1;j<sides-1;j++){vesselFaces.push(0,j+1,j);const last=(vesselRings.length-1)*sides;vesselFaces.push(last,last+j,last+j+1)}
 const vesselGeo=new THREE.BufferGeometry();vesselGeo.setAttribute('position',new THREE.Float32BufferAttribute(vesselVerts,3));vesselGeo.setIndex(vesselFaces);vesselGeo.computeVertexNormals();vesselPiece(vesselGeo,hullBlack,0,0,0);
+// Segmented metallic armor: raised ribs and alternating plates catch oblique light.
+const armorMat=new THREE.MeshStandardMaterial({color:0x3b444b,metalness:.92,roughness:.3,side:THREE.DoubleSide});
+const seamMat=new THREE.MeshStandardMaterial({color:0x0d1217,metalness:.76,roughness:.48});
+for(const x of [-73,-51,-27,-2,24,50,75]){
+ const [ry,rz]=hullSectionForArmor(x);
+ for(let k=0;k<16;k++){const angle=(k+.5)*Math.PI/8;
+ const rib=vesselPiece(new THREE.BoxGeometry(.48,1.1,2.8),k%4===0?armorMat:seamMat,x,Math.sin(angle)*ry*1.015,Math.cos(angle)*rz*1.015);
+ rib.rotation.x=angle}
+}
+function hullSectionForArmor(x){for(let i=0;i<vesselRings.length-1;i++){const a=vesselRings[i],b=vesselRings[i+1];if(x<=b[0]){const t=Math.max(0,Math.min(1,(x-a[0])/(b[0]-a[0])));return [a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]}}return [18,22]}
+for(const side of [-1,1])for(let i=0;i<13;i++){
+ const x=-69+i*11.2,[ry,rz]=hullSectionForArmor(x);
+ const plate=vesselPiece(new THREE.BoxGeometry(7,.36,2.4),armorMat,x,-ry*.34,side*rz*.93);
+ plate.rotation.x=side*.32;
+}
 // Underbelly is a restrained integrated keel, not a drooping rounded pod.
 const keel=vesselPiece(new THREE.BoxGeometry(117,8,7),hullDark,-5,-17,0);keel.rotation.z=.035;
 for(const side of [-1,1]){const wing=vesselPiece(new THREE.BoxGeometry(45,2.5,16),hullBlack,-33,-5,side*17);wing.rotation.y=side*.12}
