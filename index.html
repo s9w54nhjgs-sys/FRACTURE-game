@@ -185,25 +185,25 @@ for(const [a,r,h,len] of [[-2.2,162,79,55],[-.96,165,91,64],[.43,164,68,61],[1.7
 }
 // A hanging fractured crown on the opposite side of the arena.
 for(let i=0;i<5;i++){const a=2.95+i*.115,r=150+i*4,x=Math.sin(a)*r,z=Math.cos(a)*r;ampPiece(x,150-i*7,z,8,43+i*9,14,(i-2)*.17,a, i%2?ampShadow:ampMetal)}
-// BLACK TRANSIT: an angular seamless stealth dreadnought, never a rounded balloon.
-// Crosses directly above the spawn from screen-right to screen-left every 180 seconds.
+// BLACK TRANSIT V2: a seamless blunt-headed sperm-whale silhouette.
+// Rear (+Z) sky. The right-hand bow stays tall and blunt; the left-hand stern tapers.
 const blackVessel=new THREE.Group();scene.add(blackVessel);
-const hullBlack=new THREE.MeshStandardMaterial({color:0x07090b,metalness:.08,roughness:1,flatShading:true});
-const hullDark=new THREE.MeshStandardMaterial({color:0x030506,metalness:.05,roughness:1,flatShading:true});
-function vesselPiece(geometry,material,x,y,z,rx=0,ry=0,rz=0){const m=new THREE.Mesh(geometry,material);m.position.set(x,y,z);m.rotation.set(rx,ry,rz);blackVessel.add(m);return m}
-// A single continuous faceted hull, long-axis X, with an armored wedge at each end.
-const hull=vesselPiece(new THREE.CylinderGeometry(15,19,116,6,1),hullBlack,0,0,0,0,0,Math.PI/2);
-vesselPiece(new THREE.ConeGeometry(15,38,6),hullBlack,-77,0,0,0,0,Math.PI/2);
-vesselPiece(new THREE.ConeGeometry(19,25,6),hullBlack,70,0,0,0,0,-Math.PI/2);
-// Blade-like lower silhouette, all unlit matte black.
-const keel=vesselPiece(new THREE.BoxGeometry(99,19,3),hullDark,-2,-17,0,0,0,-.04);
-vesselPiece(new THREE.BoxGeometry(66,3,37),hullBlack,9,0,0,0,0,0);
-for(const side of [-1,1]){
-  const wing=vesselPiece(new THREE.BoxGeometry(47,3,20),hullBlack,29,-3,side*21,0,side*.12,-.06);
-  vesselPiece(new THREE.BoxGeometry(25,18,3),hullDark,44,8,side*16,0,0,-.3);
-}
-// 180s cycle, 36s transit; first transit begins at 2 seconds.
-function updateBlackTransit(t){const cycle=(t/1000-2+180)%180;const active=cycle<36;blackVessel.visible=active;if(!active)return;const p=cycle/36;blackVessel.position.set(185-p*370,63,5);blackVessel.rotation.set(0,0,0)}
+const hullBlack=new THREE.MeshStandardMaterial({color:0x090b0c,metalness:.08,roughness:1,side:THREE.DoubleSide});
+const hullDark=new THREE.MeshStandardMaterial({color:0x050607,metalness:.04,roughness:1,side:THREE.DoubleSide});
+function vesselPiece(geo,mat,x,y,z){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);blackVessel.add(m);return m}
+// Continuous eight-sided hull loft; NO pointed nose, no sphere and no stacked cones.
+const vesselRings=[[-91,4,5],[-75,9,10],[-49,13,15],[-15,16,19],[25,18,22],[65,19,23],[86,19,23],[89,18,22]];
+const vesselVerts=[],vesselFaces=[],sides=8;
+for(const [x,ry,rz] of vesselRings){for(let j=0;j<sides;j++){const angle=(j+.5)*Math.PI*2/sides;vesselVerts.push(x,Math.sin(angle)*ry,Math.cos(angle)*rz)}}
+for(let i=0;i<vesselRings.length-1;i++)for(let j=0;j<sides;j++){const a=i*sides+j,b=i*sides+(j+1)%sides,d=(i+1)*sides+j,e=(i+1)*sides+(j+1)%sides;vesselFaces.push(a,b,d,b,e,d)}
+for(let j=1;j<sides-1;j++){vesselFaces.push(0,j+1,j);const last=(vesselRings.length-1)*sides;vesselFaces.push(last,last+j,last+j+1)}
+const vesselGeo=new THREE.BufferGeometry();vesselGeo.setAttribute('position',new THREE.Float32BufferAttribute(vesselVerts,3));vesselGeo.setIndex(vesselFaces);vesselGeo.computeVertexNormals();vesselPiece(vesselGeo,hullBlack,0,0,0);
+// Underbelly is a restrained integrated keel, not a drooping rounded pod.
+const keel=vesselPiece(new THREE.BoxGeometry(117,8,7),hullDark,-5,-17,0);keel.rotation.z=.035;
+for(const side of [-1,1]){const wing=vesselPiece(new THREE.BoxGeometry(45,2.5,16),hullBlack,-33,-5,side*17);wing.rotation.y=side*.12}
+// 180-second repeat. First 12 seconds: clearly visible on the right.
+// Then a slow 50-second right-to-left transit at 42m altitude, behind spawn.
+function updateBlackTransit(t){const cycle=(t/1000)%180;const active=cycle<62;blackVessel.visible=active;if(!active)return;const p=Math.max(0,Math.min(1,(cycle-12)/50));const smooth=p*p*(3-2*p);blackVessel.position.set(95-270*smooth,42,52);blackVessel.rotation.set(0,0,0)}
 // OUTER CITY: non-traversable collapsed skyline, deliberately sparse and distant.
 const ruinMat=new THREE.MeshStandardMaterial({color:0x39464b,roughness:.98,metalness:.05,flatShading:true});
 const ruinDark=new THREE.MeshStandardMaterial({color:0x202c32,roughness:.92,metalness:.15,flatShading:true});
