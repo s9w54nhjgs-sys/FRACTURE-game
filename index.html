@@ -421,7 +421,7 @@ function updateSpecial(t,dt){if(done)return;
  const climb=THREE.MathUtils.clamp((u.flightY-g.position.y)*2,-8,8);
  g.position.y+=climb*dt;
  g.rotation.y=u.heading;g.rotation.x=Math.atan2(climb,speed);g.rotation.z=THREE.MathUtils.clamp(turn*1.2,-.65,.65);
- u.body.rotation.z=-Math.PI/2;if(d<5){u.mode='lock';u.last=t}}else if(u.mode==='idle'){g.position.y=8;if(d<5){u.mode='lock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z}}
+ u.body.rotation.z=0;u.body.rotation.x=Math.PI/2;if(d<5){u.mode='lock';u.last=t}}else if(u.mode==='idle'){g.position.y=8;if(d<5){u.mode='lock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z}}
  else if(u.mode==='lock'){if(d>5){u.mode='idle';continue}g.position.y=7;g.rotation.y=Math.atan2(-(player.position.x-g.position.x),-(player.position.z-g.position.z));g.rotation.z=Math.sin(t*.02)*.22;if(t-u.last>650){u.mode='dive';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z;g.rotation.z=0}}
  else if(u.mode==='dive'){const p=Math.min(1,(t-u.last)/440);g.position.x+=(u.lockedX-g.position.x)*Math.min(1,dt*12);g.position.z+=(u.lockedZ-g.position.z)*Math.min(1,dt*12);g.position.y=7-6.3*p*p;if(p>=1){u.mode='stuck';u.last=t;if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.7&&t>=dashUntil)applySpecialDamage(32,t)}}
  else if(u.mode==='stuck'){if(t-u.last>1900){u.mode='idle';g.position.y=7}}
