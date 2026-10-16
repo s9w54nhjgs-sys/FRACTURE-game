@@ -10,13 +10,18 @@
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
-// PROTOCOL CELESTIAL VAULT: a desaturated geodesic ceiling visible through distant ground fog.
-const vault=new THREE.Group();vault.position.set(0,-15,0);scene.add(vault);
-const vaultSkin=new THREE.Mesh(new THREE.SphereGeometry(224,48,20,0,Math.PI*2,0,Math.PI/2),new THREE.MeshBasicMaterial({color:0x10181d,side:THREE.BackSide,fog:false,depthWrite:false}));vault.add(vaultSkin);
-const vaultGeo=new THREE.IcosahedronGeometry(221,3),vp=vaultGeo.getAttribute('position'),linePoints=[],nodePoints=[],uniqueNodes=new Set();
-for(let i=0;i<vp.count;i+=3){for(const [a,b] of [[0,1],[1,2],[2,0]]){const ax=vp.getX(i+a),ay=vp.getY(i+a),az=vp.getZ(i+a),bx=vp.getX(i+b),by=vp.getY(i+b),bz=vp.getZ(i+b);if(ay>=0&&by>=0)linePoints.push(ax,ay,az,bx,by,bz);const key=[ax.toFixed(1),ay.toFixed(1),az.toFixed(1)].join(':');if(ay>12&&!uniqueNodes.has(key)){uniqueNodes.add(key);nodePoints.push(ax,ay,az)}}}
-const vaultLinesGeo=new THREE.BufferGeometry();vaultLinesGeo.setAttribute('position',new THREE.Float32BufferAttribute(linePoints,3));const vaultLines=new THREE.LineSegments(vaultLinesGeo,new THREE.LineBasicMaterial({color:0x5b6569,transparent:true,opacity:.48,fog:false,depthWrite:false}));vault.add(vaultLines);
-const vaultNodesGeo=new THREE.BufferGeometry();vaultNodesGeo.setAttribute('position',new THREE.Float32BufferAttribute(nodePoints,3));const vaultNodes=new THREE.Points(vaultNodesGeo,new THREE.PointsMaterial({color:0x889496,size:1.15,sizeAttenuation:true,transparent:true,opacity:.7,fog:false,depthWrite:false}));vault.add(vaultNodes);
+// OPEN OVERCAST SKY: procedural daytime cloud field, replacing the geodesic dome.
+scene.background=new THREE.Color(0x87949d);
+scene.fog=new THREE.FogExp2(0x8b98a0,.0032);
+const cloudSky=new THREE.Mesh(new THREE.SphereGeometry(4000,32,16),new THREE.ShaderMaterial({
+ side:THREE.BackSide,depthWrite:false,fog:false,
+ uniforms:{},
+ vertexShader:`varying vec3 skyDir;void main(){skyDir=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);gl_Position.z=gl_Position.w*0.99999;}`,
+ fragmentShader:`varying vec3 skyDir;
+ float hash(vec3 p){p=fract(p*.1031);p+=dot(p,p.yzx+33.33);return fract((p.x+p.y)*p.z);}
+ float noise(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}
+ void main(){vec3 d=normalize(skyDir);float n=noise(d*5.)*.52+noise(d*12.)*.31+noise(d*29.)*.17;float cloud=smoothstep(.34,.72,n);float horizon=clamp(d.y*.7+.52,0.,1.);vec3 base=mix(vec3(.57,.63,.67),vec3(.69,.74,.77),horizon);vec3 dark=vec3(.29,.35,.4);vec3 color=mix(base,dark,cloud*.78);color+=vec3(.08,.085,.08)*pow(max(dot(d,normalize(vec3(-.4,.8,.25))),0.),9.)*(1.-cloud);gl_FragColor=vec4(color,1.);}`
+}));cloudSky.frustumCulled=false;scene.add(cloudSky);
 const ambientSky=new THREE.HemisphereLight(0xbccbd5,0x242c33,1.65);scene.add(ambientSky);const sun=new THREE.DirectionalLight(0xffe9d5,2.35);sun.position.set(-35,65,18);scene.add(sun);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
 function noiseTexture(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.random()*32-16,streak=(x%64<2||y%96<2)?-20:0,v=Math.max(25,Math.min(220,137+grain+streak));im.data[i]=v;im.data[i+1]=v+3;im.data[i+2]=v+4;im.data[i+3]=255}ctx.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t}const concreteTex=noiseTexture(),concreteMat=new THREE.MeshStandardMaterial({color:0x88969b,metalness:.78,roughness:.39}),darkConcrete=new THREE.MeshStandardMaterial({color:0x3c4b52,metalness:.72,roughness:.47});const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260),new THREE.MeshStandardMaterial({color:0x59676a,map:concreteTex,roughness:1}));ground.rotation.x=-Math.PI/2;scene.add(ground);
 const grid=new THREE.GridHelper(260,52,0x879b9d,0x718084);grid.position.y=.025;grid.material.transparent=true;grid.material.opacity=.22;scene.add(grid);
@@ -188,8 +193,8 @@ for(let i=0;i<5;i++){const a=2.95+i*.115,r=150+i*4,x=Math.sin(a)*r,z=Math.cos(a)
 // BLACK TRANSIT V2: a seamless blunt-headed sperm-whale silhouette.
 // Rear (+Z) sky. The right-hand bow stays tall and blunt; the left-hand stern tapers.
 const blackVessel=new THREE.Group();scene.add(blackVessel);
-const hullBlack=new THREE.MeshStandardMaterial({color:0x090b0c,metalness:.08,roughness:1,side:THREE.DoubleSide});
-const hullDark=new THREE.MeshStandardMaterial({color:0x050607,metalness:.04,roughness:1,side:THREE.DoubleSide});
+const hullBlack=new THREE.MeshStandardMaterial({color:0x242b30,metalness:.26,roughness:.86,side:THREE.DoubleSide});
+const hullDark=new THREE.MeshStandardMaterial({color:0x151b20,metalness:.16,roughness:.96,side:THREE.DoubleSide});
 function vesselPiece(geo,mat,x,y,z){const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);blackVessel.add(m);return m}
 // Continuous eight-sided hull loft; NO pointed nose, no sphere and no stacked cones.
 const vesselRings=[[-91,4,5],[-75,9,10],[-49,13,15],[-15,16,19],[25,18,22],[65,19,23],[86,19,23],[89,18,22]];
@@ -216,7 +221,7 @@ function updateBlackTransit(t){
  const p=Math.max(0,Math.min(1,(cycle-10)/78));
  const smooth=p*p*(3-2*p);
  const centerX=2450-4900*smooth;
- blackVessel.position.set(centerX,510,0);
+ blackVessel.position.set(centerX,465,0);
  // As the center of the kilometer-scale hull passes, the world sinks into shadow.
  const shadow=Math.max(0,Math.min(1,(1950-Math.abs(centerX))/1150));
  const eased=shadow*shadow*(3-2*shadow);
