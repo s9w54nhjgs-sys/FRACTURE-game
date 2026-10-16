@@ -6,6 +6,15 @@
 </style></head><body>
 <div id="rotate">↻<br>FRACTUREは横画面でプレイします<br><small>iPhoneを横向きにしてください<br>回転しない場合は画面の向きのロックを解除</small></div><div id="loading">FRACTURE<br>PROTOCOL INITIALIZING…<br><small>初回起動にはインターネット接続が必要です</small></div>
 <canvas id="damageGlass" aria-hidden="true"></canvas><div id="result"><div id="resultPanel"><h1 id="resultTitle">EXTRACTION SUCCESS</h1><p id="resultText"></p><button id="restart" onclick="location.reload()">もう一度出撃</button></div></div><div id="hud"><div id="top"><div id="brand">FRACTURE <small> / PROTOTYPE 01</small></div><div id="stats">HP <span id="hp">100</span>　SHIELD <span id="shield">50</span><br>素材 <span id="loot">0</span>/3　撃破 <span id="kills">0</span></div></div><div id="notice"></div><div id="reticle">＋</div><div id="extract">出口：緑色の光柱を探せ</div><div id="joy"><div id="knob"></div></div><div id="hint">右側を上下スワイプ：天井を見上げる<br>左スティック：移動</div><div id="buttons"><button id="dash" class="btn">DASH</button><button id="attack" class="btn">攻撃</button></div></div>
+<script>
+(function(){
+ const loading=document.getElementById('loading');
+ const show=(msg)=>{loading.innerHTML='FRACTURE<br>STARTUP ERROR<br><small style="display:block;margin-top:18px;color:#ffc3b7;max-width:90vw;overflow-wrap:anywhere">'+String(msg).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]))+'</small><small style="display:block;margin-top:12px">この画面をスクショして送ってください</small>'};
+ window.addEventListener('error',e=>{if(!loading.classList.contains('hidden'))show(e.message||'スクリプトの読み込みに失敗しました')},true);
+ window.addEventListener('unhandledrejection',e=>{if(!loading.classList.contains('hidden'))show(e.reason?.message||e.reason||'起動処理が失敗しました')});
+ setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
+})();
+</script>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
