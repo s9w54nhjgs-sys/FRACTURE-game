@@ -266,6 +266,15 @@ for(let i=0;i<23;i++){const x=-78+i*7.3;for(const angle of [-2.15,-.99,2.15,.99]
 // Sparse underside centerline and navigation markers along the bow.
 for(let i=0;i<13;i++)addVesselBeacon(-71+i*12.7,-Math.PI/2,i*.21,i%4===0?'warm':'steady');
 for(const x of [-77,-46,-15,22,52,78,86])for(const angle of [-.25,.25,2.9,-2.9])addVesselBeacon(x,angle,x*.013,'pulse');
+// Dense, evenly spaced navigation rows on both flanks and the lower curved belly.
+// Offset the row phases so the ship's movement reads as traveling light.
+for(let i=0;i<37;i++){
+ const x=-83+i*4.65;
+ for(const [row,angle] of [[0,-.33],[1,.33],[2,-.72],[3,.72],[4,-1.12],[5,1.12],[6,-1.57],[7,1.57],[8,-2.02],[9,2.02]]){
+ const phase=(i*.115+row*.23)%3.2;
+ addVesselBeacon(x,angle,phase,'chase');
+ }
+}
 // Fin tips, attached to their real mesh extremities.
 for(const side of [-1,1]){const fin=new THREE.Mesh(beaconGeom,beaconOn);fin.position.set(-33,-5,side*24.5);blackVessel.add(fin);vesselBeacons.push({bulb:fin,phase:side*.4,mode:'pulse'})}
 // 180-second repeat. First 12 seconds: clearly visible on the right.
@@ -284,7 +293,7 @@ function updateBlackTransit(t){
  // Slow traveling sheen makes the curved armor readable without brightening the keel.
  vesselGlint.opacity=.58+.15*Math.sin(t*.00032);
  raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8);
- for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:(blink?beaconOn:beaconOff)}
+ for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
 
  if(!active){ambientSky.intensity=1.65;sun.intensity=2.35;return}
  const p=Math.max(0,Math.min(1,(cycle-10)/78));
