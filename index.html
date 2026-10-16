@@ -99,15 +99,6 @@ domeLines.position.copy(domeShell.position);domeLines.renderOrder=-1;scene.add(d
 const nodeGeo=new THREE.IcosahedronGeometry(.78,0),nodeMat=new THREE.MeshBasicMaterial({color:0x778287,fog:false});
 const domeNodes=new THREE.InstancedMesh(nodeGeo,nodeMat,36*8);const nodeMatrix=new THREE.Matrix4();let nodeIndex=0;
 for(let row=1;row<=8;row++){const theta=row/16*Math.PI/2;for(let col=0;col<36;col++){const phi=col/36*Math.PI*2;nodeMatrix.makeTranslation(Math.sin(theta)*Math.cos(phi)*domeRadius,-13+Math.cos(theta)*domeRadius,Math.sin(theta)*Math.sin(phi)*domeRadius);domeNodes.setMatrixAt(nodeIndex++,nodeMatrix)}}domeNodes.count=nodeIndex;domeNodes.instanceMatrix.needsUpdate=true;scene.add(domeNodes);
-// ENVELOPE: immense low-saturation geodesic ceiling, not an open outdoor sky.
-const domeGroup=new THREE.Group();domeGroup.position.set(0,-37,0);scene.add(domeGroup);
-const domeRadius=218;
-const domeShell=new THREE.Mesh(new THREE.SphereGeometry(domeRadius,48,24,0,Math.PI*2,0,Math.PI/2),new THREE.MeshBasicMaterial({color:0x111a20,side:THREE.BackSide,fog:false,depthWrite:false}));domeGroup.add(domeShell);
-const domeGeo=new THREE.IcosahedronGeometry(domeRadius-1,3);
-const domeEdges=new THREE.LineSegments(new THREE.EdgesGeometry(domeGeo,1),new THREE.LineBasicMaterial({color:0x59656a,transparent:true,opacity:.45,fog:false,depthWrite:false}));domeGroup.add(domeEdges);
-const domeVertices=domeGeo.getAttribute('position'),nodes=[],seen=new Set();
-const nodeGeo=new THREE.OctahedronGeometry(.8,0),nodeMat=new THREE.MeshBasicMaterial({color:0x879395,fog:false});
-for(let i=0;i<domeVertices.count;i++){const x=domeVertices.getX(i),y=domeVertices.getY(i),z=domeVertices.getZ(i);if(y<25)continue;const key=[Math.round(x),Math.round(y),Math.round(z)].join(',');if(seen.has(key))continue;seen.add(key);if(nodes.length%7===0){const m=new THREE.Mesh(nodeGeo,nodeMat);m.position.set(x,y,z);domeGroup.add(m)}nodes.push(key)}
 // PROTOCOL MEGASTRUCTURES — non-human scale, sculptural silhouettes rather than city blocks.
 // Geometry is shared where possible; distant structures remain outside the traversable court.
 const voidMetal=new THREE.MeshStandardMaterial({color:0x303d45,metalness:.72,roughness:.37,flatShading:true});
@@ -142,52 +133,15 @@ for(const x of [-36,36]){megaBeam(x,42,-112,4,70,8,x<0?-.35:.35,edgeSilver)}
 // Sparse scale cues: near-ground retaining walls and deep inset black openings.
 for(const side of [-1,1]){detailBox(side*44,8,-69,4,16,36,castConcrete);detailBox(side*41.8,8,-67,1,12,26,abyss);detailBox(side*41,8,-67,.4,10,18,voidMetal)}
 
-// PROTOCOL ENCLOSURE — gigantic geodesic canopy; intentionally nearly monochrome.
-// Dome surface and trusses ignore distance fog, while architecture below still dissolves into haze.
-const domeRadius=172;
-const domeSkin=new THREE.Mesh(new THREE.SphereGeometry(domeRadius,48,24,0,Math.PI*2,0,Math.PI/2),new THREE.MeshBasicMaterial({color:0x10171c,side:THREE.BackSide,fog:false,depthWrite:true}));
-domeSkin.position.y=-2;scene.add(domeSkin);
-const geoShell=new THREE.IcosahedronGeometry(domeRadius-1,3).toNonIndexed();
-const pos=geoShell.attributes.position,edges=new Map(),nodes=new Map();
-const pointKey=(x,y,z)=>[x.toFixed(2),y.toFixed(2),z.toFixed(2)].join(',');
-for(let i=0;i<pos.count;i+=3){const verts=[];for(let j=0;j<3;j++){const v=new THREE.Vector3(pos.getX(i+j),pos.getY(i+j),pos.getZ(i+j));verts.push(v);if(v.y>4)nodes.set(pointKey(v.x,v.y,v.z),v)}for(const [a,b] of [[0,1],[1,2],[2,0]]){const va=verts[a],vb=verts[b];if(va.y<4||vb.y<4)continue;const ka=pointKey(va.x,va.y,va.z),kb=pointKey(vb.x,vb.y,vb.z),key=ka<kb?ka+'|'+kb:kb+'|'+ka;if(!edges.has(key))edges.set(key,[va,vb])}}
-const rodGeometry=new THREE.CylinderGeometry(.42,.42,1,5,1),rodMaterial=new THREE.MeshStandardMaterial({color:0x535c61,metalness:.75,roughness:.45,fog:false});
-const rods=new THREE.InstancedMesh(rodGeometry,rodMaterial,edges.size);rods.frustumCulled=false;const dummy=new THREE.Object3D(),up=new THREE.Vector3(0,1,0);let rodIndex=0;
-for(const [a,b] of edges.values()){dummy.position.copy(a).add(b).multiplyScalar(.5);dummy.position.y-=2;const dir=b.clone().sub(a);dummy.quaternion.setFromUnitVectors(up,dir.clone().normalize());dummy.scale.set(1,dir.length(),1);dummy.updateMatrix();rods.setMatrixAt(rodIndex++,dummy.matrix)}rods.instanceMatrix.needsUpdate=true;scene.add(rods);
-const jointGeometry=new THREE.IcosahedronGeometry(1.2,0),jointMaterial=new THREE.MeshBasicMaterial({color:0x899396,fog:false});
-const joints=new THREE.InstancedMesh(jointGeometry,jointMaterial,nodes.size);joints.frustumCulled=false;let jointIndex=0;
-for(const v of nodes.values()){dummy.position.copy(v);dummy.position.y-=2;dummy.quaternion.identity();dummy.scale.setScalar(.85);dummy.updateMatrix();joints.setMatrixAt(jointIndex++,dummy.matrix)}joints.instanceMatrix.needsUpdate=true;scene.add(joints);
-// Sparse, low-saturation joint glints instead of rainbow lamps.
-const glintMat=new THREE.MeshBasicMaterial({color:0xb3c1c4,fog:false});
-const glints=new THREE.InstancedMesh(new THREE.OctahedronGeometry(1.75,0),glintMat,Math.ceil(nodes.size/19));glints.frustumCulled=false;let glintIndex=0,glintCount=0;
-for(const v of nodes.values()){if(glintCount++%19!==0)continue;dummy.position.copy(v);dummy.position.y-=2;dummy.quaternion.identity();dummy.scale.setScalar(.8);dummy.updateMatrix();glints.setMatrixAt(glintIndex++,dummy.matrix)}glints.count=glintIndex;glints.instanceMatrix.needsUpdate=true;scene.add(glints);
-
-// Giant monochrome geodesic ceiling above the entire playable court.
-const domeRadius=172,domeBase=-12,domeSegments=30,domeRings=12;
-const domeGeometry=new THREE.SphereGeometry(domeRadius,domeSegments,domeRings,0,Math.PI*2,0,Math.PI/2);
-const domeShell=new THREE.Mesh(domeGeometry,new THREE.MeshBasicMaterial({color:0x10191e,side:THREE.BackSide,fog:false}));domeShell.position.y=domeBase;scene.add(domeShell);
-const domeEdges=new THREE.LineSegments(new THREE.EdgesGeometry(domeGeometry,1),new THREE.LineBasicMaterial({color:0x66747a,transparent:true,opacity:.52,depthWrite:false,fog:false}));domeEdges.position.copy(domeShell.position);domeEdges.scale.setScalar(.997);scene.add(domeEdges);
-const domeNodeGeometry=new THREE.IcosahedronGeometry(.85,0),domeNodeMaterial=new THREE.MeshBasicMaterial({color:0x66777b,fog:false});
-const domeNodes=new THREE.InstancedMesh(domeNodeGeometry,domeNodeMaterial,domeSegments*domeRings),nodeDummy=new THREE.Object3D();let nodeCount=0;
-for(let j=1;j<=domeRings;j++){const phi=j/domeRings*Math.PI/2;for(let i=0;i<domeSegments;i++){const theta=i/domeSegments*Math.PI*2;nodeDummy.position.set(Math.sin(phi)*Math.cos(theta)*domeRadius,domeBase+Math.cos(phi)*domeRadius,Math.sin(phi)*Math.sin(theta)*domeRadius);nodeDummy.scale.setScalar(j%3===0?1.1:.7);nodeDummy.updateMatrix();domeNodes.setMatrixAt(nodeCount++,nodeDummy.matrix)}}domeNodes.instanceMatrix.needsUpdate=true;scene.add(domeNodes);
-
-// Enclosed PROTOCOL sky: colossal low-saturation geodesic ceiling, viewed from inside.
-// No bright arcade bulbs; pale neutral nodes and thin metal struts against near-black panels.
-const domeRadius=165,domeCenter=new THREE.Vector3(0,-5,0);
-const domeGeo=new THREE.SphereGeometry(domeRadius,28,12,0,Math.PI*2,0,Math.PI/2);
-const domeShell=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({color:0x10191f,side:THREE.BackSide,fog:false,depthWrite:true}));
-domeShell.position.copy(domeCenter);scene.add(domeShell);
-const domeStruts=new THREE.Mesh(domeGeo,new THREE.MeshBasicMaterial({color:0x536068,wireframe:true,transparent:true,opacity:.57,side:THREE.BackSide,fog:false,depthWrite:false}));
-domeStruts.position.copy(domeCenter);scene.add(domeStruts);
-const domeNodeGeo=new THREE.IcosahedronGeometry(.72,0);
-const domeNodeMat=new THREE.MeshBasicMaterial({color:0x84939a,fog:false});
-const domeNodes=new THREE.InstancedMesh(domeNodeGeo,domeNodeMat,500);
-const domeDummy=new THREE.Object3D();const nodePositions=new Set();const positions=domeGeo.attributes.position;let domeNodeCount=0;
-for(let i=0;i<positions.count;i++){const x=positions.getX(i),y=positions.getY(i),z=positions.getZ(i);if(y<4)continue;const key=Math.round(x*100)+'/'+Math.round(y*100)+'/'+Math.round(z*100);if(nodePositions.has(key))continue;nodePositions.add(key);domeDummy.position.set(x+domeCenter.x,y+domeCenter.y,z+domeCenter.z);const variation=(i%17===0)?1.6:(i%7===0?1.15:.65);domeDummy.scale.setScalar(variation);domeDummy.updateMatrix();domeNodes.setMatrixAt(domeNodeCount++,domeDummy.matrix);if(domeNodeCount>=500)break}
-domeNodes.count=domeNodeCount;domeNodes.instanceMatrix.needsUpdate=true;domeNodes.frustumCulled=false;scene.add(domeNodes);
-// A second, broken inner arc adds industrial scale without filling the sky with color.
-const ceilingRib=new THREE.Mesh(new THREE.TorusGeometry(119,2.3,5,72,Math.PI*1.35),new THREE.MeshStandardMaterial({color:0x313e46,metalness:.78,roughness:.46,side:THREE.DoubleSide,fog:false}));
-ceilingRib.rotation.x=Math.PI/2;ceilingRib.position.set(0,61,-20);scene.add(ceilingRib);
+// PROTOCOL enclosure: a single monochrome triangulated ceiling with restrained distant starlight.
+const canopyRadius=210,canopyCenterY=-22;
+const canopy=new THREE.Mesh(new THREE.SphereGeometry(canopyRadius,48,24,0,Math.PI*2,0,Math.PI/2),new THREE.MeshBasicMaterial({color:0x10171d,side:THREE.BackSide,fog:false}));canopy.position.y=canopyCenterY;scene.add(canopy);
+const latticeGeo=new THREE.IcosahedronGeometry(canopyRadius-1,3);
+const lattice=new THREE.LineSegments(new THREE.EdgesGeometry(latticeGeo,1),new THREE.LineBasicMaterial({color:0x6a7579,opacity:.53,transparent:true,fog:false}));lattice.position.y=canopyCenterY;scene.add(lattice);
+const starPositions=[],starColors=[];let seed=11971;function skyRandom(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+for(let i=0;i<410;i++){const theta=skyRandom()*Math.PI*2,phi=skyRandom()*Math.PI*.47,r=canopyRadius-3;const x=Math.cos(theta)*Math.sin(phi)*r,y=Math.cos(phi)*r+canopyCenterY,z=Math.sin(theta)*Math.sin(phi)*r;starPositions.push(x,y,z);const shade=.23+skyRandom()*.35;starColors.push(shade*.84,shade*.94,shade)}
+const starGeo=new THREE.BufferGeometry();starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));starGeo.setAttribute('color',new THREE.Float32BufferAttribute(starColors,3));
+const skyStars=new THREE.Points(starGeo,new THREE.PointsMaterial({size:1.15,vertexColors:true,sizeAttenuation:false,transparent:true,opacity:.65,fog:false,depthWrite:false}));scene.add(skyStars);
 // Far silhouettes are kept untextured to reduce GPU load.
 const pillarMat=new THREE.MeshStandardMaterial({color:0x92e9df,emissive:0x2c9d9b,emissiveIntensity:.5});
 // Ramiel-inspired geometric morph: four detached armored petals and a forward thrusting spike.
