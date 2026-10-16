@@ -9,7 +9,7 @@
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
-const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,350);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
 // PROTOCOL CELESTIAL VAULT: a desaturated geodesic ceiling visible through distant ground fog.
 const vault=new THREE.Group();vault.position.set(0,-15,0);scene.add(vault);
 const vaultSkin=new THREE.Mesh(new THREE.SphereGeometry(224,48,20,0,Math.PI*2,0,Math.PI/2),new THREE.MeshBasicMaterial({color:0x10181d,side:THREE.BackSide,fog:false,depthWrite:false}));vault.add(vaultSkin);
@@ -17,7 +17,7 @@ const vaultGeo=new THREE.IcosahedronGeometry(221,3),vp=vaultGeo.getAttribute('po
 for(let i=0;i<vp.count;i+=3){for(const [a,b] of [[0,1],[1,2],[2,0]]){const ax=vp.getX(i+a),ay=vp.getY(i+a),az=vp.getZ(i+a),bx=vp.getX(i+b),by=vp.getY(i+b),bz=vp.getZ(i+b);if(ay>=0&&by>=0)linePoints.push(ax,ay,az,bx,by,bz);const key=[ax.toFixed(1),ay.toFixed(1),az.toFixed(1)].join(':');if(ay>12&&!uniqueNodes.has(key)){uniqueNodes.add(key);nodePoints.push(ax,ay,az)}}}
 const vaultLinesGeo=new THREE.BufferGeometry();vaultLinesGeo.setAttribute('position',new THREE.Float32BufferAttribute(linePoints,3));const vaultLines=new THREE.LineSegments(vaultLinesGeo,new THREE.LineBasicMaterial({color:0x5b6569,transparent:true,opacity:.48,fog:false,depthWrite:false}));vault.add(vaultLines);
 const vaultNodesGeo=new THREE.BufferGeometry();vaultNodesGeo.setAttribute('position',new THREE.Float32BufferAttribute(nodePoints,3));const vaultNodes=new THREE.Points(vaultNodesGeo,new THREE.PointsMaterial({color:0x889496,size:1.15,sizeAttenuation:true,transparent:true,opacity:.7,fog:false,depthWrite:false}));vault.add(vaultNodes);
-scene.add(new THREE.HemisphereLight(0xbccbd5,0x242c33,1.65));const sun=new THREE.DirectionalLight(0xffe9d5,2.35);sun.position.set(-35,65,18);scene.add(sun);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
+const ambientSky=new THREE.HemisphereLight(0xbccbd5,0x242c33,1.65);scene.add(ambientSky);const sun=new THREE.DirectionalLight(0xffe9d5,2.35);sun.position.set(-35,65,18);scene.add(sun);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
 function noiseTexture(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.random()*32-16,streak=(x%64<2||y%96<2)?-20:0,v=Math.max(25,Math.min(220,137+grain+streak));im.data[i]=v;im.data[i+1]=v+3;im.data[i+2]=v+4;im.data[i+3]=255}ctx.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t}const concreteTex=noiseTexture(),concreteMat=new THREE.MeshStandardMaterial({color:0x88969b,metalness:.78,roughness:.39}),darkConcrete=new THREE.MeshStandardMaterial({color:0x3c4b52,metalness:.72,roughness:.47});const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260),new THREE.MeshStandardMaterial({color:0x59676a,map:concreteTex,roughness:1}));ground.rotation.x=-Math.PI/2;scene.add(ground);
 const grid=new THREE.GridHelper(260,52,0x879b9d,0x718084);grid.position.y=.025;grid.material.transparent=true;grid.material.opacity=.22;scene.add(grid);
 const walls=[];function block(x,z,w,h,d,color=0x273f4a){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),(color===0x273f4a?concreteMat:darkConcrete));m.position.set(x,h/2,z);scene.add(m);walls.push({x,z,w,d});return m}
@@ -203,7 +203,26 @@ const keel=vesselPiece(new THREE.BoxGeometry(117,8,7),hullDark,-5,-17,0);keel.ro
 for(const side of [-1,1]){const wing=vesselPiece(new THREE.BoxGeometry(45,2.5,16),hullBlack,-33,-5,side*17);wing.rotation.y=side*.12}
 // 180-second repeat. First 12 seconds: clearly visible on the right.
 // Then a slow 50-second right-to-left transit at 42m altitude, behind spawn.
-function updateBlackTransit(t){const cycle=(t/1000)%180;const active=cycle<62;blackVessel.visible=active;if(!active)return;const p=Math.max(0,Math.min(1,(cycle-12)/50));const smooth=p*p*(3-2*p);blackVessel.position.set(95-270*smooth,42,52);blackVessel.rotation.set(0,0,0)}
+// Enlarge existing low-poly geometry 20x; no extra hull polygons are created.
+blackVessel.scale.setScalar(20);
+blackVessel.traverse(o=>{if(o.isMesh){o.renderOrder=40;o.frustumCulled=false}});
+hullBlack.depthTest=false;hullBlack.depthWrite=false;hullBlack.fog=false;
+hullDark.depthTest=false;hullDark.depthWrite=false;hullDark.fog=false;
+// A vast 3.6km vessel crosses the local sky, ignoring architecture and dome geometry.
+// Darkening is a cheap lighting simulation rather than costly real-time shadow maps.
+function updateBlackTransit(t){
+ const cycle=(t/1000)%180,active=cycle<88;blackVessel.visible=active;
+ if(!active){ambientSky.intensity=1.65;sun.intensity=2.35;return}
+ const p=Math.max(0,Math.min(1,(cycle-10)/78));
+ const smooth=p*p*(3-2*p);
+ const centerX=2450-4900*smooth;
+ blackVessel.position.set(centerX,510,0);
+ // As the center of the kilometer-scale hull passes, the world sinks into shadow.
+ const shadow=Math.max(0,Math.min(1,(1950-Math.abs(centerX))/1150));
+ const eased=shadow*shadow*(3-2*shadow);
+ ambientSky.intensity=1.65-eased*1.25;
+ sun.intensity=2.35-eased*2.12;
+}
 // OUTER CITY: non-traversable collapsed skyline, deliberately sparse and distant.
 const ruinMat=new THREE.MeshStandardMaterial({color:0x39464b,roughness:.98,metalness:.05,flatShading:true});
 const ruinDark=new THREE.MeshStandardMaterial({color:0x202c32,roughness:.92,metalness:.15,flatShading:true});
