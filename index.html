@@ -386,7 +386,7 @@ function updateSpecial(t,dt){if(done)return;
  }}
  // One apparition in the entire world. Appears behind the player's facing direction.
  if(watcherMode==='waiting'&&t>watcherNext){const a=yaw+(Math.random()-.5)*.6;watcher.position.set(player.position.x+Math.sin(a)*15,0,player.position.z+Math.cos(a)*15);watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);watcher.visible=true;watcherMode='watch';watcherStart=0}
- if(watcherMode==='watch'){watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);const dx=watcher.position.x-player.position.x,dz=watcher.position.z-player.position.z,angle=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));const face=new THREE.Vector3(watcher.position.x,3.1,watcher.position.z);
+ if(watcherMode==='watch'){watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);const dx=watcher.position.x-player.position.x,dz=watcher.position.z-player.position.z,angle=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));const face=new THREE.Vector3(watcher.position.x,5,watcher.position.z);
  const faceScreen=face.clone().project(camera);
  const faceDistance=face.distanceTo(camera.position);
  const aimScreen=new THREE.Vector3(0,0,-1);
@@ -394,6 +394,14 @@ function updateSpecial(t,dt){if(done)return;
  const lookAngle=Math.acos(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).dot(face.clone().sub(camera.position).normalize()),-1,1));
  const looking=faceScreen.z>-1&&faceScreen.z<1&&lookAngle<=lookRadius;
  if(looking){watcherGazeMs+=dt*1000;if(watcherGazeMs>=10000){watcherMode='charge';watcherCharge=t;for(const eye of watcherEyes)eye.material=eyeRed;notify('THREE EYES // DO NOT LOOK')}}
+ // The entire silhouette must be outside the camera frustum before teleporting.
+ const screen=watcher.position.clone().add(new THREE.Vector3(0,2.6,0)).project(camera);
+ const outside=screen.z< -1||screen.z>1||Math.abs(screen.x)>1.12||Math.abs(screen.y)>1.25;
+ if(outside&&t-watcherLastWarp>4800){
+ for(let tries=0;tries<24;tries++){const a=Math.random()*Math.PI*2,r=12+Math.random()*34;
+ const nx=player.position.x+Math.sin(a)*r,nz=player.position.z+Math.cos(a)*r;
+ if(!collides(nx,nz)){watcher.position.set(nx,0,nz);watcherLastWarp=t;break}}
+ }
  if(t-watcherNext>33000&&false){watcher.visible=false;watcherMode='waiting';watcherNext=t+25000+Math.random()*18000;for(const eye of watcherEyes)eye.material=eyeWhite}
  }else if(watcherMode==='charge'){const dx=player.position.x-watcher.position.x,dz=player.position.z-watcher.position.z,d=Math.hypot(dx,dz)||.01;watcher.position.x+=dx/d*70*dt;watcher.position.z+=dz/d*70*dt;if(d<2||t-watcherCharge>1600){hp=0;$('hp').textContent='0';finish(false);$('resultText').textContent='三つの眼に見つめ返された。';watcherMode='finished'}}
 }
