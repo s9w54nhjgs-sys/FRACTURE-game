@@ -275,6 +275,11 @@ for(let i=0;i<37;i++){
  addVesselBeacon(x,angle,phase,'chase');
  }
 }
+// Lowest visible underside: one uninterrupted horizontal row of small traveling lights.
+for(let i=0;i<37;i++){
+ const x=-83+i*4.65;
+ addVesselBeacon(x,-Math.PI/2,(i*.115+.62)%3.2,'chase');
+}
 // Fin tips, attached to their real mesh extremities.
 for(const side of [-1,1]){const fin=new THREE.Mesh(beaconGeom,beaconOn);fin.position.set(-33,-5,side*24.5);blackVessel.add(fin);vesselBeacons.push({bulb:fin,phase:side*.4,mode:'pulse'})}
 // 180-second repeat. First 12 seconds: clearly visible on the right.
