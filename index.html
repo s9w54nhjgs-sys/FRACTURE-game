@@ -330,7 +330,7 @@ const aerialSentinels=[[-28,-36],[32,32],[-65,44]];
 const aerialRoamers=[[-44,4],[42,-45],[67,53],[-70,-57]];
 const aerialWallSites=[...walls.map(w=>({x:w.x,z:w.z,w:w.w,d:w.d})),{x:-55,z:-54,w:14,d:12},{x:51,z:14,w:12,d:10}];
 for(const [x,z] of aerialSentinels){const u=special('aerial',x,z);u.variant='sentinel';u.homeX=x;u.homeZ=z;u.g.position.y=8}
-for(const [x,z] of aerialRoamers){const u=special('aerial',x,z);u.variant='roamer';u.homeX=x;u.homeZ=z;u.heading=Math.random()*Math.PI*2;u.g.position.y=6+Math.random()*2}
+for(const [x,z] of aerialRoamers){const u=special('aerial',x,z);u.variant='roamer';u.homeX=x;u.homeZ=z;u.heading=Math.random()*Math.PI*2;u.targetHeading=u.heading;u.nextTurn=0;u.flightY=6+Math.random()*5;u.flightPitch=0;u.flockMate=null;u.flockUntil=0;u.g.position.y=u.flightY}
 for(let i=0;i<3;i++){const w=aerialWallSites[i%aerialWallSites.length],x=w.x+w.w*.5+.8,z=w.z;const u=special('aerial',x,z);u.variant='wall';u.homeX=x;u.homeZ=z;u.g.position.y=5.5;u.body.rotation.x=Math.PI/2;u.mode='embedded'}
 const watcher=new THREE.Group();const watcherBlack=new THREE.MeshBasicMaterial({color:0x080c0f,fog:false});
 function watcherPart(radius,length,x,y,z,angle=0){const m=new THREE.Mesh(new THREE.CylinderGeometry(radius*.7,radius,length,6),watcherBlack);m.position.set(x,y,z);m.rotation.z=angle;watcher.add(m)}
@@ -394,7 +394,20 @@ function updateSpecial(t,dt){if(done)return;
  if(!collides(nx,g.position.z))g.position.x=nx;if(!collides(g.position.x,nz))g.position.z=nz}
  g.rotation.y=Math.atan2(-ax,-az);
  if(u.alert&&d<1.5&&t-u.last>1700&&t>=dashUntil){u.last=t;applySpecialDamage(19,t)}
- }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-u.last>1000){u.last=t;applySpecialDamage(32,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){u.heading+=Math.sin(t*.0008+u.seed)*dt*.9;const vx=Math.sin(u.heading),vz=Math.cos(u.heading);if(Math.abs(g.position.x)>95||Math.abs(g.position.z)>95||collides(g.position.x+vx*2,g.position.z+vz*2))u.heading+=Math.PI*.7;g.position.x+=Math.sin(u.heading)*15*dt;g.position.z+=Math.cos(u.heading)*15*dt;g.position.y=7+Math.sin(t*.002+u.seed)*1.4;g.rotation.y=u.heading;if(d<5){u.mode='lock';u.last=t}}else if(u.mode==='idle'){g.position.y=8;if(d<5){u.mode='lock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z}}
+ }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-u.last>1000){u.last=t;applySpecialDamage(32,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=4+Math.random()*10;u.nextTurn=t+550+Math.random()*2100}
+ if(!u.flockMate||!specialEnemies.includes(u.flockMate)||t>u.flockUntil)u.flockMate=null;
+ if(!u.flockMate)for(const other of specialEnemies){if(other!==u&&other.variant==='roamer'&&other.mode==='idle'&&Math.hypot(g.position.x-other.g.position.x,g.position.y-other.g.position.y,g.position.z-other.g.position.z)<1){u.flockMate=other;u.flockUntil=t+2400+Math.random()*2600;break}}
+ if(u.flockMate){u.targetHeading=u.flockMate.heading+Math.sin(t*.003+u.seed)*.15;u.flightY=u.flockMate.flightY+Math.sin(u.seed)*.7}
+ const nx=g.position.x+Math.sin(u.heading)*5,nz=g.position.z+Math.cos(u.heading)*5;
+ if(Math.abs(nx)>110||Math.abs(nz)>110||collides(nx,nz)){u.targetHeading=Math.atan2(-g.position.x,-g.position.z)+(Math.random()-.5)*.65;u.nextTurn=t+1100}
+ const turn=Math.atan2(Math.sin(u.targetHeading-u.heading),Math.cos(u.targetHeading-u.heading));
+ u.heading+=THREE.MathUtils.clamp(turn,-dt*3.4,dt*3.4);
+ const speed=u.flockMate?20:22+Math.sin(t*.003+u.seed)*4;
+ g.position.x+=Math.sin(u.heading)*speed*dt;g.position.z+=Math.cos(u.heading)*speed*dt;
+ const climb=THREE.MathUtils.clamp((u.flightY-g.position.y)*2,-8,8);
+ g.position.y+=climb*dt;
+ g.rotation.y=u.heading;g.rotation.x=Math.atan2(climb,speed);g.rotation.z=THREE.MathUtils.clamp(turn*1.2,-.65,.65);
+ u.body.rotation.z=-Math.PI/2;if(d<5){u.mode='lock';u.last=t}}else if(u.mode==='idle'){g.position.y=8;if(d<5){u.mode='lock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z}}
  else if(u.mode==='lock'){if(d>5){u.mode='idle';continue}g.position.y=7;g.rotation.y=Math.atan2(-(player.position.x-g.position.x),-(player.position.z-g.position.z));g.rotation.z=Math.sin(t*.02)*.22;if(t-u.last>650){u.mode='dive';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z;g.rotation.z=0}}
  else if(u.mode==='dive'){const p=Math.min(1,(t-u.last)/440);g.position.x+=(u.lockedX-g.position.x)*Math.min(1,dt*12);g.position.z+=(u.lockedZ-g.position.z)*Math.min(1,dt*12);g.position.y=7-6.3*p*p;if(p>=1){u.mode='stuck';u.last=t;if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.7&&t>=dashUntil)applySpecialDamage(32,t)}}
  else if(u.mode==='stuck'){if(t-u.last>1900){u.mode='idle';g.position.y=7}}
