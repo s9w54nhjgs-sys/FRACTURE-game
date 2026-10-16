@@ -32,7 +32,21 @@ const cloudSky=new THREE.Mesh(new THREE.SphereGeometry(4000,32,16),new THREE.Sha
  void main(){vec3 d=normalize(skyDir);float n=noise(d*5.)*.52+noise(d*12.)*.31+noise(d*29.)*.17;float cloud=smoothstep(.34,.72,n);float horizon=clamp(d.y*.16+.7,0.,1.);vec3 base=mix(vec3(.57,.63,.67),vec3(.69,.74,.77),horizon);vec3 dark=vec3(.29,.35,.4);vec3 color=mix(base,dark,cloud*.78);color+=vec3(.08,.085,.08)*pow(max(dot(d,normalize(vec3(-.4,.8,.25))),0.),9.)*(1.-cloud);gl_FragColor=vec4(color,1.);}`
 }));cloudSky.frustumCulled=false;cloudSky.renderOrder=-1000;scene.add(cloudSky);
 const ambientSky=new THREE.HemisphereLight(0xbccbd5,0x242c33,1.65);scene.add(ambientSky);const sun=new THREE.DirectionalLight(0xffe9d5,2.35);sun.position.set(-35,65,18);scene.add(sun);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
-function noiseTexture(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.random()*32-16,streak=(x%64<2||y%96<2)?-20:0,v=Math.max(25,Math.min(220,137+grain+streak));im.data[i]=v;im.data[i+1]=v+3;im.data[i+2]=v+4;im.data[i+3]=255}ctx.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t}const concreteTex=noiseTexture(),concreteMat=new THREE.MeshStandardMaterial({color:0x88969b,metalness:.78,roughness:.39}),darkConcrete=new THREE.MeshStandardMaterial({color:0x3c4b52,metalness:.72,roughness:.47});const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260),new THREE.MeshStandardMaterial({color:0x59676a,map:concreteTex,roughness:1}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+function noiseTexture(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.random()*32-16,streak=(x%64<2||y%96<2)?-20:0,v=Math.max(25,Math.min(220,137+grain+streak));im.data[i]=v;im.data[i+1]=v+3;im.data[i+2]=v+4;im.data[i+3]=255}ctx.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t}const concreteTex=noiseTexture(),concreteMat=new THREE.MeshStandardMaterial({color:0x88969b,metalness:.78,roughness:.39}),darkConcrete=new THREE.MeshStandardMaterial({color:0x3c4b52,metalness:.72,roughness:.47});const ground=new THREE.Mesh(new THREE.PlaneGeometry(260,260),new THREE.MeshStandardMaterial({color:0x575d5b,map:concreteTex,metalness:.7,roughness:.37}));ground.rotation.x=-Math.PI/2;scene.add(ground);
+ // Sparse bronze alloy flecks: catch warm highlights without turning the plaza copper.
+ const bronzeAlloy=new THREE.MeshStandardMaterial({color:0x88634b,metalness:.94,roughness:.25,side:THREE.DoubleSide});
+ const bronzeDark=new THREE.MeshStandardMaterial({color:0x56463d,metalness:.82,roughness:.42,side:THREE.DoubleSide});
+ const fleckGeo=new THREE.PlaneGeometry(.24,.055);
+ const bronzeFlecks=new THREE.InstancedMesh(fleckGeo,bronzeAlloy,580);
+ const bronzeFlecksDark=new THREE.InstancedMesh(fleckGeo,bronzeDark,260);
+ const bronzeDummy=new THREE.Object3D();
+ for(const [mesh,count] of [[bronzeFlecks,580],[bronzeFlecksDark,260]]){
+ for(let i=0;i<count;i++){bronzeDummy.position.set((Math.random()-.5)*254,.032+(mesh===bronzeFlecks?.004:0),(Math.random()-.5)*254);
+ bronzeDummy.rotation.set(-Math.PI/2,0,Math.random()*Math.PI);
+ bronzeDummy.scale.set(.45+Math.random()*2.8,.35+Math.random()*2.3,1);
+ bronzeDummy.updateMatrix();mesh.setMatrixAt(i,bronzeDummy.matrix)}
+ mesh.instanceMatrix.needsUpdate=true;scene.add(mesh)
+ }
 const grid=new THREE.GridHelper(260,52,0x879b9d,0x718084);grid.position.y=.025;grid.material.transparent=true;grid.material.opacity=.22;scene.add(grid);
 const walls=[];function block(x,z,w,h,d,color=0x273f4a){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),(color===0x273f4a?concreteMat:darkConcrete));m.position.set(x,h/2,z);scene.add(m);walls.push({x,z,w,d});return m}
 for(const [x,z,w,h,d] of [[-38,31,9,11,10],[51,14,12,17,10],[-55,-54,14,24,12]])block(x,z,w,h,d)
