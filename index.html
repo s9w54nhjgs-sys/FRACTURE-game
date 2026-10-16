@@ -316,7 +316,7 @@ function watcherPart(radius,length,x,y,z,angle=0){const m=new THREE.Mesh(new THR
 watcherPart(.14,3.7,0,2.8,0);watcherPart(.11,2.3,-.34,1.04,0,-.14);watcherPart(.11,2.3,.34,1.04,0,.14);watcherPart(.09,2.4,-.48,3.08,0,-.2);watcherPart(.09,2.4,.48,3.08,0,.2);
 watcherPart(.19,.65,0,5,0);const eyeWhite=new THREE.MeshBasicMaterial({color:0xf4fbff,depthTest:true,toneMapped:false}),eyeRed=new THREE.MeshBasicMaterial({color:0xff1d24,depthTest:true,toneMapped:false});
 const watcherEyes=[];for(const [x,y] of [[-.12,5.08],[.12,5.08],[0,4.9]]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.052,7,5),eyeWhite);eye.position.set(x,y,-.18);watcher.add(eye);watcherEyes.push(eye)}
-watcher.visible=false;scene.add(watcher);let watcherMode='waiting',watcherStart=0,watcherNext=22000,watcherCharge=0;
+watcher.visible=false;scene.add(watcher);let watcherMode='waiting',watcherStart=0,watcherNext=22000,watcherCharge=0,watcherGazeMs=0,watcherLastWarp=0;
 function updateSpecial(t,dt){if(done)return;
  // Each nest has 30 live slots. Fallen offspring free their slots.
  let swarmCount=specialEnemies.filter(u=>u.type==='swarm').length;
