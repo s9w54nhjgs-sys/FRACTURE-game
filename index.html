@@ -29,7 +29,7 @@ function monument(x,z,s,rot=0){const g=new THREE.Group();g.position.set(x,0,z);g
 monument(-77,56,3.4,.3);
 function distantTower(x,z,h,w){slab(x,h/2,z,w,h,w*.75,darkConcrete);slab(x,h+1.1,z,w*1.4,2.2,w*1.05,concreteMat);slab(x,h*.7,z+w*.4,w*.35,h*.5,w*.3,concreteMat)}
 for(const [x,z,h,w] of [[-112,-92,122,17],[108,73,142,20],[-95,111,106,16]])distantTower(x,z,h,w)
-for(let i=0;i<45;i++){const a=i*2.71,r=20+(i%12)*6,x=Math.cos(a)*r,z=Math.sin(a)*r;if(Math.hypot(x,z)<10||Math.hypot(x-38,z+25)<9)continue;const w=1.1+(i%4)*.6,h=.4+(i%3)*.5;const m=slab(x,h/2,z,w,h,1.5+(i%5)*.5,i%3?darkConcrete:concreteMat);m.rotation.y=a}
+// Empty plaza emphasizes scale; scattered blocks intentionally removed.
 const lightStripMat=new THREE.MeshBasicMaterial({color:0x8bd9d4});for(const [x,z] of [[-33,-32],[48,33],[-64,45]]){slab(x,.08,z,9,.12,.16,lightStripMat)}
 // Metal-clad composite structures: panel seams, ribs, oxidized surfaces and restrained highlights
 const alloy=new THREE.MeshStandardMaterial({color:0x394952,metalness:.78,roughness:.42,map:concreteTex});
