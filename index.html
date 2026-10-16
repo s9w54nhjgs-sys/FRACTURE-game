@@ -152,6 +152,39 @@ const starPositions=[],starColors=[];let seed=11971;function skyRandom(){seed=(s
 for(let i=0;i<410;i++){const theta=skyRandom()*Math.PI*2,phi=skyRandom()*Math.PI*.47,r=canopyRadius-3;const x=Math.cos(theta)*Math.sin(phi)*r,y=Math.cos(phi)*r+canopyCenterY,z=Math.sin(theta)*Math.sin(phi)*r;starPositions.push(x,y,z);const shade=.23+skyRandom()*.35;starColors.push(shade*.84,shade*.94,shade)}
 const starGeo=new THREE.BufferGeometry();starGeo.setAttribute('position',new THREE.Float32BufferAttribute(starPositions,3));starGeo.setAttribute('color',new THREE.Float32BufferAttribute(starColors,3));
 const skyStars=new THREE.Points(starGeo,new THREE.PointsMaterial({size:1.15,vertexColors:true,sizeAttenuation:false,transparent:true,opacity:.65,fog:false,depthWrite:false}));scene.add(skyStars);
+// AMPLIFIED PROTOCOL: a full 360-degree horizon of impossible artificial geology.
+// Everything is outside the playable plaza. Preserve the authored spawn court and floor.
+const ampWorld=new THREE.Group();scene.add(ampWorld);
+const ampMetal=new THREE.MeshStandardMaterial({color:0x52636a,metalness:.81,roughness:.4,flatShading:true});
+const ampShadow=new THREE.MeshStandardMaterial({color:0x18252d,metalness:.62,roughness:.68,flatShading:true});
+const ampHighlight=new THREE.MeshStandardMaterial({color:0x79898e,metalness:.84,roughness:.31,flatShading:true});
+const ampGeo=new THREE.BoxGeometry(1,1,1);
+function ampPiece(x,y,z,w,h,d,rz=0,ry=0,mat=ampMetal){const m=new THREE.Mesh(ampGeo,mat);m.position.set(x,y,z);m.scale.set(w,h,d);m.rotation.set(0,ry,rz);ampWorld.add(m);return m}
+function ampColumn(theta,r,height,width,seed){const x=Math.sin(theta)*r,z=Math.cos(theta)*r;const yaw=-theta;const base=height*.42;const tilt=Math.sin(seed*2.31)*.14;
+  ampPiece(x,base,z,width,height*.84,width*.75,tilt,yaw);
+  ampPiece(x+Math.sin(theta+.7)*width*.32,height*.78,z+Math.cos(theta+.7)*width*.32,width*.86,height*.39,width*.92,-tilt*.7,yaw,ampShadow);
+  ampPiece(x,height*.97,z,width*1.55,4.8,width*1.24,tilt*.4,yaw,ampHighlight);
+  // Deep exposed lateral fins, like enormous fractured sheets of structural metal.
+  for(let j=0;j<3;j++){const off=(j-1)*width*.27;const xx=x+Math.cos(theta)*off,zz=z-Math.sin(theta)*off;ampPiece(xx,height*(.35+j*.19),zz,width*.17,height*(.48-j*.07),width*.96,tilt+(j-1)*.09,yaw,j===1?ampShadow:ampMetal)}
+}
+const ampCliffs=[
+  [-2.83,168,115,30],[-2.43,177,151,26],[-2.02,181,97,33],[-1.61,165,144,23],
+  [-1.17,178,124,37],[-.72,171,163,25],[-.28,183,108,31],
+  [.2,170,139,29],[.65,177,102,35],[1.09,183,158,25],
+  [1.54,169,119,33],[1.98,175,149,28],[2.41,184,100,35],[2.79,171,132,29]
+];
+for(let i=0;i<ampCliffs.length;i++){const [a,r,h,w]=ampCliffs[i];ampColumn(a,r,h,w,i+3)}
+// Unfinished bridges bridge the voids in the horizon, but never close the sky completely.
+function ampBridge(a1,a2,r,y,broken=false){const p1=new THREE.Vector3(Math.sin(a1)*r,y,Math.cos(a1)*r),p2=new THREE.Vector3(Math.sin(a2)*r,y+(broken?13:-8),Math.cos(a2)*r);const mid=p1.clone().lerp(p2,broken?.39:.5);const length=p1.distanceTo(p2)*(broken?.72:1);const beam=new THREE.Mesh(ampGeo,ampShadow);beam.position.copy(mid);beam.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),p2.clone().sub(p1).normalize());beam.scale.set(length,7,13);ampWorld.add(beam);const edge=new THREE.Mesh(ampGeo,ampHighlight);edge.position.copy(mid).add(new THREE.Vector3(0,4,0));edge.quaternion.copy(beam.quaternion);edge.scale.set(length,.8,14);ampWorld.add(edge)}
+ampBridge(-2.83,-2.43,171,101,true);ampBridge(-1.17,-.72,174,116,false);ampBridge(.65,1.09,178,110,true);ampBridge(1.98,2.41,179,97,false);
+// Giant cantilevered strata: horizontal metal mesas hanging over a black undercut.
+for(const [a,r,h,len] of [[-2.2,162,79,55],[-.96,165,91,64],[.43,164,68,61],[1.79,160,86,58],[2.64,164,74,51]]){
+  const x=Math.sin(a)*r,z=Math.cos(a)*r;const slab=ampPiece(x,h,z,len,8,25,.04,-a,ampMetal);
+  ampPiece(x,h-6,z, len*.83,4,17,.04,-a,ampShadow);
+  const nx=Math.sin(a)*12,nz=Math.cos(a)*12;ampPiece(x-nx,h-21,z-nz,14,38,19,.18,-a,ampShadow);
+}
+// A hanging fractured crown on the opposite side of the arena.
+for(let i=0;i<5;i++){const a=2.95+i*.115,r=150+i*4,x=Math.sin(a)*r,z=Math.cos(a)*r;ampPiece(x,150-i*7,z,8,43+i*9,14,(i-2)*.17,a, i%2?ampShadow:ampMetal)}
 // OUTER CITY: non-traversable collapsed skyline, deliberately sparse and distant.
 const ruinMat=new THREE.MeshStandardMaterial({color:0x39464b,roughness:.98,metalness:.05,flatShading:true});
 const ruinDark=new THREE.MeshStandardMaterial({color:0x202c32,roughness:.92,metalness:.15,flatShading:true});
