@@ -281,6 +281,9 @@ hullDark.depthTest=true;hullDark.depthWrite=true;hullDark.fog=false;
 // Darkening is a cheap lighting simulation rather than costly real-time shadow maps.
 function updateBlackTransit(t){
  const cycle=(t/1000)%180,active=cycle<88;blackVessel.visible=active;
+ // Slow traveling sheen makes the curved armor readable without brightening the keel.
+ vesselGlint.opacity=.58+.15*Math.sin(t*.00032);
+ raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8);
  for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:(blink?beaconOn:beaconOff)}
 
  if(!active){ambientSky.intensity=1.65;sun.intensity=2.35;return}
