@@ -311,11 +311,19 @@ watcherPart(.19,.65,0,5,0);const eyeWhite=new THREE.MeshBasicMaterial({color:0xf
 const watcherEyes=[];for(const [x,y] of [[-.12,5.08],[.12,5.08],[0,4.9]]){const eye=new THREE.Mesh(new THREE.SphereGeometry(.052,7,5),eyeWhite);eye.position.set(x,y,-.18);watcher.add(eye);watcherEyes.push(eye)}
 watcher.visible=false;scene.add(watcher);let watcherMode='waiting',watcherStart=0,watcherNext=22000,watcherCharge=0;
 function updateSpecial(t,dt){if(done)return;
- // Eggs hatch only when approached within 2m; nearby hatched nests slowly split.
- for(const e of swarmEggs){const d=Math.hypot(player.position.x-e.g.position.x,player.position.z-e.g.position.z);
+ // Each nest has 30 live slots. Fallen offspring free their slots.
+ let swarmCount=specialEnemies.filter(u=>u.type==='swarm').length;
+ for(const e of swarmEggs){if(e.destroyed)continue;
+ const d=Math.hypot(player.position.x-e.g.position.x,player.position.z-e.g.position.z);
  e.egg.scale.set(.9+Math.sin(t*.003+e.g.position.x)*.055,1.25+Math.sin(t*.004)*.09,.95);
- if(!e.hatched&&d<2){e.hatched=true;e.lastBirth=t;e.children=1;const u=special('swarm',e.g.position.x,e.g.position.z);u.alert=true;notify('NEST DISTURBED')}
- if(e.hatched&&e.children<5&&t-e.lastBirth>8500&&d<35&&specialEnemies.filter(u=>u.type==='swarm').length<24){const a=e.children*2.4;const u=special('swarm',e.g.position.x+Math.cos(a)*1.5,e.g.position.z+Math.sin(a)*1.5);u.alert=true;e.children++;e.lastBirth=t}
+ if(!e.hatched&&d<2){e.hatched=true;e.lastBirth=t-8000;e.birthLevel=0;notify('NEST DISTURBED')}
+ if(!e.hatched)continue;
+ const interval=Math.max(480,8000*Math.pow(.76,e.birthLevel));
+ if(e.alive<30&&swarmCount<MAX_SWARM_WORLD&&t-e.lastBirth>=interval){
+ const batch=Math.min(30-e.alive,MAX_SWARM_WORLD-swarmCount,Math.max(1,Math.floor(Math.pow(1.35,e.birthLevel*.34))));
+ for(let j=0;j<batch;j++){const a=(e.children+j)*2.399;const u=special('swarm',e.g.position.x+Math.cos(a)*1.7,e.g.position.z+Math.sin(a)*1.7);u.alert=true;u.nest=e}
+ e.children+=batch;e.alive+=batch;swarmCount+=batch;e.lastBirth=t;e.birthLevel=Math.min(24,e.birthLevel+1);
+ }
  }
  let alerted=0;for(const u of specialEnemies)if(u.type==='swarm'&&u.alert)alerted++;
  for(const u of specialEnemies){const g=u.g,dx=player.position.x-g.position.x,dz=player.position.z-g.position.z,d=Math.hypot(dx,dz)||.01;
