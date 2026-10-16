@@ -198,15 +198,22 @@ const vesselGeo=new THREE.BufferGeometry();vesselGeo.setAttribute('position',new
 // Underbelly is a restrained integrated keel, not a drooping rounded pod.
 const keel=vesselPiece(new THREE.BoxGeometry(117,8,7),hullDark,-5,-17,0);keel.rotation.z=.035;
 for(const side of [-1,1]){const wing=vesselPiece(new THREE.BoxGeometry(45,2.5,16),hullBlack,-33,-5,side*17);wing.rotation.y=side*.12}
-// Compact aviation beacons: actual geometry only, no camera-facing square sprites.
-const beaconOff=new THREE.MeshBasicMaterial({color:0x34444c,depthTest:true});
-const beaconOn=new THREE.MeshBasicMaterial({color:0xc6edff,depthTest:true,toneMapped:false});
+// NAVIGATION LIGHT NETWORK: many tiny embedded light points show the 3.6km hull's motion.
+// All lights are positioned on the actual interpolated hull surface; no floating sprites.
+const beaconOff=new THREE.MeshBasicMaterial({color:0x233039,depthTest:true});
+const beaconOn=new THREE.MeshBasicMaterial({color:0xc7eeff,depthTest:true,toneMapped:false});
+const beaconWarm=new THREE.MeshBasicMaterial({color:0xffd8a0,depthTest:true,toneMapped:false});
+const beaconGeom=new THREE.SphereGeometry(.16,7,5);
 const vesselBeacons=[];
-// Positions lie on the elliptical armor surface, not out in open space.
-for(const [x,y,z,phase] of [[-49,-9.5,10.5,0],[-49,-9.5,-10.5,0],[65,-13,16.7,.25],[65,-13,-16.7,.25],[-15,-11.5,13.3,.55],[-15,-11.5,-13.3,.55],[86,-13,15.8,.7],[86,-13,-15.8,.7]]){
- const bulb=new THREE.Mesh(new THREE.SphereGeometry(.13,8,6),beaconOff);bulb.position.set(x,y,z);blackVessel.add(bulb);
- vesselBeacons.push({bulb,phase});
-}
+function hullSection(x){for(let i=0;i<vesselRings.length-1;i++){const a=vesselRings[i],b=vesselRings[i+1];if(x<=b[0]){const t=Math.max(0,Math.min(1,(x-a[0])/(b[0]-a[0])));return [a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]}}return vesselRings[vesselRings.length-1].slice(1)}
+function addVesselBeacon(x,angle,phase,mode='pulse'){const [ry,rz]=hullSection(x);const y=Math.sin(angle)*ry*1.015,z=Math.cos(angle)*rz*1.015;const bulb=new THREE.Mesh(beaconGeom,beaconOff);bulb.position.set(x,y,z);blackVessel.add(bulb);vesselBeacons.push({bulb,phase,mode})}
+// Two underside rows, two visible flank rows, evenly spaced for optical flow.
+for(let i=0;i<23;i++){const x=-78+i*7.3;for(const angle of [-2.15,-.99,2.15,.99])addVesselBeacon(x,angle,i*.17+(angle>0?.32:0),i%5===0?'pulse':'steady')}
+// Sparse underside centerline and navigation markers along the bow.
+for(let i=0;i<13;i++)addVesselBeacon(-71+i*12.7,-Math.PI/2,i*.21,i%4===0?'warm':'steady');
+for(const x of [-77,-46,-15,22,52,78,86])for(const angle of [-.25,.25,2.9,-2.9])addVesselBeacon(x,angle,x*.013,'pulse');
+// Fin tips, attached to their real mesh extremities.
+for(const side of [-1,1]){const fin=new THREE.Mesh(beaconGeom,beaconOn);fin.position.set(-33,-5,side*24.5);blackVessel.add(fin);vesselBeacons.push({bulb:fin,phase:side*.4,mode:'pulse'})}
 // 180-second repeat. First 12 seconds: clearly visible on the right.
 // Then a slow 50-second right-to-left transit at 42m altitude, behind spawn.
 // Enlarge existing low-poly geometry 20x; no extra hull polygons are created.
@@ -220,7 +227,7 @@ hullDark.depthTest=true;hullDark.depthWrite=true;hullDark.fog=false;
 // Darkening is a cheap lighting simulation rather than costly real-time shadow maps.
 function updateBlackTransit(t){
  const cycle=(t/1000)%180,active=cycle<88;blackVessel.visible=active;
- for(const b of vesselBeacons){const blink=((t/1000+b.phase)%2.8)<.5;b.bulb.material=blink?beaconOn:beaconOff}
+ for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:(blink?beaconOn:beaconOff)}
 
  if(!active){ambientSky.intensity=1.65;sun.intensity=2.35;return}
  const p=Math.max(0,Math.min(1,(cycle-10)/78));
