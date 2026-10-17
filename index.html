@@ -531,7 +531,7 @@ function update(t){requestAnimationFrame(update);updateBlackTransit(t);chargeLev
  if(dt>0){const nx=player.position.x+moveVX*dt,nz=player.position.z+moveVZ*dt;
  if(!collides(nx,player.position.z))player.position.x=nx;else moveVX=0;
  if(!collides(player.position.x,nz))player.position.z=nz;else moveVZ=0}
- if(mag>.05){player.rotation.y=yaw;shell.rotation.y+=dt*1.7}if(t<lungeUntil&&dt>0){const step=dt*5.5,nx=player.position.x+lungeX*step,nz=player.position.z+lungeZ*step;if(!collides(nx,player.position.z))player.position.x=nx;if(!collides(player.position.x,nz))player.position.z=nz}if(t<dashUntil&&dt>0){const dashSpeed=t<dashChargeBoostUntil?38:23;const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(!collides(player.position.x+dx,player.position.z))player.position.x+=dx;if(!collides(player.position.x,player.position.z+dz))player.position.z+=dz}
+ player.rotation.y=yaw;if(mag>.05)shell.rotation.y+=dt*1.7;if(t<lungeUntil&&dt>0){const step=dt*5.5,nx=player.position.x+lungeX*step,nz=player.position.z+lungeZ*step;if(!collides(nx,player.position.z))player.position.x=nx;if(!collides(player.position.x,nz))player.position.z=nz}if(t<dashUntil&&dt>0){const dashSpeed=t<dashChargeBoostUntil?38:23;const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(!collides(player.position.x+dx,player.position.z))player.position.x+=dx;if(!collides(player.position.x,player.position.z+dz))player.position.z+=dz}
  if(jumpCount>0){jumpVelocity-=22*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0){const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
  player.position.y=1.35+jumpHeight+Math.sin(t*.0025)*.08;
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
@@ -539,13 +539,14 @@ function update(t){requestAnimationFrame(update);updateBlackTransit(t);chargeLev
  const turning=dt>.001?THREE.MathUtils.clamp(yawDelta/dt,-5,5):0;
  turnRate=THREE.MathUtils.lerp(turnRate,turning,Math.min(1,dt*10));
  const lateral=moveVX*Math.cos(yaw)-moveVZ*Math.sin(yaw);
- const desiredBank=THREE.MathUtils.clamp(-lateral*.075-turnRate*.115,-.62,.62);
- bank=THREE.MathUtils.lerp(bank,desiredBank,Math.min(1,dt*7));
- shell.rotation.z=bank;core.rotation.z=bank*.65;
- if((mag>.3||t<dashUntil)&&jumpHeight<.5&&Math.random()<dt*(5+Math.abs(bank)*35)){const scrapeSide=Math.abs(bank)>.13?Math.sign(bank):0;
- const offset=scrapeSide*.52;
- const sx=player.position.x+Math.cos(yaw)*offset+(Math.random()-.5)*.22;
- const sz=player.position.z-Math.sin(yaw)*offset+(Math.random()-.5)*.22;
+ const desiredBank=THREE.MathUtils.clamp(-lateral*.105-turnRate*.17,-.78,.78);
+ bank=THREE.MathUtils.lerp(bank,desiredBank,1-Math.exp(-9*dt));
+ player.rotation.z=bank;player.rotation.x=THREE.MathUtils.lerp(player.rotation.x,THREE.MathUtils.clamp(-moveVZ*Math.cos(yaw)*.025-moveVX*Math.sin(yaw)*.025,-.14,.14),1-Math.exp(-6*dt));
+ shell.rotation.z=0;core.rotation.z=0;
+ if((mag>.3||t<dashUntil||Math.abs(bank)>.16)&&jumpHeight<.5&&Math.random()<dt*(4+Math.abs(bank)*48)){const scrapeSide=Math.abs(bank)>.13?Math.sign(bank):0;
+ const offset=scrapeSide*.65;
+ const sx=player.position.x+Math.cos(yaw)*offset+(Math.random()-.5)*.16;
+ const sz=player.position.z-Math.sin(yaw)*offset+(Math.random()-.5)*.16;
  const m=new THREE.Mesh(sparkGeometry,sparkMaterial);m.position.set(sx,.12,sz);scene.add(m);sparks.push({m,born:t,vx:-dashX*3+(Math.random()-.5)*2,vy:1,vz:-dashZ*3+(Math.random()-.5)*2})}
  core.rotation.y+=dt;for(const c of [...crystals]){c.rotation.y+=dt;c.position.y=.85+Math.sin(t*.002+c.position.x)*.2;if(c.position.distanceTo(player.position)<1.6){scene.remove(c);crystals.splice(crystals.indexOf(c),1);loot++;$('loot').textContent=loot;notify('素材を回収 '+loot+'/3')}}updateSpecial(t,dt);for(const e of enemies){const u=e.userData;const dx=player.position.x-e.position.x,dz=player.position.z-e.position.z,d=Math.hypot(dx,dz);const heavy=u.type==='heavy',ranged=u.type==='ranged';if(u.dormant){if(d>8)continue;u.dormant=false;e.position.y=1.2;u.body.rotation.set(0,0,0);u.body.scale.setScalar(1);u.body.material.color.setHex(heavy?0xa87f70:ranged?0x9caeb6:0xf4748b);u.body.material.roughness=.35;u.cooldown=t+650;}if(dt>0){const nx=e.position.x+u.knockX*dt,nz=e.position.z+u.knockZ*dt;if(!collides(nx,e.position.z))e.position.x=nx;if(!collides(e.position.x,nz))e.position.z=nz;const drag=Math.exp(-11*dt);u.knockX*=drag;u.knockZ*=drag}
 if(t<u.stagger){u.phase='seek';u.cooldown=Math.max(u.cooldown,t+420);u.tell.material.opacity=0;u.body.scale.setScalar(1);continue}
