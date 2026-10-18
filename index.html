@@ -297,31 +297,50 @@ let vesselThreat=0;
 const vesselSceneStart=performance.now(),vesselHoldMs=180000,vesselTransitMs=78000;
 let vesselAwakenAt=Infinity,vesselSignalFlashUntil=0;
 const beaconAlarm=new THREE.MeshBasicMaterial({color:0xff5267,depthTest:true,toneMapped:false});
-let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null;
+let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null,vesselEngineStarted=false;
 function unlockVesselAudio(){
  try{
   if(!vesselAudio){
    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-   vesselAudio=new AC();vesselDrone=vesselAudio.createOscillator();vesselDrone.type='sawtooth';vesselDrone.frequency.value=34;
-   vesselDroneFilter=vesselAudio.createBiquadFilter();vesselDroneFilter.type='lowpass';vesselDroneFilter.frequency.value=100;
+   vesselAudio=new AC();vesselDrone=vesselAudio.createOscillator();vesselDrone.type='sawtooth';vesselDrone.frequency.value=68;
+   vesselDroneFilter=vesselAudio.createBiquadFilter();vesselDroneFilter.type='lowpass';vesselDroneFilter.frequency.value=420;
    vesselDroneGain=vesselAudio.createGain();vesselDroneGain.gain.value=0;
    vesselDrone.connect(vesselDroneFilter);vesselDroneFilter.connect(vesselDroneGain);vesselDroneGain.connect(vesselAudio.destination);vesselDrone.start();
   }
   if(vesselAudio.state==='suspended')vesselAudio.resume();
+  if(vesselEngineStarted&&vesselDroneGain&&vesselAudio.state==='running'&&vesselDroneGain.gain.value<.02)
+   vesselDroneGain.gain.setTargetAtTime(.075,vesselAudio.currentTime,.5);
  }catch(e){console.warn('Vessel audio unavailable',e)}
 }
 document.addEventListener('pointerdown',unlockVesselAudio,{passive:true});
+function vesselTone(freq,start,duration,volume,type='sawtooth',endFreq=freq){
+ if(!vesselAudio||vesselAudio.state!=='running')return;
+ const o=vesselAudio.createOscillator(),g=vesselAudio.createGain(),now=vesselAudio.currentTime+start;
+ o.type=type;o.frequency.setValueAtTime(freq,now);o.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq),now+duration);
+ g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(volume,now+Math.min(.18,duration*.2));
+ g.gain.exponentialRampToValueAtTime(.0001,now+duration);
+ o.connect(g);g.connect(vesselAudio.destination);o.start(now);o.stop(now+duration+.02);
+}
+function vesselStartupSound(){
+ unlockVesselAudio();if(!vesselAudio)return;
+ const play=()=>{
+  const now=vesselAudio.currentTime;vesselEngineStarted=true;
+  vesselDroneGain.gain.cancelScheduledValues(now);
+  vesselDroneGain.gain.setValueAtTime(.0001,now);
+  vesselDroneGain.gain.exponentialRampToValueAtTime(.075,now+3.5);
+  vesselDroneFilter.frequency.setTargetAtTime(460,now,.7);
+  vesselTone(180,0,2.5,.09,'sawtooth',92);
+  vesselTone(330,.35,2.9,.065,'triangle',135);
+  vesselTone(510,1.2,2.4,.045,'sawtooth',190);
+  vesselTone(130,2.5,3.5,.065,'square',78);
+ };
+ if(vesselAudio.state==='running')play();else vesselAudio.resume().then(play).catch(()=>{});
+}
 function signalVessel(stage,t){
  vesselSignalFlashUntil=t+1800;
  if(stage===1){notify('VESSEL LIGHTS ONLINE // 潜航艦の灯火が点灯')}
  else if(stage===2){
-  unlockVesselAudio();
-  if(vesselAudio&&vesselDroneGain){
-   const now=vesselAudio.currentTime;
-   vesselDroneGain.gain.cancelScheduledValues(now);vesselDroneGain.gain.setValueAtTime(vesselDroneGain.gain.value,now);
-   vesselDroneGain.gain.linearRampToValueAtTime(.075,now+2.6);
-   vesselDroneFilter.frequency.setTargetAtTime(145,now,.7);
-  }
+  vesselStartupSound();
   notify('VESSEL ENGINE START // 巨大機関が起動した');
  }else if(stage===3){
   vesselAwakenAt=t+1400;
