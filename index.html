@@ -295,9 +295,9 @@ hullDark.depthTest=true;hullDark.depthWrite=true;hullDark.fog=false;
 // Darkening is a cheap lighting simulation rather than costly real-time shadow maps.
 let vesselThreat=0;
 const vesselSceneStart=performance.now(),vesselHoldMs=180000,vesselTransitMs=78000;
-let vesselAwakenAt=Infinity,vesselSignalFlashUntil=0;
+let vesselAwakenAt=Infinity,vesselSignalFlashUntil=0,vesselLightsAt=Infinity,vesselDepartureSoundAt=Infinity,vesselBoomPlayed=false;
 const beaconAlarm=new THREE.MeshBasicMaterial({color:0xff5267,depthTest:true,toneMapped:false});
-let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null,vesselEngineStarted=false,vesselDistanceBus=null,vesselReverb=null;
+let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null,vesselEngineStarted=false,vesselDistanceBus=null,vesselReverb=null,vesselEngineBus=null;
 function unlockVesselAudio(){
  try{
   if(!vesselAudio){
@@ -315,10 +315,11 @@ function unlockVesselAudio(){
    vesselDrone=vesselAudio.createOscillator();vesselDrone.type='sine';vesselDrone.frequency.value=74;
    vesselDroneFilter=vesselAudio.createBiquadFilter();vesselDroneFilter.type='lowpass';vesselDroneFilter.frequency.value=260;
    vesselDroneGain=vesselAudio.createGain();vesselDroneGain.gain.value=0;
+   vesselEngineBus=vesselAudio.createGain();vesselEngineBus.gain.value=.42;vesselEngineBus.connect(vesselDistanceBus);
    const harmonic=vesselAudio.createOscillator();harmonic.type='triangle';harmonic.frequency.value=111;
    const harmonicGain=vesselAudio.createGain();harmonicGain.gain.value=.17;
    vesselDrone.connect(vesselDroneFilter);harmonic.connect(harmonicGain);harmonicGain.connect(vesselDroneFilter);
-   vesselDroneFilter.connect(vesselDroneGain);vesselDroneGain.connect(vesselDistanceBus);
+   vesselDroneFilter.connect(vesselDroneGain);vesselDroneGain.connect(vesselEngineBus);
    vesselDrone.start();harmonic.start();
   }
   if(vesselAudio.state==='suspended')vesselAudio.resume();
@@ -350,14 +351,57 @@ function vesselStartupSound(){
  };
  if(vesselAudio.state==='running')play();else vesselAudio.resume().then(play).catch(()=>{});
 }
+function vesselMetalClank(){
+ if(!vesselAudio||vesselAudio.state!=='running')return;
+ const now=vesselAudio.currentTime;
+ for(const [hz,amp] of [[148,.14],[292,.09],[541,.035]]){
+  const o=vesselAudio.createOscillator(),g=vesselAudio.createGain();
+  o.type='sine';o.frequency.setValueAtTime(hz,now);o.frequency.exponentialRampToValueAtTime(hz*.82,now+.9);
+  g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(amp,now+.012);
+  g.gain.exponentialRampToValueAtTime(.0001,now+1.5);
+  o.connect(g);g.connect(vesselDistanceBus);o.start(now);o.stop(now+1.55);
+ }
+}
+function vesselNoise(duration,cutoff,volume){
+ if(!vesselAudio||vesselAudio.state!=='running')return;
+ const rate=vesselAudio.sampleRate,n=Math.floor(rate*duration),buf=vesselAudio.createBuffer(1,n,rate),d=buf.getChannelData(0);
+ let previous=0;for(let i=0;i<n;i++){previous=previous*.93+(Math.random()*2-1)*.07;d[i]=previous}
+ const src=vesselAudio.createBufferSource(),low=vesselAudio.createBiquadFilter(),g=vesselAudio.createGain(),now=vesselAudio.currentTime;
+ src.buffer=buf;low.type='lowpass';low.frequency.value=cutoff;
+ g.gain.setValueAtTime(.0001,now);g.gain.linearRampToValueAtTime(volume,now+Math.min(1.5,duration*.2));
+ g.gain.exponentialRampToValueAtTime(.0001,now+duration);
+ src.connect(low);low.connect(g);g.connect(vesselDistanceBus);src.start(now);
+}
+function vesselScrape(){vesselNoise(5.5,390,.25);vesselTone(94,0,4.9,.095,'triangle',68)}
+function vesselAftershock(){vesselNoise(8,155,.36);vesselTone(85,0,7.5,.14,'sine',38);vesselTone(125,.25,6.8,.065,'triangle',54)}
+const vesselLightClanks=[false,false,false];let vesselScrapePlayed=false;
+function updateVesselSound(t,p,centerX){
+ if(!vesselAudio||vesselAudio.state!=='running')return;
+ if(vesselLightsAt!==Infinity&&t>=vesselLightsAt&&t<vesselLightsAt+2400){
+  const phase=Math.floor((t-vesselLightsAt)/800);
+  if(phase>=0&&phase<3&&!vesselLightClanks[phase]){vesselLightClanks[phase]=true;vesselMetalClank()}
+ }
+ if(vesselDepartureSoundAt!==Infinity&&t>=vesselDepartureSoundAt&&!vesselScrapePlayed){
+  vesselScrapePlayed=true;vesselScrape();
+ }
+ if(vesselEngineBus){
+  // Engine sits roughly 2/3 back from the bow (local x -55 of 180, scaled 20).
+  const engineWorldX=centerX-1100,dist=Math.abs(engineWorldX);
+  const proximity=Math.max(0,1-dist/3300);
+  const swell=proximity*proximity*(3-2*proximity);
+  vesselEngineBus.gain.setTargetAtTime(.14+swell*.95,vesselAudio.currentTime,.45);
+  vesselDroneFilter.frequency.setTargetAtTime(165+swell*240,vesselAudio.currentTime,.8);
+  if(p>.79&&!vesselBoomPlayed){vesselBoomPlayed=true;vesselAftershock()}
+ }
+}
 function signalVessel(stage,t){
  vesselSignalFlashUntil=t+1800;
- if(stage===1){notify('VESSEL LIGHTS ONLINE // 潜航艦の灯火が点灯')}
+ if(stage===1){vesselLightsAt=t;unlockVesselAudio();notify('VESSEL LIGHTS ONLINE // 船体照明を順次投入')}
  else if(stage===2){
   vesselStartupSound();
   notify('VESSEL ENGINE START // 巨大機関が起動した');
  }else if(stage===3){
-  vesselAwakenAt=t+1400;
+  vesselAwakenAt=t+1400;vesselDepartureSoundAt=t+1400;
   if(vesselAudio&&vesselDroneGain)vesselDroneGain.gain.setTargetAtTime(.072,vesselAudio.currentTime,1.8);
   notify('VESSEL DEPARTURE // 潜航艦が動き出す');
  }
@@ -373,12 +417,13 @@ function updateBlackTransit(t){
  vesselGlint.opacity=.58+.15*Math.sin(t*.00032);
  raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8)+(signalStage>=1?.12:0);
  vesselGlint.opacity=Math.min(.96,.58+.15*Math.sin(t*.00032)+signalStage*.06);
- for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=signalStage===0?beaconOff:alarm&&alarmBlink?beaconAlarm:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
+ for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;const lit=signalStage>0&&(vesselLightsAt===Infinity||t>=vesselLightsAt+Math.min(2,Math.max(0,Math.floor((b.bulb.position.x+90)/60)))*800);b.bulb.material=!lit?beaconOff:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
 
  if(!active){vesselThreat=0;ambientSky.intensity=1.65;sun.intensity=2.35;return}
  const p=t<departAt?0:Math.max(0,Math.min(1,travel/vesselTransitMs));
  const centerX=2450-4900*p;
  blackVessel.position.set(centerX,465,0);
+ updateVesselSound(t,p,centerX);
  // As the center of the kilometer-scale hull passes, the world sinks into shadow.
  const shadow=Math.max(0,Math.min(1,(1900-Math.abs(centerX))/900));
  const eased=shadow*shadow*(3-2*shadow);
