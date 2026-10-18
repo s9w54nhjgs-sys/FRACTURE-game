@@ -451,14 +451,21 @@ function updateSpecial(t,dt){if(done)return;
  const shade=shadowAt(g.position.x,g.position.z);
  const playerInShade=shadowAt(player.position.x,player.position.z);
  if(d<4||(shade&&playerInShade&&d<40))u.alert=true;
- const phase=(t*.00055+u.seed/6.28)%1;
- const liquid=phase<.28?phase/.28:phase<.5?1:phase<.78?1-(phase-.5)/.28:0;
- const stretch=phase>.25&&phase<.75?Math.sin((phase-.25)/.5*Math.PI):0;
- const targetHeight=.3+liquid*.08+(1-liquid)*(1.05+stretch*.45);
- g.position.y+=(targetHeight-g.position.y)*Math.min(1,dt*8);
+ // Viscous inchworm: upright body collapses into a spreading puddle,
+ // travels as oil, then reforms into an elongated column.
+ const phase=(t*.00076+u.seed/6.28)%1;
+ const dissolve=THREE.MathUtils.smoothstep(phase,.1,.36);
+ const reform=THREE.MathUtils.smoothstep(phase,.61,.9);
+ const liquid=dissolve*(1-reform);
+ const rise=1-liquid;
+ const stretch=Math.pow(Math.max(0,Math.sin(Math.PI*THREE.MathUtils.clamp((phase-.58)/.42,0,1))),1.3);
+ const targetHeight=.12+rise*(.94+stretch*.42);
+ g.position.y+=(targetHeight-g.position.y)*Math.min(1,dt*11);
  u.body.rotation.x=liquid*Math.PI/2;
- u.body.scale.set(1+liquid*.65-stretch*.23,Math.max(.12,1-liquid*.84+stretch*.38),1+liquid*1.65+stretch*.95);
- u.body.rotation.z=Math.sin(t*.004+u.seed)*(.12+liquid*.22);u.body.material.opacity=.93+.04*Math.sin(t*.007+u.seed);u.body.material.roughness=.045+.05*Math.abs(Math.sin(t*.003+u.seed));
+ u.body.scale.set(.8+liquid*1.45-stretch*.24,.13+rise*(1.5+stretch*.75),.85+liquid*1.85+stretch*.45);
+ u.body.rotation.z=Math.sin(t*.0038+u.seed)*(.08+liquid*.13);
+ u.body.material.opacity=.94+.04*Math.sin(t*.007+u.seed);
+ u.body.material.roughness=.045+.05*Math.abs(Math.sin(t*.003+u.seed));
  const speed=6.2-2/3.6;
  let tx=player.position.x,tz=player.position.z;
  if(!u.alert){if(shipShadow){tx=blackVessel.position.x;tz=Math.max(12,g.position.z)}
@@ -472,7 +479,7 @@ function updateSpecial(t,dt){if(done)return;
  }
  tx+=repelX;tz+=repelZ;
  const ax=tx-g.position.x,az=tz-g.position.z,ad=Math.hypot(ax,az)||1;
- const crawl=.22+liquid*.78;const inch=.7+.3*Math.abs(Math.sin(t*.013+u.seed));
+ const crawl=.08+liquid*1.55;const inch=.65+.35*Math.abs(Math.sin(t*.013+u.seed));
  if(ad>1.3){const nx=g.position.x+ax/ad*speed*crawl*inch*dt,nz=g.position.z+az/ad*speed*crawl*inch*dt;
  if(!collides(nx,g.position.z))g.position.x=nx;if(!collides(g.position.x,nz))g.position.z=nz}
  g.rotation.y=Math.atan2(-ax,-az);
