@@ -562,12 +562,12 @@ function startDash(){const now=performance.now();if(now-lastDash<1050||done)retu
  if(charging)dashChargeBoostUntil=now+500;
 }
 $('dash').addEventListener('pointerdown',e=>{e.preventDefault();startDash()});window.addEventListener('keydown',e=>{if(e.code==='ShiftLeft'&&!e.repeat)startDash()});
-let moveVX=0,moveVZ=0,landedJumpCount=0;let jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570;
+let moveVX=0,moveVZ=0,landedJumpCount=0;let jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
 function jumpNow(){if(done||jumpCount>=2)return;
  const neutral=Math.hypot(input.x+(keys.d?1:0)-(keys.a?1:0),input.y+(keys.s?1:0)-(keys.w?1:0))<.1&&!autoRun;
  if(jumpCount===1){if(neutral){moveVX=0;moveVZ=0}else{const mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0),m=Math.max(1,Math.hypot(mx,my));moveVX=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/m*6.2;moveVZ=(-Math.sin(yaw)*mx+Math.cos(yaw)*my)/m*6.2}}
  jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
- if(jumpCount===2){barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
+ if(jumpCount===2){verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
 }
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
@@ -579,15 +579,16 @@ function update(t){requestAnimationFrame(update);updateBlackTransit(t);chargeLev
  const rollScatter=rollActive?Math.pow(Math.sin(Math.PI*rollP),1.3):0;
  const combatScatter=Math.max(chargeLevel*.95,dashMorph*.85,iaiMorph*1.15);
  const scatter=Math.max(rollScatter,combatScatter);
- playerRig.rotation.z=rollActive?Math.PI*2*rollEase:0;
- playerRig.rotation.x=rollActive?Math.sin(Math.PI*rollP)*.1:0;
+ playerRig.rotation.z=rollActive&&!verticalDoubleJump?Math.PI*2*rollEase:0;
+ playerRig.rotation.x=rollActive&&!verticalDoubleJump?Math.sin(Math.PI*rollP)*.1:0;
+ playerRig.rotation.y=rollActive&&verticalDoubleJump?Math.PI*2*rollEase:0;
  for(const f of rollFins){
- f.mesh.position.x=f.baseX+f.side*(rollScatter*.55+combatScatter*.9);
- f.mesh.position.y=-.12+rollScatter*.2+combatScatter*.35;
- f.mesh.position.z=.1-combatScatter*.45;
+ f.mesh.position.x=f.baseX+f.side*(rollScatter*(verticalDoubleJump?.95:.55)+combatScatter*.9);
+ f.mesh.position.y=-.12+rollScatter*(verticalDoubleJump?.85:.2)+combatScatter*.35;
+ f.mesh.position.z=.1-combatScatter*.45-(verticalDoubleJump?rollScatter*.5:0);
  f.mesh.rotation.y=f.side*(.12+rollScatter*.5+combatScatter*.7)
 }
- for(const p of petals){const r=.52+morph*.45+rollScatter*.75+combatScatter*1.2;p.m.position.set(Math.cos(p.a)*r,Math.sin(p.a*2)*morph*.12+combatScatter*(Math.cos(p.a*2)*.48),Math.sin(p.a)*r-combatScatter*.5);p.m.rotation.y=p.a+morph*.7+scatter*1.2;p.m.rotation.z=morph*.45+scatter*.7}shell.scale.set(1-morph*.32+hitPulse*.18-scatter*.14,1-morph*.32-hitPulse*.32-scatter*.14,1-morph*.32+hitPulse*.12-scatter*.14);core.scale.setScalar(1+morph*.45+chargeLevel*.3+hitPulse*.25+scatter*.14);spike.scale.set(.15+strike*.9*attackPower,.05+strike*1.15*attackPower,.15+strike*.9*attackPower);spike.position.z=-.5-strike*.8-iaiMorph*.9;for(let i=sparks.length-1;i>=0;i--){const s=sparks[i],age=(t-s.born)/(s.life||430);if(age<0)continue;if(s.delayed){s.m.visible=true;s.delayed=false}if(age>=1){scene.remove(s.m);sparks.splice(i,1)}else{const step=Math.min(.05,Math.max(0,(t-(s.prev||s.born))/1000));s.prev=t;s.m.position.x+=s.vx*step;s.m.position.y+=(s.vy-(s.gravity||8)*age)*step;
+ for(const p of petals){const r=.52+morph*.45+rollScatter*(verticalDoubleJump?1.4:.75)+combatScatter*1.2;p.m.position.set(Math.cos(p.a)*r,Math.sin(p.a*2)*morph*.12+combatScatter*(Math.cos(p.a*2)*.48)+(verticalDoubleJump?rollScatter*(.6+Math.sin(p.a)*.55):0),Math.sin(p.a)*r-combatScatter*.5);p.m.rotation.y=p.a+morph*.7+scatter*1.2;p.m.rotation.z=morph*.45+scatter*.7}shell.scale.set(1-morph*.32+hitPulse*.18-scatter*.14,1-morph*.32-hitPulse*.32-scatter*.14,1-morph*.32+hitPulse*.12-scatter*.14);core.scale.setScalar(1+morph*.45+chargeLevel*.3+hitPulse*.25+scatter*.14);spike.scale.set(.15+strike*.9*attackPower,.05+strike*1.15*attackPower,.15+strike*.9*attackPower);spike.position.z=-.5-strike*.8-iaiMorph*.9;for(let i=sparks.length-1;i>=0;i--){const s=sparks[i],age=(t-s.born)/(s.life||430);if(age<0)continue;if(s.delayed){s.m.visible=true;s.delayed=false}if(age>=1){scene.remove(s.m);sparks.splice(i,1)}else{const step=Math.min(.05,Math.max(0,(t-(s.prev||s.born))/1000));s.prev=t;s.m.position.x+=s.vx*step;s.m.position.y+=(s.vy-(s.gravity||8)*age)*step;
  if(s.m.position.y<.1){
   s.m.position.y=.1;
   if(s.slimy){s.vy=0;s.vx*=Math.exp(-2.4*step);s.vz*=Math.exp(-2.4*step);s.m.scale.y=Math.max(.08,s.m.scale.y*(1-1.7*step))}
