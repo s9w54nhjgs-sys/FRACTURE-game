@@ -497,13 +497,13 @@ function updateSpecial(t,dt){if(done)return;
  }}
  // One apparition in the entire world. Appears behind the player's facing direction.
  if(watcherMode==='waiting'&&t>watcherNext){const a=yaw+(Math.random()-.5)*.6;watcher.position.set(player.position.x+Math.sin(a)*15,0,player.position.z+Math.cos(a)*15);watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);watcher.visible=true;watcherMode='watch';watcherStart=0}
- if(watcherMode==='watch'){watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);const dx=watcher.position.x-player.position.x,dz=watcher.position.z-player.position.z,angle=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));const face=new THREE.Vector3(watcher.position.x,5,watcher.position.z);
- const faceScreen=face.clone().project(camera);
- const faceDistance=face.distanceTo(camera.position);
- const aimScreen=new THREE.Vector3(0,0,-1);
- const lookRadius=Math.atan2(.5,faceDistance);
- const lookAngle=Math.acos(THREE.MathUtils.clamp(camera.getWorldDirection(new THREE.Vector3()).dot(face.clone().sub(camera.position).normalize()),-1,1));
- const looking=faceScreen.z>-1&&faceScreen.z<1&&lookAngle<=lookRadius;
+ if(watcherMode==='watch'){watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);const dx=watcher.position.x-player.position.x,dz=watcher.position.z-player.position.z,angle=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(angle-yaw),Math.cos(angle-yaw));const gazeForward=camera.getWorldDirection(new THREE.Vector3());
+ const looking=[3.1,5.0].some(h=>{
+  const point=new THREE.Vector3(watcher.position.x,h,watcher.position.z);
+  const toward=point.sub(camera.position),distance=toward.length();
+  const aim=gazeForward.dot(toward.normalize());
+  return distance<55&&aim>Math.cos(Math.atan2(h>4?.8:1.05,distance))&&new THREE.Vector3(watcher.position.x,h,watcher.position.z).project(camera).z<1;
+ });
  if(looking){watcherGazeMs+=dt*1000;if(watcherGazeMs>=10000){watcherMode='charge';watcherCharge=t;for(const eye of watcherEyes)eye.material=eyeRed;notify('THREE EYES // DO NOT LOOK')}}
  // The entire silhouette must be outside the camera frustum before teleporting.
  const screen=watcher.position.clone().add(new THREE.Vector3(0,2.6,0)).project(camera);
@@ -524,9 +524,9 @@ function updateSpecial(t,dt){if(done)return;
  if(d<1.25||t-watcherCharge>1700){watcherMode='killRush';watcherKillAt=t;notify('THREE EYES // CONTACT')}
  }else if(watcherMode==='killRush'){
  const dx=player.position.x-watcher.position.x,dz=player.position.z-watcher.position.z,d=Math.hypot(dx,dz)||.01;
- const step=Math.min(d-.12,Math.max(0,180*dt));watcher.position.x+=dx/d*step;watcher.position.z+=dz/d*step;
+ const step=Math.min(Math.max(0,d-.12),Math.max(0,180*dt));watcher.position.x+=dx/d*step;watcher.position.z+=dz/d*step;
  watcher.lookAt(camera.position.x,camera.position.y,camera.position.z);watcher.rotateY(Math.PI);
- if(t-watcherKillAt>650){hp=0;$('hp').textContent='0';finish(false);$('resultText').textContent='三つの眼に見つめ返された。';watcherMode='finished'}
+ if(t-watcherKillAt>900){hp=0;$('hp').textContent='0';finish(false);$('resultText').textContent='三つの眼に見つめ返された。';watcherMode='finished'}
  }
 }
 function applySpecialDamage(amount,t){if(done)return;let damage=amount;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=Math.min(2.2,.55+amount/23);drawDamageGlass(amount>=20,false);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}
