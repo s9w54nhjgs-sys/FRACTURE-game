@@ -553,7 +553,21 @@ function update(t){requestAnimationFrame(update);updateBlackTransit(t);chargeLev
  if(dt>0){const nx=player.position.x+moveVX*dt,nz=player.position.z+moveVZ*dt;
  if(!collides(nx,player.position.z))player.position.x=nx;else moveVX=0;
  if(!collides(player.position.x,nz))player.position.z=nz;else moveVZ=0}
- player.rotation.y=yaw;if(mag>.05)shell.rotation.y+=dt*1.7;if(t<lungeUntil&&dt>0){const step=dt*5.5,nx=player.position.x+lungeX*step,nz=player.position.z+lungeZ*step;if(!collides(nx,player.position.z))player.position.x=nx;if(!collides(player.position.x,nz))player.position.z=nz}if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){const dashSpeed=t<dashChargeBoostUntil?38:23;const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(!collides(player.position.x+dx,player.position.z))player.position.x+=dx;if(!collides(player.position.x,player.position.z+dz))player.position.z+=dz}
+ player.rotation.y=yaw;if(mag>.05)shell.rotation.y+=dt*1.7;if(t<lungeUntil&&dt>0){const step=dt*5.5,nx=player.position.x+lungeX*step,nz=player.position.z+lungeZ*step;if(!collides(nx,player.position.z))player.position.x=nx;if(!collides(player.position.x,nz))player.position.z=nz}if(t<iaiUntil&&iaiLastHit!==iaiUntil){
+ for(const e of [...enemies]){
+  const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z;
+  const along=dx*iaiX+dz*iaiZ,side=Math.abs(dx*iaiZ-dz*iaiX);
+  if(along>-.7&&along<3.4&&side<1.65&&!e.userData.dormant){
+   e.userData.hp-=iaiPower>1?3:1;
+   e.userData.stagger=t+420;e.userData.knockX=iaiX*16;e.userData.knockZ=iaiZ*16;
+   impact(e.position.x,e.position.y,e.position.z);
+   hitStopUntil=Math.max(hitStopUntil,t+(iaiPower>1?115:55));
+   if(e.userData.hp<=0){impact(e.position.x,e.position.y,e.position.z);scene.remove(e);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}
+  }
+ }
+ iaiLastHit=iaiUntil;
+}
+if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){const dashSpeed=t<dashChargeBoostUntil?38:23;const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(!collides(player.position.x+dx,player.position.z))player.position.x+=dx;if(!collides(player.position.x,player.position.z+dz))player.position.z+=dz}
  if(jumpCount>0){jumpVelocity-=22*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0){const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
  player.position.y=1.35+jumpHeight+Math.sin(t*.0025)*.08;
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
