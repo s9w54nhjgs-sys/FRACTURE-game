@@ -297,29 +297,42 @@ let vesselThreat=0;
 const vesselSceneStart=performance.now(),vesselHoldMs=180000,vesselTransitMs=78000;
 let vesselAwakenAt=Infinity,vesselSignalFlashUntil=0;
 const beaconAlarm=new THREE.MeshBasicMaterial({color:0xff5267,depthTest:true,toneMapped:false});
-let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null,vesselEngineStarted=false;
+let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null,vesselEngineStarted=false,vesselDistanceBus=null,vesselReverb=null;
 function unlockVesselAudio(){
  try{
   if(!vesselAudio){
    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
-   vesselAudio=new AC();vesselDrone=vesselAudio.createOscillator();vesselDrone.type='sawtooth';vesselDrone.frequency.value=68;
-   vesselDroneFilter=vesselAudio.createBiquadFilter();vesselDroneFilter.type='lowpass';vesselDroneFilter.frequency.value=420;
+   vesselAudio=new AC();
+   // Distant acoustic path: softened highs, quiet direct signal and a broad hollow tail.
+   vesselDistanceBus=vesselAudio.createGain();vesselDistanceBus.gain.value=.58;
+   const air=vesselAudio.createBiquadFilter();air.type='lowpass';air.frequency.value=620;air.Q.value=.45;
+   const delay=vesselAudio.createDelay(1.5);delay.delayTime.value=.37;
+   const echo=vesselAudio.createGain();echo.gain.value=.28;
+   const feedback=vesselAudio.createGain();feedback.gain.value=.23;
+   vesselDistanceBus.connect(air);air.connect(vesselAudio.destination);
+   air.connect(delay);delay.connect(echo);echo.connect(vesselAudio.destination);
+   delay.connect(feedback);feedback.connect(delay);
+   vesselDrone=vesselAudio.createOscillator();vesselDrone.type='sine';vesselDrone.frequency.value=74;
+   vesselDroneFilter=vesselAudio.createBiquadFilter();vesselDroneFilter.type='lowpass';vesselDroneFilter.frequency.value=260;
    vesselDroneGain=vesselAudio.createGain();vesselDroneGain.gain.value=0;
-   vesselDrone.connect(vesselDroneFilter);vesselDroneFilter.connect(vesselDroneGain);vesselDroneGain.connect(vesselAudio.destination);vesselDrone.start();
+   const harmonic=vesselAudio.createOscillator();harmonic.type='triangle';harmonic.frequency.value=111;
+   const harmonicGain=vesselAudio.createGain();harmonicGain.gain.value=.17;
+   vesselDrone.connect(vesselDroneFilter);harmonic.connect(harmonicGain);harmonicGain.connect(vesselDroneFilter);
+   vesselDroneFilter.connect(vesselDroneGain);vesselDroneGain.connect(vesselDistanceBus);
+   vesselDrone.start();harmonic.start();
   }
   if(vesselAudio.state==='suspended')vesselAudio.resume();
-  if(vesselEngineStarted&&vesselDroneGain&&vesselAudio.state==='running'&&vesselDroneGain.gain.value<.02)
-   vesselDroneGain.gain.setTargetAtTime(.075,vesselAudio.currentTime,.5);
  }catch(e){console.warn('Vessel audio unavailable',e)}
 }
 document.addEventListener('pointerdown',unlockVesselAudio,{passive:true});
-function vesselTone(freq,start,duration,volume,type='sawtooth',endFreq=freq){
+function vesselTone(freq,start,duration,volume,type='sine',endFreq=freq){
  if(!vesselAudio||vesselAudio.state!=='running')return;
  const o=vesselAudio.createOscillator(),g=vesselAudio.createGain(),now=vesselAudio.currentTime+start;
  o.type=type;o.frequency.setValueAtTime(freq,now);o.frequency.exponentialRampToValueAtTime(Math.max(20,endFreq),now+duration);
- g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(volume,now+Math.min(.18,duration*.2));
+ g.gain.setValueAtTime(.0001,now);
+ g.gain.exponentialRampToValueAtTime(volume,now+Math.min(.75,duration*.28));
  g.gain.exponentialRampToValueAtTime(.0001,now+duration);
- o.connect(g);g.connect(vesselAudio.destination);o.start(now);o.stop(now+duration+.02);
+ o.connect(g);g.connect(vesselDistanceBus);o.start(now);o.stop(now+duration+.02);
 }
 function vesselStartupSound(){
  unlockVesselAudio();if(!vesselAudio)return;
@@ -327,12 +340,13 @@ function vesselStartupSound(){
   const now=vesselAudio.currentTime;vesselEngineStarted=true;
   vesselDroneGain.gain.cancelScheduledValues(now);
   vesselDroneGain.gain.setValueAtTime(.0001,now);
-  vesselDroneGain.gain.exponentialRampToValueAtTime(.075,now+3.5);
-  vesselDroneFilter.frequency.setTargetAtTime(460,now,.7);
-  vesselTone(180,0,2.5,.09,'sawtooth',92);
-  vesselTone(330,.35,2.9,.065,'triangle',135);
-  vesselTone(510,1.2,2.4,.045,'sawtooth',190);
-  vesselTone(130,2.5,3.5,.065,'square',78);
+  vesselDroneGain.gain.exponentialRampToValueAtTime(.052,now+6);
+  vesselDroneFilter.frequency.setTargetAtTime(240,now,1.6);
+  // A huge metal shell waking up: three inharmonic, slow-decay resonances.
+  vesselTone(228,0,5.8,.12,'sine',194);
+  vesselTone(343,.45,6.2,.085,'sine',307);
+  vesselTone(467,1.25,5.6,.055,'triangle',418);
+  vesselTone(156,3.1,6.3,.068,'sine',131);
  };
  if(vesselAudio.state==='running')play();else vesselAudio.resume().then(play).catch(()=>{});
 }
@@ -344,7 +358,7 @@ function signalVessel(stage,t){
   notify('VESSEL ENGINE START // 巨大機関が起動した');
  }else if(stage===3){
   vesselAwakenAt=t+1400;
-  if(vesselAudio&&vesselDroneGain)vesselDroneGain.gain.setTargetAtTime(.11,vesselAudio.currentTime,.9);
+  if(vesselAudio&&vesselDroneGain)vesselDroneGain.gain.setTargetAtTime(.072,vesselAudio.currentTime,1.8);
   notify('VESSEL DEPARTURE // 潜航艦が動き出す');
  }
 }
