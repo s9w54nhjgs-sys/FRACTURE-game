@@ -294,15 +294,18 @@ hullDark.depthTest=true;hullDark.depthWrite=true;hullDark.fog=false;
 // A vast 3.6km vessel crosses the local sky, ignoring architecture and dome geometry.
 // Darkening is a cheap lighting simulation rather than costly real-time shadow maps.
 let vesselThreat=0;
+const vesselSceneStart=performance.now(),vesselHoldMs=180000,vesselTransitMs=78000;
 function updateBlackTransit(t){
- const cycle=(t/1000)%180,active=cycle<88;blackVessel.visible=active;
+ const elapsed=Math.max(0,t-vesselSceneStart),travel=Math.max(0,elapsed-vesselHoldMs);
+ const cycle=travel/1000,active=elapsed<vesselHoldMs||travel<vesselTransitMs;
+ blackVessel.visible=active;
  // Slow traveling sheen makes the curved armor readable without brightening the keel.
  vesselGlint.opacity=.58+.15*Math.sin(t*.00032);
  raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8);
  for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
 
  if(!active){vesselThreat=0;ambientSky.intensity=1.65;sun.intensity=2.35;return}
- const p=Math.max(0,Math.min(1,(cycle-10)/78));
+ const p=elapsed<vesselHoldMs?0:Math.max(0,Math.min(1,travel/vesselTransitMs));
  const centerX=2450-4900*p;
  blackVessel.position.set(centerX,465,0);
  // As the center of the kilometer-scale hull passes, the world sinks into shadow.
