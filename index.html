@@ -330,6 +330,14 @@ function unlockVesselAudio(){
  }catch(e){console.warn('Vessel audio unavailable',e)}
 }
 document.addEventListener('pointerdown',unlockVesselAudio,{passive:true});
+// iOS Safari: prevent native double-tap zoom and pinch gestures during gameplay.
+let lastGameTouchEnd=0;
+document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
+document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
+document.addEventListener('touchend',e=>{const now=performance.now();if(now-lastGameTouchEnd<360)e.preventDefault();lastGameTouchEnd=now},{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
+document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
+document.addEventListener('dblclick',e=>e.preventDefault());
 function vesselTone(freq,start,duration,volume,type='sine',endFreq=freq){
  if(!vesselAudio||vesselAudio.state!=='running')return;
  const o=vesselAudio.createOscillator(),g=vesselAudio.createGain(),now=vesselAudio.currentTime+start;
@@ -364,7 +372,7 @@ function vesselStartupSound(){
 function vesselMetalClank(delaySec=0){
  if(!vesselAudio||vesselAudio.state!=='running')return;
  const now=vesselAudio.currentTime+delaySec;
- for(const [hz,amp] of [[172,.3],[346,.2],[680,.1]]){
+ for(const [hz,amp] of [[172,.42],[346,.3],[680,.16],[1050,.08]]){
   const o=vesselAudio.createOscillator(),g=vesselAudio.createGain();
   o.type='sine';o.frequency.setValueAtTime(hz,now);o.frequency.exponentialRampToValueAtTime(hz*.82,now+.9);
   g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(amp,now+.012);
@@ -404,7 +412,7 @@ function updateVesselSound(t,p,centerX){
  if(!vesselAudio||vesselAudio.state!=='running')return;
  if(vesselLightsAt!==Infinity&&!vesselLightClanksScheduled){
   vesselLightClanksScheduled=true;
-  for(let i=0;i<3;i++)vesselMetalClank(Math.max(0,(vesselLightsAt+i*800-t)/1000));
+  for(let i=0;i<3;i++)vesselMetalClank(Math.max(0,(vesselLightsAt+i*900-t)/1000));
  }
  if(vesselDepartureSoundAt!==Infinity&&t>=vesselDepartureSoundAt&&!vesselScrapePlayed){
   vesselScrapePlayed=true;vesselScrape();
@@ -421,7 +429,7 @@ function updateVesselSound(t,p,centerX){
 }
 function signalVessel(stage,t){
  vesselSignalFlashUntil=t+1800;
- if(stage===1){vesselLightsAt=t;unlockVesselAudio();notify('VESSEL LIGHTS ONLINE // 船体照明を順次投入')}
+ if(stage===1){vesselLightsAt=t;unlockVesselAudio();vesselLightClanksScheduled=false;notify('VESSEL LIGHTS ONLINE // 船体照明を順次投入')}
  else if(stage===2){
   vesselStartupSound();
   notify('VESSEL ENGINE START // 巨大機関が起動した');
@@ -442,7 +450,7 @@ function updateBlackTransit(t){
  vesselGlint.opacity=.58+.15*Math.sin(t*.00032);
  raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8)+(signalStage>=1?.12:0);
  vesselGlint.opacity=Math.min(.96,.58+.15*Math.sin(t*.00032)+signalStage*.06);
- for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;const lit=signalStage>0&&(vesselLightsAt===Infinity||t>=vesselLightsAt+Math.min(2,Math.max(0,Math.floor((b.bulb.position.x+90)/60)))*800);b.bulb.material=!lit?beaconOff:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
+ for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;const lit=signalStage>0&&(vesselLightsAt===Infinity||t>=vesselLightsAt+Math.min(2,Math.max(0,Math.floor((b.bulb.position.x+90)/60)))*900);b.bulb.material=!lit?beaconOff:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
 
  if(!active){vesselThreat=0;ambientSky.intensity=1.65;sun.intensity=2.35;return}
  const p=t<departAt?0:Math.max(0,Math.min(1,travel/vesselTransitMs));
