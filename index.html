@@ -364,13 +364,30 @@ function vesselStartupSound(){
 }
 function vesselMetalClank(delaySec=0){
  if(!vesselAudio)return;
- const now=vesselAudio.currentTime+delaySec;
- for(const [hz,amp] of [[172,.42],[346,.3],[680,.16],[1050,.08]]){
-  const o=vesselAudio.createOscillator(),g=vesselAudio.createGain();
-  o.type='sine';o.frequency.setValueAtTime(hz,now);o.frequency.exponentialRampToValueAtTime(hz*.82,now+.9);
-  g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(amp,now+.012);
-  g.gain.exponentialRampToValueAtTime(.0001,now+1.5);
-  o.connect(g);g.connect(vesselDistanceBus);g.connect(vesselFarBus);o.start(now);o.stop(now+1.55);
+ const ctx=vesselAudio,at=ctx.currentTime+delaySec;
+ // Warehouse-sized steel contactor: crisp transient, plate rattle, distant metallic decay.
+ const rate=ctx.sampleRate,length=Math.floor(rate*.28),buffer=ctx.createBuffer(1,length,rate),samples=buffer.getChannelData(0);
+ let prev=0;
+ for(let i=0;i<length;i++){
+  const t=i/rate;
+  prev=prev*.56+(Math.random()*2-1)*.44;
+  samples[i]=prev*Math.exp(-t*31);
+ }
+ const strike=ctx.createBufferSource(),high=ctx.createBiquadFilter(),strikeGain=ctx.createGain();
+ strike.buffer=buffer;high.type='highpass';high.frequency.value=850;
+ strikeGain.gain.value=.85;
+ strike.connect(high);high.connect(strikeGain);strikeGain.connect(vesselDistanceBus);
+ strike.start(at);
+ // Inharmonic steel plate modes: audible metal, not a low-frequency thump.
+ for(const [hz,amp,decay] of [[510,.19,.62],[910,.15,.48],[1460,.095,.34],[2170,.055,.22]]){
+  const o=ctx.createOscillator(),g=ctx.createGain();
+  o.type='triangle';o.frequency.setValueAtTime(hz,at);
+  o.frequency.exponentialRampToValueAtTime(hz*.97,at+decay);
+  g.gain.setValueAtTime(.0001,at);
+  g.gain.exponentialRampToValueAtTime(amp,at+.006);
+  g.gain.exponentialRampToValueAtTime(.0001,at+decay);
+  o.connect(g);g.connect(vesselDistanceBus);g.connect(vesselFarBus);
+  o.start(at);o.stop(at+decay+.02);
  }
 }
 function vesselNoise(duration,cutoff,volume){
