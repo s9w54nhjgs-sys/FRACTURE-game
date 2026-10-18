@@ -486,8 +486,16 @@ function updateSpecial(t,dt){if(done)return;
  tx+=repelX;tz+=repelZ;
  const ax=tx-g.position.x,az=tz-g.position.z,ad=Math.hypot(ax,az)||1;
  const crawl=.08+liquid*1.55;const inch=.65+.35*Math.abs(Math.sin(t*.013+u.seed));
- if(ad>1.3){const nx=g.position.x+ax/ad*speed*crawl*inch*dt,nz=g.position.z+az/ad*speed*crawl*inch*dt;
- if(!collides(nx,g.position.z))g.position.x=nx;if(!collides(g.position.x,nz))g.position.z=nz}
+ if(ad>1.3){const step=speed*crawl*inch*dt,nx=g.position.x+ax/ad*step,nz=g.position.z+az/ad*step;
+ if(!collides(nx,nz)){g.position.x=nx;g.position.z=nz}
+ else if(liquid>.55){ // Oil seeps sideways around the nearest wall while flattened.
+  const leftX=-az/ad,leftZ=ax/ad,rightX=-leftX,rightZ=-leftZ;
+  const lx=g.position.x+leftX*step,lz=g.position.z+leftZ*step;
+  const rx=g.position.x+rightX*step,rz=g.position.z+rightZ*step;
+  if(!collides(lx,lz)){g.position.x=lx;g.position.z=lz}
+  else if(!collides(rx,rz)){g.position.x=rx;g.position.z=rz}
+ }
+}
  g.rotation.y=Math.atan2(-ax,-az);
  if(u.alert&&d<1.5&&t-u.last>1700&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(19,t)}
  }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-u.last>1000){u.last=t;applySpecialDamage(32,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=4+Math.random()*10;u.nextTurn=t+550+Math.random()*2100}
