@@ -295,21 +295,52 @@ hullDark.depthTest=true;hullDark.depthWrite=true;hullDark.fog=false;
 // Darkening is a cheap lighting simulation rather than costly real-time shadow maps.
 let vesselThreat=0;
 const vesselSceneStart=performance.now(),vesselHoldMs=180000,vesselTransitMs=78000;
-let vesselAwakenAt=Infinity,vesselSignalFlashUntil=0,vesselSignalPulse=0;
+let vesselAwakenAt=Infinity,vesselSignalFlashUntil=0;
 const beaconAlarm=new THREE.MeshBasicMaterial({color:0xff5267,depthTest:true,toneMapped:false});
-function signalVessel(stage,t){vesselSignalFlashUntil=t+2200;vesselSignalPulse=stage;if(stage===3){vesselAwakenAt=t+2400;notify('VESSEL AWAKENING // 潜航艦が起動する')}else if(stage===2)notify('VESSEL RESPONSE // 船体が共鳴している');else notify('SIGNAL DETECTED // 潜航艦が反応した')}
+let vesselAudio=null,vesselDrone=null,vesselDroneGain=null,vesselDroneFilter=null;
+function unlockVesselAudio(){
+ try{
+  if(!vesselAudio){
+   const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+   vesselAudio=new AC();vesselDrone=vesselAudio.createOscillator();vesselDrone.type='sawtooth';vesselDrone.frequency.value=34;
+   vesselDroneFilter=vesselAudio.createBiquadFilter();vesselDroneFilter.type='lowpass';vesselDroneFilter.frequency.value=100;
+   vesselDroneGain=vesselAudio.createGain();vesselDroneGain.gain.value=0;
+   vesselDrone.connect(vesselDroneFilter);vesselDroneFilter.connect(vesselDroneGain);vesselDroneGain.connect(vesselAudio.destination);vesselDrone.start();
+  }
+  if(vesselAudio.state==='suspended')vesselAudio.resume();
+ }catch(e){console.warn('Vessel audio unavailable',e)}
+}
+document.addEventListener('pointerdown',unlockVesselAudio,{passive:true});
+function signalVessel(stage,t){
+ vesselSignalFlashUntil=t+1800;
+ if(stage===1){notify('VESSEL LIGHTS ONLINE // 潜航艦の灯火が点灯')}
+ else if(stage===2){
+  unlockVesselAudio();
+  if(vesselAudio&&vesselDroneGain){
+   const now=vesselAudio.currentTime;
+   vesselDroneGain.gain.cancelScheduledValues(now);vesselDroneGain.gain.setValueAtTime(vesselDroneGain.gain.value,now);
+   vesselDroneGain.gain.linearRampToValueAtTime(.075,now+2.6);
+   vesselDroneFilter.frequency.setTargetAtTime(145,now,.7);
+  }
+  notify('VESSEL ENGINE START // 巨大機関が起動した');
+ }else if(stage===3){
+  vesselAwakenAt=t+1400;
+  if(vesselAudio&&vesselDroneGain)vesselDroneGain.gain.setTargetAtTime(.11,vesselAudio.currentTime,.9);
+  notify('VESSEL DEPARTURE // 潜航艦が動き出す');
+ }
+}
 function updateBlackTransit(t){
  const elapsed=Math.max(0,t-vesselSceneStart),departAt=Math.min(vesselSceneStart+vesselHoldMs,vesselAwakenAt),travel=Math.max(0,t-departAt);
  const cycle=travel/1000,active=t<departAt||travel<vesselTransitMs;
  const signalStage=typeof relaysActive==='number'?relaysActive:0;
  const alarm=t<vesselSignalFlashUntil;
- const alarmBlink=Math.floor(t/140)%2===0;
+ const alarmBlink=Math.floor(t/240)%2===0;
  blackVessel.visible=active;
  // Slow traveling sheen makes the curved armor readable without brightening the keel.
  vesselGlint.opacity=.58+.15*Math.sin(t*.00032);
- raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8)+signalStage*.19+(alarm?.35:0);
+ raisedSteel.emissiveIntensity=.28+.12*Math.sin(t*.00027+.8)+(signalStage>=1?.12:0);
  vesselGlint.opacity=Math.min(.96,.58+.15*Math.sin(t*.00032)+signalStage*.06);
- for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=alarm&&alarmBlink?beaconAlarm:signalStage>=2&&Math.floor(t/720+b.phase)%4===0?beaconWarm:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
+ for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;b.bulb.material=signalStage===0?beaconOff:alarm&&alarmBlink?beaconAlarm:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
 
  if(!active){vesselThreat=0;ambientSky.intensity=1.65;sun.intensity=2.35;return}
  const p=t<departAt?0:Math.max(0,Math.min(1,travel/vesselTransitMs));
@@ -320,8 +351,8 @@ function updateBlackTransit(t){
  const eased=shadow*shadow*(3-2*shadow);
  // The vessel's moving shadow disturbs dormant hostiles and intensifies their search.
  vesselThreat=eased;
- ambientSky.intensity=1.65-eased*1.25-(signalStage>=2?.17:0)-(alarm?.12:0);
- sun.intensity=2.35-eased*2.12-(signalStage>=2?.22:0)-(alarm?.15:0);
+ ambientSky.intensity=1.65-eased*1.25;
+ sun.intensity=2.35-eased*2.12;
 }
 // OUTER CITY: non-traversable collapsed skyline, deliberately sparse and distant.
 const ruinMat=new THREE.MeshStandardMaterial({color:0x39464b,roughness:.98,metalness:.05,flatShading:true});
