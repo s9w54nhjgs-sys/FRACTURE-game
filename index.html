@@ -415,6 +415,10 @@ for(let tries=0;tries<1200&&stalkerSites.length<4;tries++){
 }
 for(const [x,z] of stalkerSites)special('pursuer',x,z);
 // Three aerial ecologies: 3 sentinels, 4 fast roamers, 3 wall-embedded hunters.
+const aerialAxis=new THREE.Vector3(0,1,0);
+function aimAerial(u,t,progress=1){const g=u.g,tip=new THREE.Vector3(u.lockedX,-.45,u.lockedZ).sub(g.position).normalize();const target=new THREE.Quaternion().setFromUnitVectors(aerialAxis,tip);u.body.quaternion.slerp(target,Math.min(1,progress));const chatter=(1-progress)*.12;u.body.rotateY(Math.sin(t*.083+u.seed)*chatter);u.body.rotateZ(Math.sin(t*.049+u.seed)*chatter*.6);}
+function prepareAerial(u,t){u.mode='gearLock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z;u.startX=u.g.position.x;u.startY=u.g.position.y;u.startZ=u.g.position.z;u.body.rotation.set(0,0,Math.PI);}
+function diveAerial(u,t,dt){const g=u.g,p=Math.min(1,(t-u.last)/430),ease=p*p*(3-2*p);g.position.set(u.startX+(u.lockedX-u.startX)*ease,Math.max(.9,u.startY+( .9-u.startY)*ease),u.startZ+(u.lockedZ-u.startZ)*ease);aimAerial(u,t,1);if(p>=1){u.mode='stuck';u.last=t;g.position.y=.9;u.body.quaternion.setFromUnitVectors(aerialAxis,new THREE.Vector3(0,-1,0));impact(g.position.x,.15,g.position.z);if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.8&&t>=dashInvulnerableUntil)applySpecialDamage(32,t)}}
 const aerialSentinels=[[-28,-36],[32,32],[-65,44]];
 const aerialRoamers=[[-44,4],[42,-45],[67,53],[-70,-57]];
 const aerialWallSites=[...walls.map(w=>({x:w.x,z:w.z,w:w.w,d:w.d})),{x:-55,z:-54,w:14,d:12},{x:51,z:14,w:12,d:10}];
@@ -511,10 +515,10 @@ function updateSpecial(t,dt){if(done)return;
  const climb=THREE.MathUtils.clamp((u.flightY-g.position.y)*2,-8,8);
  g.position.y+=climb*dt;
  g.rotation.y=u.heading;g.rotation.x=Math.atan2(climb,speed);g.rotation.z=THREE.MathUtils.clamp(turn*1.2,-.65,.65);
- u.body.rotation.z=0;u.body.rotation.x=Math.PI/2;if(d<5){u.mode='strafeDive';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z;u.diveStartY=g.position.y}}else if(u.mode==='strafeDive'){const p=Math.min(1,(t-u.last)/560);const ax=u.lockedX-g.position.x,az=u.lockedZ-g.position.z;g.position.x+=ax*Math.min(1,dt*9);g.position.z+=az*Math.min(1,dt*9);g.position.y=u.diveStartY*(1-p)+.7*p;g.rotation.y=Math.atan2(-ax,-az);g.rotation.x=.65+p*.75;g.rotation.z=0;if(p>=1){u.mode='stuck';u.last=t;if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.7&&t>=dashInvulnerableUntil)applySpecialDamage(32,t)}}else if(u.mode==='idle'){g.position.y=8;if(d<5){u.mode='lock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z}}
- else if(u.mode==='lock'){if(d>5){u.mode='idle';continue}g.position.y=7;g.rotation.y=Math.atan2(-(player.position.x-g.position.x),-(player.position.z-g.position.z));g.rotation.z=Math.sin(t*.02)*.22;if(t-u.last>650){u.mode='dive';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z;g.rotation.z=0}}
- else if(u.mode==='dive'){const p=Math.min(1,(t-u.last)/440);g.position.x+=(u.lockedX-g.position.x)*Math.min(1,dt*12);g.position.z+=(u.lockedZ-g.position.z)*Math.min(1,dt*12);g.position.y=7-6.3*p*p;if(p>=1){u.mode='stuck';u.last=t;if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.7&&t>=dashInvulnerableUntil)applySpecialDamage(32,t)}}
- else if(u.mode==='stuck'){if(t-u.last>1900){u.mode='idle';g.position.y=7;g.rotation.x=0;g.rotation.z=0}}
+ u.body.rotation.z=0;u.body.rotation.x=Math.PI/2;if(d<7)prepareAerial(u,t)}else if(u.mode==='gearLock'){g.rotation.set(0,0,0);aimAerial(u,t,Math.min(1,(t-u.last)/500));if(t-u.last>=500){u.mode='dive';u.last=t;u.startX=g.position.x;u.startY=g.position.y;u.startZ=g.position.z}}else if(u.mode==='dive'){diveAerial(u,t,dt)}else if(u.mode==='idle'){g.position.y=8;if(d<7)prepareAerial(u,t)}
+ else if(u.mode==='gearLock'){g.rotation.set(0,0,0);aimAerial(u,t,Math.min(1,(t-u.last)/500));if(t-u.last>=500){u.mode='dive';u.last=t;u.startX=g.position.x;u.startY=g.position.y;u.startZ=g.position.z}}
+ else if(u.mode==='dive'){diveAerial(u,t,dt)}
+ else if(u.mode==='stuck'){if(t-u.last>1900){u.mode='idle';g.position.y=7;g.rotation.set(0,0,0);u.body.rotation.set(0,0,Math.PI)}}
  }}
  // One apparition in the entire world. Appears behind the player's facing direction.
  if(watcherMode==='waiting'&&t>watcherNext){const a=yaw+(Math.random()-.5)*.6;watcher.position.set(player.position.x+Math.sin(a)*15,0,player.position.z+Math.cos(a)*15);watcher.lookAt(player.position.x,3,player.position.z);watcher.rotateY(Math.PI);watcher.visible=true;watcherMode='watch';watcherStart=0}
