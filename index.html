@@ -362,34 +362,6 @@ function vesselStartupSound(){
  };
  if(vesselAudio.state==='running')play();else vesselAudio.resume().then(play).catch(()=>{});
 }
-function vesselMetalClank(delaySec=0){
- if(!vesselAudio)return;
- const ctx=vesselAudio,at=ctx.currentTime+delaySec;
- // Warehouse-sized steel contactor: crisp transient, plate rattle, distant metallic decay.
- const rate=ctx.sampleRate,length=Math.floor(rate*.28),buffer=ctx.createBuffer(1,length,rate),samples=buffer.getChannelData(0);
- let prev=0;
- for(let i=0;i<length;i++){
-  const t=i/rate;
-  prev=prev*.56+(Math.random()*2-1)*.44;
-  samples[i]=prev*Math.exp(-t*31);
- }
- const strike=ctx.createBufferSource(),high=ctx.createBiquadFilter(),strikeGain=ctx.createGain();
- strike.buffer=buffer;high.type='highpass';high.frequency.value=850;
- strikeGain.gain.value=.85;
- strike.connect(high);high.connect(strikeGain);strikeGain.connect(vesselDistanceBus);
- strike.start(at);
- // Inharmonic steel plate modes: audible metal, not a low-frequency thump.
- for(const [hz,amp,decay] of [[510,.19,.62],[910,.15,.48],[1460,.095,.34],[2170,.055,.22]]){
-  const o=ctx.createOscillator(),g=ctx.createGain();
-  o.type='triangle';o.frequency.setValueAtTime(hz,at);
-  o.frequency.exponentialRampToValueAtTime(hz*.97,at+decay);
-  g.gain.setValueAtTime(.0001,at);
-  g.gain.exponentialRampToValueAtTime(amp,at+.006);
-  g.gain.exponentialRampToValueAtTime(.0001,at+decay);
-  o.connect(g);g.connect(vesselDistanceBus);g.connect(vesselFarBus);
-  o.start(at);o.stop(at+decay+.02);
- }
-}
 function vesselNoise(duration,cutoff,volume){
  if(!vesselAudio||vesselAudio.state!=='running')return;
  const rate=vesselAudio.sampleRate,n=Math.floor(rate*duration),buf=vesselAudio.createBuffer(1,n,rate),d=buf.getChannelData(0);
@@ -440,8 +412,7 @@ function updateVesselSound(t,p,centerX){
 function signalVessel(stage,t){
  vesselSignalFlashUntil=t+1800;
  if(stage===1){vesselLightsAt=t;unlockVesselAudio();vesselLightClanksScheduled=true;
-  const playClanks=()=>{for(let i=0;i<3;i++)vesselMetalClank(i*.9)};
-  if(vesselAudio?.state==='running')playClanks();else vesselAudio?.resume().then(playClanks).catch(()=>{});
+  // Lighting sequence is visual-only until a suitable recorded metal impact is available.
   notify('VESSEL LIGHTS ONLINE // 船体照明を順次投入')}
  else if(stage===2){
   vesselStartupSound();
