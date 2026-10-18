@@ -330,11 +330,10 @@ function unlockVesselAudio(){
  }catch(e){console.warn('Vessel audio unavailable',e)}
 }
 document.addEventListener('pointerdown',unlockVesselAudio,{passive:true});
+document.addEventListener('touchstart',unlockVesselAudio,{passive:true});
 // iOS Safari: prevent native double-tap zoom and pinch gestures during gameplay.
-let lastGameTouchEnd=0;
 document.addEventListener('touchstart',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
 document.addEventListener('touchmove',e=>{if(e.touches.length>1)e.preventDefault()},{passive:false});
-document.addEventListener('touchend',e=>{const now=performance.now();if(now-lastGameTouchEnd<360)e.preventDefault();lastGameTouchEnd=now},{passive:false});
 document.addEventListener('gesturestart',e=>e.preventDefault(),{passive:false});
 document.addEventListener('gesturechange',e=>e.preventDefault(),{passive:false});
 document.addEventListener('dblclick',e=>e.preventDefault());
@@ -370,7 +369,7 @@ function vesselStartupSound(){
  if(vesselAudio.state==='running')play();else vesselAudio.resume().then(play).catch(()=>{});
 }
 function vesselMetalClank(delaySec=0){
- if(!vesselAudio||vesselAudio.state!=='running')return;
+ if(!vesselAudio)return;
  const now=vesselAudio.currentTime+delaySec;
  for(const [hz,amp] of [[172,.42],[346,.3],[680,.16],[1050,.08]]){
   const o=vesselAudio.createOscillator(),g=vesselAudio.createGain();
@@ -429,7 +428,10 @@ function updateVesselSound(t,p,centerX){
 }
 function signalVessel(stage,t){
  vesselSignalFlashUntil=t+1800;
- if(stage===1){vesselLightsAt=t;unlockVesselAudio();vesselLightClanksScheduled=false;notify('VESSEL LIGHTS ONLINE // 船体照明を順次投入')}
+ if(stage===1){vesselLightsAt=t;unlockVesselAudio();vesselLightClanksScheduled=true;
+  const playClanks=()=>{for(let i=0;i<3;i++)vesselMetalClank(i*.9)};
+  if(vesselAudio?.state==='running')playClanks();else vesselAudio?.resume().then(playClanks).catch(()=>{});
+  notify('VESSEL LIGHTS ONLINE // 船体照明を順次投入')}
  else if(stage===2){
   vesselStartupSound();
   notify('VESSEL ENGINE START // 巨大機関が起動した');
