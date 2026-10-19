@@ -3,7 +3,8 @@ const panel=document.getElementById('frPanel');if(panel){
 const wrap=document.createElement('section');wrap.className='frCard';wrap.innerHTML='<h2>LEGACY CELL / 3D外装プレビュー</h2><select id="frPreviewSelect" style="width:100%;padding:10px;background:#102736;color:#e9ffff"></select><div id="frPreviewViewport" style="height:290px;width:100%;overflow:hidden;border-radius:12px;background:#07111b"></div><p id="frPreviewInfo" class="frMuted">合成済みCELLを選ぶと形状を確認できます。</p>';panel.insertBefore(wrap,document.getElementById('frNotice'));
 const viewport=wrap.querySelector('#frPreviewViewport'),select=wrap.querySelector('select'),info=wrap.querySelector('#frPreviewInfo');const scene=new THREE.Scene();scene.background=new THREE.Color(0x07111b);const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,3.2,12);camera.lookAt(0,0,0);const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));viewport.appendChild(renderer.domElement);scene.add(new THREE.AmbientLight(0xb7ecff,1.4));const light=new THREE.PointLight(0x9befff,65);light.position.set(3,4,5);scene.add(light);const group=new THREE.Group();scene.add(group);
 function random(seed){let x=(seed||123456789)>>>0;return ()=>{x=(1664525*x+1013904223)>>>0;return x/4294967296}}
-function show(cell){
+let animatedOrbits=[];function show(cell){
+animatedOrbits=[];
 while(group.children.length){const o=group.children[0];group.remove(o);o.traverse(v=>{v.geometry?.dispose();if(v.material&&v.material!==undefined){(Array.isArray(v.material)?v.material:[v.material]).forEach(m=>m.dispose())}})}
 if(!cell)return;
 const p=cell.recipe||{},sum=Math.max(1,Object.values(p).reduce((a,b)=>a+(Number(b)||0),0)),rand=random(cell.seed||42);
@@ -127,6 +128,53 @@ for(let i=0;i<Math.round(basic*(3+power*22));i++){const d=direction(),pos=point(
 if(power>.18){for(let i=0;i<1+tier;i++){const ring=add(new THREE.TorusGeometry(radius*(1.23+i*.21),.025+power*.025,5,64),i%2?glow:metal,0,0,0);ring.rotation.set(rand()*Math.PI,rand()*Math.PI,rand()*Math.PI)}}
 if(p.aura){for(let i=0;i<1+Math.min(3,Math.ceil(p.aura/30));i++){const halo=add(new THREE.TorusGeometry(radius*(1.5+i*.3),.015+power*.04,4,64),glow,0,0,0);halo.rotation.set(rand()*3,rand()*3,rand()*3)}}
 if(power>.55){for(let i=0;i<3+tier*2;i++){const d=direction(),pos=point(d,radius*(1.45+rand()*.5));const satellite=add(new THREE.OctahedronGeometry(.12+power*.13,0),glow,pos.x,pos.y,pos.z);satellite.rotation.set(rand()*3,rand()*3,rand()*3)}}
+
+// Directional lance array: coherent forward-facing spikes rather than a uniform pincushion.
+const forwardStage=Math.min(1,Math.max(0,(aerialAmount-120)/1800));
+if(aerialAmount>=120){
+ const forward=new THREE.Vector3((rand()-.5)*.35,(rand()-.5)*.28,1).normalize();
+ const lanceCount=Math.min(15,Math.max(3,Math.round(Math.sqrt(aerialAmount)/4)));
+ for(let i=0;i<lanceCount;i++){
+  const scatter=new THREE.Vector3((rand()-.5)*.65,(rand()-.5)*.65,(rand()-.5)*.18);
+  const dir=forward.clone().add(scatter.multiplyScalar(.45-forwardStage*.18)).normalize();
+  const len=(1.4+forwardStage*3.6)*(i<3?1.55:.6+rand()*.55);
+  const base=point(dir,radius*(.65+rand()*.28));
+  const lance=add(new THREE.ConeGeometry(.09+forwardStage*.12,len,5),i%4===0?glow:metal,base.x+dir.x*len*.45,base.y+dir.y*len*.45,base.z+dir.z*len*.45);
+  lance.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+ }
+}
+// Atomic orbit effects: multiple tilted elliptical tracks with bright orbiting particles.
+const orbitAmount=(Number(p.aura)||0)+(Number(p.swarm)||0)*.65;
+if(orbitAmount>=60){
+ const orbitCount=Math.min(5,1+Math.floor(Math.sqrt(orbitAmount)/12));
+ for(let i=0;i<orbitCount;i++){
+  const pivot=new THREE.Group();group.add(pivot);
+  pivot.rotation.set(rand()*Math.PI,rand()*Math.PI,rand()*Math.PI);
+  const orbitRadius=radius*(1.35+i*.14+rand()*.14);
+  const track=new THREE.Mesh(new THREE.TorusGeometry(orbitRadius,.012+power*.012,5,70),glow);
+  track.scale.y=.65+rand()*.25;pivot.add(track);
+  const particles=[];
+  const particleCount=2+Math.min(5,Math.floor(orbitAmount/400));
+  for(let j=0;j<particleCount;j++){
+   const particle=new THREE.Mesh(new THREE.IcosahedronGeometry(.045+power*.055,0),glow);pivot.add(particle);
+   particles.push({mesh:particle,phase:rand()*Math.PI*2});
+  }
+  animatedOrbits.push({pivot,particles,radius:orbitRadius,ellipse:track.scale.y,speed:(.006+rand()*.009)*(i%2?-1:1)});
+ }
+}
+// Detached hovering artifacts: extend beyond the body without becoming a dense spike ball.
+const hoverAmount=(Number(p.heavy)||0)*.5+(Number(p.aerial)||0)*.45+(Number(p.swarm)||0)*.65;
+if(hoverAmount>=180){
+ const pieces=Math.min(12,2+Math.floor(Math.sqrt(hoverAmount)/7));
+ for(let i=0;i<pieces;i++){
+  const directionVector=direction();
+  const distance=radius*(1.4+rand()*.45);
+  const position=point(directionVector,distance);
+  const artifact=add(i%3===0?new THREE.OctahedronGeometry(.17+power*.18,0):new THREE.BoxGeometry(.18+power*.2,.35+power*.25,.16+power*.2),i%4===0?glow:metal,position.x,position.y,position.z);
+  artifact.rotation.set(rand()*3,rand()*3,rand()*3);
+  artifact.userData.hover={baseY:position.y,phase:rand()*Math.PI*2,speed:.8+rand()*1.3};
+ }
+}
 group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
 info.textContent=cell.name+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
@@ -142,5 +190,5 @@ const forecast=()=>{if(!previewMode)return;const recipe=Object.fromEntries(mixIn
 live.onclick=()=>{previewMode=!previewMode;live.textContent=previewMode?'完成CELL一覧に戻る':'投入配合の予測プレビュー';select.disabled=previewMode;if(previewMode)forecast();else refresh()};
 mixInputs.forEach(n=>n.addEventListener('input',forecast));
 
-select.addEventListener('change',()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');show((d.cells||[]).filter(c=>c.recipe)[Number(select.value)])});document.getElementById('frMix')?.addEventListener('click',()=>setTimeout(refresh,0));document.getElementById('frHome')?.addEventListener('click',refresh);window.addEventListener('fracture-cell-updated',refresh);const resize=()=>{const w=viewport.clientWidth||320;renderer.setSize(w,290);camera.aspect=w/290;camera.updateProjectionMatrix()};resize();refresh();let frame=0;function animate(){requestAnimationFrame(animate);if(wrap.getBoundingClientRect().width===0)return;if(++frame%2)return;group.rotation.y+=.009;group.rotation.x=Math.sin(frame*.006)*.15;renderer.render(scene,camera)}animate();
+select.addEventListener('change',()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');show((d.cells||[]).filter(c=>c.recipe)[Number(select.value)])});document.getElementById('frMix')?.addEventListener('click',()=>setTimeout(refresh,0));document.getElementById('frHome')?.addEventListener('click',refresh);window.addEventListener('fracture-cell-updated',refresh);const resize=()=>{const w=viewport.clientWidth||320;renderer.setSize(w,290);camera.aspect=w/290;camera.updateProjectionMatrix()};resize();refresh();let frame=0;function animate(){requestAnimationFrame(animate);if(wrap.getBoundingClientRect().width===0)return;if(++frame%2)return;group.rotation.y+=.009;group.rotation.x=Math.sin(frame*.006)*.15;for(const o of animatedOrbits){o.pivot.rotation.z+=o.speed*.35;for(const p of o.particles){p.phase+=o.speed;p.mesh.position.set(Math.cos(p.phase)*o.radius,Math.sin(p.phase)*o.radius*o.ellipse,0)}}group.children.forEach(c=>{if(c.userData.hover){const h=c.userData.hover;c.position.y=h.baseY+Math.sin(frame*.025*h.speed+h.phase)*.12;c.rotation.y+=.004}});renderer.render(scene,camera)}animate();
 }
