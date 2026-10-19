@@ -596,8 +596,8 @@ function launchVesselEscorts(t){
  if(escortsLaunched)return;
  escortsLaunched=true;escortReleaseAt=t;
  for(let i=0;i<escortCount;i++){
-  const angle=i*2.399963,ring=20+(i%16)*3.5;
-  escortData.push({i,angle,ring,born:t+i*32,mode:0,x:0,y:0,z:0,sx:0,sy:0,sz:0,tx:0,tz:0,attackAt:0,duration:0});
+  const angle=i*2.399963,ring=8+(i%16)*3.5;
+  escortData.push({i,angle,ring,born:Infinity,mode:0,x:0,y:0,z:0,sx:0,sy:0,sz:0,tx:0,tz:0,attackAt:0,duration:0});
  }
  notify('VENTRAL HATCH OPEN // CHROME ESCORTS DEPLOYED');
 }
@@ -605,7 +605,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
  if(!escortsLaunched)return;
  // Launch only as the ventral hatch enters the visible station, not kilometers away.
  const hatchX=centerX-420;
- if(Math.abs(hatchX)>520&&escortMesh.count===0)return;
+ if(escortReleaseAt!==Infinity&&escortData[0]?.born===Infinity){if(Math.abs(hatchX)>430)return;for(const e of escortData)e.born=t+e.i*36;}
  let drawn=0;
  // One flock-wide alert, no per-agent AI pathfinding.
  if(!escortsAlerted)for(const e of escortData){
