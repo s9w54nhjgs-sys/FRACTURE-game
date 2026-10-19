@@ -216,8 +216,18 @@ if(hoverAmount>=180){
   artifact.userData.hover={baseY:position.y,phase:rand()*Math.PI*2,speed:.8+rand()*1.3};
  }
 }
+// Two-tone paint begins at 500 paint units; stable seeded accent finish.
+let accentLabel='';
+if((Number(p.paint)||0)>=500){
+ const secondIndex=(Math.floor(colorVariant*997)+3)%darkAnodized.length;
+ const accentChoice=darkAnodized[secondIndex][1]===paintChoice[1]?darkAnodized[(secondIndex+1)%darkAnodized.length]:darkAnodized[secondIndex];
+ const accent=metal.clone();accent.color.setHex(accentChoice[1]);
+ accentLabel=' / 2色塗装 '+accentChoice[0];
+ let painted=0;
+ group.traverse(obj=>{if(obj.isMesh&&obj.material===metal){if((painted++%3)===1)obj.material=accent}});
+}
 group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
-info.textContent=cell.name+' / 塗装 '+paintLabel+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
+info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
 
