@@ -3,7 +3,7 @@ const panel=document.getElementById('frPanel');if(panel){
 const wrap=document.createElement('section');wrap.className='frCard';wrap.innerHTML='<h2>LEGACY CELL / 3D外装プレビュー</h2><select id="frPreviewSelect" style="width:100%;padding:10px;background:#102736;color:#e9ffff"></select><div id="frPreviewViewport" style="height:290px;width:100%;overflow:hidden;border-radius:12px;background:#07111b"></div><p id="frPreviewInfo" class="frMuted">合成済みCELLを選ぶと形状を確認できます。</p>';panel.insertBefore(wrap,document.getElementById('frNotice'));
 const viewport=wrap.querySelector('#frPreviewViewport'),select=wrap.querySelector('select'),info=wrap.querySelector('#frPreviewInfo');const scene=new THREE.Scene();scene.background=new THREE.Color(0x07111b);const camera=new THREE.PerspectiveCamera(45,1,.1,100);camera.position.set(0,3.2,12);camera.lookAt(0,0,0);const renderer=new THREE.WebGLRenderer({antialias:true,alpha:false,powerPreference:'low-power'});renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));viewport.appendChild(renderer.domElement);scene.add(new THREE.AmbientLight(0xb7ecff,1.4));const light=new THREE.PointLight(0x9befff,65);light.position.set(3,4,5);scene.add(light);const rim=new THREE.DirectionalLight(0xffffff,2.6);rim.position.set(-4,2,-5);scene.add(rim);const warm=new THREE.DirectionalLight(0xffd9ad,1.5);warm.position.set(5,-3,2);scene.add(warm);const group=new THREE.Group();scene.add(group);
 function random(seed){let x=(seed||123456789)>>>0;return ()=>{x=(1664525*x+1013904223)>>>0;return x/4294967296}}
-let animatedOrbits=[],heartbeat=null,trialFinish='';function show(cell){
+let animatedOrbits=[],heartbeat=null,trialFinish='',forceHeartbeat=false;function show(cell){
 heartbeat=null;
 animatedOrbits=[];
 while(group.children.length){const o=group.children[0];group.remove(o);o.traverse(v=>{v.geometry?.dispose();if(v.material&&v.material!==undefined){(Array.isArray(v.material)?v.material:[v.material]).forEach(m=>m.dispose())}})}
@@ -66,7 +66,7 @@ if(hull==='prism'){for(let i=0;i<3;i++){const fin=add(new THREE.BoxGeometry(radi
 const inner=add(new THREE.OctahedronGeometry(radius*.38,0),dark,0,0,0);inner.rotation.set(.4,.3,.2);
 const eye=add(new THREE.OctahedronGeometry(radius*.22,0),glow,0,0,radius*.8);
 const auraSeed=((Math.imul(colorSeed^0x71d9e35b,1103515245)+12345)>>>0)/4294967296;
-if((Number(p.aura)||0)>=100&&auraSeed<.001){const heartMat=new THREE.MeshStandardMaterial({color:0x7b0915,emissive:0xff001d,emissiveIntensity:.35,metalness:.4,roughness:.22});const heart=add(new THREE.IcosahedronGeometry(radius*.23,1),heartMat,0,0,radius*.88);heartbeat={mesh:heart,mat:heartMat,base:heart.scale.x};}
+if((Number(p.aura)||0)>=100&&(auraSeed<.001||forceHeartbeat)){const heartMat=new THREE.MeshStandardMaterial({color:0x7b0915,emissive:0xff001d,emissiveIntensity:.35,metalness:.4,roughness:.22});const heart=add(new THREE.IcosahedronGeometry(radius*.23,1),heartMat,0,0,radius*.88);heartbeat={mesh:heart,mat:heartMat,base:heart.scale.x};}
 const direction=()=>{const y=rand()*2-1,a=rand()*Math.PI*2,r=Math.sqrt(1-y*y);return new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r)};
 const point=(v,dist)=>v.clone().multiplyScalar(dist);
 const heavy=(p.heavy||0)/sum,aerial=(p.aerial||0)/sum,swarm=(p.swarm||0)/sum,stalker=(p.stalker||0)/sum,basic=(p.basic||0)/sum;
@@ -244,13 +244,13 @@ window.fractureBuildEquippedCell=()=>{
  const seed=localStorage.getItem('fracture_equipped_cell_seed');
  const chosen=(data.cells||[]).find(c=>c.recipe&&String(c.seed)===seed);
  if(!chosen)return null;
- const selected=select.value,previousTrial=trialFinish,previousMode=previewMode;
- trialFinish='';show(chosen);
+ const selected=select.value,previousTrial=trialFinish,previousMode=previewMode,previousHeartbeat=forceHeartbeat;
+ trialFinish='';forceHeartbeat=false;show(chosen);
  const visual=group.clone(true);
  visual.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone()}});
  const pulse=heartbeat?{name:heartbeat.mesh.name,material:heartbeat.mat}:null;
  const redParts=[];visual.traverse(o=>{if(o.isMesh&&o.material.emissive&&o.material.emissive.getHex()===0xff001d)redParts.push(o)});
- trialFinish=previousTrial;
+ trialFinish=previousTrial;forceHeartbeat=previousHeartbeat;
  const current=(data.cells||[]).filter(c=>c.recipe)[Number(selected)];
  if(previousMode){const recipe=Object.fromEntries(mixInputs.map(n=>[n.dataset.part,Math.max(0,Number(n.value)||0)]));show({name:'製作前・予測形態',recipe,seed:1357911})}
  else show(current||chosen);
@@ -271,6 +271,7 @@ wrap.insertBefore(trial,viewport);
 trial.onchange=()=>{trialFinish=trial.value;if(previewMode)forecast();else refresh()};
 const deploy=document.createElement('button');deploy.className='frBtn';deploy.textContent='このCELLで出撃（試着色は保存されません）';wrap.insertBefore(deploy,viewport);
 deploy.onclick=()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const chosen=items[Number(select.value)];if(!chosen){info.textContent='まずCELLを合成してから出撃してください';return}localStorage.setItem('fracture_equipped_cell_seed',String(chosen.seed));window.dispatchEvent(new Event('fracture-cell-equipped'));document.getElementById('frDeploy')?.click();document.getElementById('frLaunch')?.click();info.textContent='装備CELLを設定しました。出撃ボタンから開始できます。'};
+const heartTest=document.createElement('button');heartTest.className='frBtn alt';heartTest.textContent='♥ 鼓動を試聴（演出テスト）';wrap.insertBefore(heartTest,viewport);heartTest.onclick=()=>{forceHeartbeat=!forceHeartbeat;heartTest.textContent=forceHeartbeat?'♥ 鼓動テスト中（解除）':'♥ 鼓動を試聴（演出テスト）';if(previewMode)forecast();else refresh()};
 const hint=document.createElement('div');hint.className='frMuted';hint.textContent='配合で基本形態を予測。完成品の細部は合成時にランダム決定。';wrap.insertBefore(hint,viewport);
 const forecast=()=>{if(!previewMode)return;const recipe=Object.fromEntries(mixInputs.map(n=>[n.dataset.part,Math.max(0,Number(n.value)||0)]));const total=Object.values(recipe).reduce((a,b)=>a+b,0);if(total===0){show(null);info.textContent='素材を入力すると形態を予測します';return}show({name:'製作前・予測形態',recipe,seed:1357911})};
 live.onclick=()=>{previewMode=!previewMode;live.textContent=previewMode?'完成CELL一覧に戻る':'投入配合の予測プレビュー';select.disabled=previewMode;if(previewMode)forecast();else refresh()};
