@@ -7,7 +7,7 @@ function show(cell){
 while(group.children.length){const o=group.children[0];group.remove(o);o.traverse(v=>{v.geometry?.dispose();if(v.material&&v.material!==undefined){(Array.isArray(v.material)?v.material:[v.material]).forEach(m=>m.dispose())}})}
 if(!cell)return;
 const p=cell.recipe||{},sum=Math.max(1,Object.values(p).reduce((a,b)=>a+(Number(b)||0),0)),rand=random(cell.seed||42);
-const power=Math.min(1,sum/1000),tier=Math.min(3,Math.floor(sum/250)),radius=.62+power*1.05;
+const power=Math.min(1,Math.log1p(sum)/Math.log1p(50000)),tier=Math.min(3,Math.floor(sum/250)),radius=.62+power*1.05;
 const metal=new THREE.MeshStandardMaterial({color:p.paint?new THREE.Color().setHSL(rand(),.9,.48):0x9aaec1,metalness:.94,roughness:.16,flatShading:true});
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
@@ -122,5 +122,5 @@ const forecast=()=>{if(!previewMode)return;const recipe=Object.fromEntries(mixIn
 live.onclick=()=>{previewMode=!previewMode;live.textContent=previewMode?'完成CELL一覧に戻る':'投入配合の予測プレビュー';select.disabled=previewMode;if(previewMode)forecast();else refresh()};
 mixInputs.forEach(n=>n.addEventListener('input',forecast));
 
-select.addEventListener('change',()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');show((d.cells||[]).filter(c=>c.recipe)[Number(select.value)])});document.getElementById('frMix')?.addEventListener('click',()=>setTimeout(refresh,0));document.getElementById('frHome')?.addEventListener('click',refresh);const resize=()=>{const w=viewport.clientWidth||320;renderer.setSize(w,290);camera.aspect=w/290;camera.updateProjectionMatrix()};resize();refresh();let frame=0;function animate(){requestAnimationFrame(animate);if(wrap.getBoundingClientRect().width===0)return;if(++frame%2)return;group.rotation.y+=.009;group.rotation.x=Math.sin(frame*.006)*.15;renderer.render(scene,camera)}animate();
+select.addEventListener('change',()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');show((d.cells||[]).filter(c=>c.recipe)[Number(select.value)])});document.getElementById('frMix')?.addEventListener('click',()=>setTimeout(refresh,0));document.getElementById('frHome')?.addEventListener('click',refresh);window.addEventListener('fracture-cell-updated',refresh);const resize=()=>{const w=viewport.clientWidth||320;renderer.setSize(w,290);camera.aspect=w/290;camera.updateProjectionMatrix()};resize();refresh();let frame=0;function animate(){requestAnimationFrame(animate);if(wrap.getBoundingClientRect().width===0)return;if(++frame%2)return;group.rotation.y+=.009;group.rotation.x=Math.sin(frame*.006)*.15;renderer.render(scene,camera)}animate();
 }
