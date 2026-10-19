@@ -1191,7 +1191,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    const sp=spikeMesh.userData.cellSpike;
    spikeMesh.getWorldPosition(cellWorldPos);
    spikeMesh.getWorldQuaternion(cellWorldQuat);
-   cellWorldDir.set(sp.direction.x,sp.direction.y,sp.direction.z).applyQuaternion(cellWorldQuat).normalize();
+   cellWorldDir.set(sp.direction.x,sp.direction.y,sp.direction.z).applyQuaternion(equippedCellMesh.getWorldQuaternion(cellWorldQuat)).normalize();
    let casing=cellCasings.find(c=>!c.active);
    if(!casing){
     if(cellCasings.length>=8)break;
@@ -1200,7 +1200,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    }
    casing.active=true;casing.birth=t;
    casing.mesh.position.copy(cellWorldPos);
-   casing.mesh.quaternion.copy(cellWorldQuat);
+   casing.mesh.quaternion.copy(spikeMesh.getWorldQuaternion(cellWorldQuat));
    casing.mesh.visible=true;
    casing.vx=cellWorldDir.x*4+(j-2)*.65;casing.vy=cellWorldDir.y*4+2.2;casing.vz=cellWorldDir.z*4;
    sp.regrowStart=t;
