@@ -34,9 +34,9 @@ const paintPalette=isUltraPaint?chromeGlass:isBronzePaint?premiumBronze:isSpecia
 let paintChoice=paintPalette[Math.floor(colorVariant*paintPalette.length)];
 if(trialFinish){const all=[...darkAnodized,...vividAnodized,...specialPaint,...premiumBronze,...chromeGlass];paintChoice=all.find(x=>x[0]===trialFinish)||paintChoice;}
 const paintLabel=trialFinish?'試着中 / '+paintChoice[0]:p.paint?(isUltraPaint?'超希少 / ':isBronzePaint?'高級ブロンズ / ':isSpecialPaint?'特別塗装 / ':isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装 / サテンステンレス';
-const glassFinish=isUltraPaint&&paintChoice[0].includes('クリア');
-const chromeFinish=isUltraPaint&&!glassFinish;
-const metal=glassFinish?new THREE.MeshPhysicalMaterial({color:paintChoice[1],metalness:0,roughness:.08,transmission:.58,thickness:.65,ior:1.45,transparent:true,opacity:.72,depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshStandardMaterial({color:p.paint?paintChoice[1]:0x838b8d,metalness:p.paint?.98:.83,roughness:p.paint?(chromeFinish?.055:.23):.43,flatShading:!chromeFinish});
+const glassFinish=(isUltraPaint||Boolean(trialFinish))&&paintChoice[0].includes('クリア');
+const chromeFinish=(isUltraPaint||Boolean(trialFinish))&&paintChoice[0].includes('クローム');
+const metal=glassFinish?new THREE.MeshPhysicalMaterial({color:paintChoice[1],metalness:0,roughness:.08,transmission:.58,thickness:.65,ior:1.45,transparent:true,opacity:.72,depthWrite:false,side:THREE.DoubleSide}):new THREE.MeshStandardMaterial({color:(p.paint||trialFinish)?paintChoice[1]:0x838b8d,metalness:(p.paint||trialFinish)?.98:.83,roughness:(p.paint||trialFinish)?(chromeFinish?.055:.23):.43,flatShading:!chromeFinish});
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
 const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);group.add(m);return m};
