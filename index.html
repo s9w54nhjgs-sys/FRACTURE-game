@@ -1188,8 +1188,15 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    const rawSpread=Math.min(1.8,morph*.95+velocity*.16);
    const spread=Math.min(1.8,rawSpread*(.7+.3*Math.sin(Math.min(1,rawSpread)*Math.PI*.5))+Math.max(0,rollScatter)*.25);
    const pulse=equippedHeart.length?(Math.exp(-Math.pow((((t*.001)%2.15)-.18)/.095,2))+.72*Math.exp(-Math.pow((((t*.001)%2.15)-.48)/.11,2))):0;
-   o.position.copy(spikeData.base).addScaledVector(spikeData.direction,spread*(.35+equippedCellMesh.userData.cellAerial*.55)+pulse*.065);
-   o.scale.set(1+spread*.14,1+spread*.38+pulse*.08,1+spread*.14);o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),spikeData.direction);o.rotateX(spread*.13*Math.sin(spikeData.phase));o.rotateZ(spread*.16*Math.cos(spikeData.phase));
+   const spikeBase=new THREE.Vector3(spikeData.base.x,spikeData.base.y,spikeData.base.z);
+   const spikeDir=new THREE.Vector3(spikeData.direction.x,spikeData.direction.y,spikeData.direction.z);
+   const stageOne=THREE.MathUtils.smoothstep(spread,0,.35);
+   const stageTwo=THREE.MathUtils.smoothstep(spread,.3,.85);
+   const stageThree=THREE.MathUtils.smoothstep(spread,.75,1.5);
+   o.position.copy(spikeBase).addScaledVector(spikeDir,(stageOne*.14+stageTwo*.32+stageThree*.44)*(.75+equippedCellMesh.userData.cellAerial*.65)+pulse*.065);
+   o.scale.set(1+stageTwo*.12,1+stageOne*.12+stageThree*.55+pulse*.08,1+stageTwo*.12);
+   o.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),spikeDir);
+   o.rotateX(stageTwo*.19*Math.sin(spikeData.phase));o.rotateZ(stageTwo*.23*Math.cos(spikeData.phase));
    if(equippedHeart.length){
     if(!o.userData.heartbeatTip){
      const tip=new THREE.Mesh(new THREE.SphereGeometry(.075,6,5),new THREE.MeshBasicMaterial({color:0xff1a24,transparent:true,opacity:0,depthWrite:false}));
@@ -1199,12 +1206,20 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
     const tip=o.userData.heartbeatTip;
     const delayed=(t*.001-.16-spikeData.phase*.025)%2.15;
     const flash=Math.exp(-Math.pow((delayed-.18)/.12,2))+.7*Math.exp(-Math.pow((delayed-.48)/.12,2));
-    tip.material.opacity=Math.min(1,flash*.95);const channel=o.getObjectByName('cellHeartbeatChannel');if(channel){const wave=Math.max(0,Math.sin((delayed-.06)*18));channel.material.opacity=Math.min(1,(flash*.25+wave*flash*.85));}
+    tip.material.opacity=Math.min(1,flash*.95);for(let segment=0;segment<5;segment++){
+     const channel=o.getObjectByName('cellPulseSegment'+segment);
+     if(channel){
+      const offset=segment*.065;
+      const first=Math.exp(-Math.pow((delayed-.18-offset)/.075,2));
+      const second=.75*Math.exp(-Math.pow((delayed-.48-offset)/.08,2));
+      channel.material.opacity=Math.min(1,first+second);
+     }
+    }
     tip.scale.setScalar(1+flash*2);
    }
   }
   const hover=o.userData.hover;
-  if(hover){const release=Math.min(1.5,morph*.75+rollScatter*.5+velocity*.15);o.position.copy(hover.base).addScaledVector(hover.direction,release*(.28+.18*Math.sin(hover.phase)));o.position.y+=Math.sin(t*.0025*hover.speed+hover.phase)*(.12+velocity*.09);o.rotation.y+=.004+velocity*.008;o.rotation.z=Math.sin(t*.002+hover.phase)*.1+release*.28}
+  if(hover){const release=Math.min(1.5,morph*.75+rollScatter*.5+velocity*.15);o.position.set(hover.base.x,hover.base.y,hover.base.z).addScaledVector(new THREE.Vector3(hover.direction.x,hover.direction.y,hover.direction.z),release*(.28+.18*Math.sin(hover.phase)));o.position.y+=Math.sin(t*.0025*hover.speed+hover.phase)*(.12+velocity*.09);o.rotation.y+=.004+velocity*.008;o.rotation.z=Math.sin(t*.002+hover.phase)*.1+release*.28}
  });
  }
 
