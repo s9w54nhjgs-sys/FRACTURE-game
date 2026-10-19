@@ -563,90 +563,104 @@ function signalVessel(stage,t){
   notify('VESSEL DEPARTURE // 潜航艦が動き出す');
  }
 }
-// Early-departure escort swarm: chrome needle drones from the ventral launch hatch.
-const escortChrome=new THREE.MeshStandardMaterial({color:0xc3d2d8,metalness:1,roughness:.12,flatShading:true});
-const escortCore=new THREE.MeshStandardMaterial({color:0x647983,metalness:.9,roughness:.2});
-const escortNeedle=new THREE.ConeGeometry(.36,3.1,5);
-const escortWing=new THREE.BoxGeometry(.12,.15,1.65);
-const vesselEscorts=[];
-let escortsLaunched=false,escortsAlerted=false;
-const escortCount=36,escortDetection=7,escortSpeed=22;
-function launchVesselEscorts(t){
- if(escortsLaunched)return;escortsLaunched=true;
- for(let i=0;i<escortCount;i++){
-  const g=new THREE.Group(),body=new THREE.Mesh(escortNeedle,escortChrome);
-  body.rotation.z=Math.PI;g.add(body);
-  const fin=new THREE.Mesh(escortWing,escortCore);fin.position.y=.35;g.add(fin);
-  const e={g,i,born:t+i*105,mode:'hatch',last:t,originX:0,originZ:0,originY:0,angle:i*2.39996,attackStart:0,from:null,to:null,hit:false};
-  g.visible=false;scene.add(g);vesselEscorts.push(e);
+// CHROME NEEDLE STORM: one shared flock controller, instanced render, fixed ballistic arcs.
+const escortCount=260,escortSpeed=22,escortDetection=7;
+const escortChrome=new THREE.MeshStandardMaterial({color:0xd5e2e8,metalness:1,roughness:.09,flatShading:true});
+const escortMesh=new THREE.InstancedMesh(new THREE.ConeGeometry(.29,2.7,5),escortChrome,escortCount);
+escortMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);escortMesh.frustumCulled=false;
+escortMesh.count=0;scene.add(escortMesh);
+const escortDummy=new THREE.Object3D(),escortData=[];
+let escortsLaunched=false,escortsAlerted=false,escortReleaseAt=Infinity,escortFlockAlertAt=0,escortLastCrunch=0;
+function escortGlassSound(t){
+ if(t-escortLastCrunch<130)return;escortLastCrunch=t;
+ if(!vesselAudio||vesselAudio.state!=='running')return;
+ const ctx=vesselAudio,now=ctx.currentTime,n=Math.floor(ctx.sampleRate*.23),buf=ctx.createBuffer(1,n,ctx.sampleRate),data=buf.getChannelData(0);
+ for(let j=0;j<n;j++)data[j]=(Math.random()*2-1)*Math.exp(-j/ctx.sampleRate*30);
+ const src=ctx.createBufferSource(),filter=ctx.createBiquadFilter(),gain=ctx.createGain();
+ src.buffer=buf;filter.type='highpass';filter.frequency.value=2400;
+ gain.gain.setValueAtTime(.14,now);gain.gain.exponentialRampToValueAtTime(.0001,now+.23);
+ src.connect(filter);filter.connect(gain);gain.connect(ctx.destination);src.start(now);
+}
+function escortHollowAlarm(){
+ if(!vesselAudio||vesselAudio.state!=='running')return;
+ const ctx=vesselAudio,now=ctx.currentTime;
+ for(const [hz,delay,amp] of [[196,0,.12],[233,.17,.09],[294,.43,.06]]){
+  const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();
+  o.type='sawtooth';o.frequency.setValueAtTime(hz,now+delay);o.frequency.exponentialRampToValueAtTime(hz*.88,now+delay+4);
+  f.type='lowpass';f.frequency.value=530;
+  g.gain.setValueAtTime(.0001,now+delay);g.gain.exponentialRampToValueAtTime(amp,now+delay+.45);g.gain.exponentialRampToValueAtTime(.0001,now+delay+4);
+  o.connect(f);f.connect(g);g.connect(vesselFarBus);o.start(now+delay);o.stop(now+delay+4.1);
  }
- notify('VENTRAL HATCH OPEN // 護衛機群が射出された');
+}
+function launchVesselEscorts(t){
+ if(escortsLaunched)return;
+ escortsLaunched=true;escortReleaseAt=t;
+ for(let i=0;i<escortCount;i++){
+  const angle=i*2.399963,ring=20+(i%16)*3.5;
+  escortData.push({i,angle,ring,born:t+i*32,mode:0,x:0,y:0,z:0,sx:0,sy:0,sz:0,tx:0,tz:0,attackAt:0,duration:0});
+ }
+ notify('VENTRAL HATCH OPEN // CHROME ESCORTS DEPLOYED');
 }
 function updateVesselEscorts(t,dt,centerX,p,active){
  if(!escortsLaunched)return;
- const hatchX=centerX-420,hatchY=365;
- // All aircraft share a single alarm state, triggered by any individual's detection.
- if(!escortsAlerted){
-  for(const e of vesselEscorts){
-   if(e.mode!=='escort')continue;
-   const d=Math.hypot(e.g.position.x-player.position.x,e.g.position.z-player.position.z);
-   if(d<escortDetection&&e.g.position.y<65){escortsAlerted=true;break}
+ // Launch only as the ventral hatch enters the visible station, not kilometers away.
+ const hatchX=centerX-420;
+ if(Math.abs(hatchX)>520&&escortMesh.count===0)return;
+ let drawn=0;
+ // One flock-wide alert, no per-agent AI pathfinding.
+ if(!escortsAlerted)for(const e of escortData){
+  if(e.mode===1&&e.y<65&&Math.hypot(e.x-player.position.x,e.z-player.position.z)<escortDetection){
+   escortsAlerted=true;escortFlockAlertAt=t;escortHollowAlarm();notify('ESCORT SWARM // 全機が捕捉');break;
   }
  }
- for(const e of vesselEscorts){
-  if(e.mode==='dead')continue;
-  const g=e.g,age=(t-e.born)/1000;
-  if(age<0)continue;
-  if(e.mode==='hatch'){
-   g.visible=true;
-   // Release from the same underside aperture, then fan out into a protective ring.
-   if(age<1.8){
-    const q=age/1.8,spread=18+e.i*.85;
-    g.position.set(hatchX+Math.cos(e.angle)*spread*q,hatchY-22*q,Math.sin(e.angle)*spread*q);
-    g.rotation.set(0,e.angle,Math.PI);
-    continue;
-   }
-   e.mode='escort';
+ for(const e of escortData){
+  if(e.mode===3||t<e.born)continue;
+  const age=(t-e.born)/1000;
+  if(e.mode===0){
+   // Ventral light arrays and black rectangular launch housing, staggered 32ms apart.
+   const launchX=hatchX+((e.i%15)-7)*11;
+   const q=Math.min(1,age/4.2);
+   e.x=launchX+Math.cos(e.angle)*e.ring*q;
+   e.z=Math.sin(e.angle)*e.ring*q;
+   e.y=315-(270*q);
+   if(q>=1)e.mode=1;
   }
-  if(e.mode==='escort'){
+  if(e.mode===1){
    if(escortsAlerted){
-    e.mode='dive';e.attackStart=t+e.i*115;
-    e.from=g.position.clone();
-    // A single committed arcing flight path, staggered to produce 1–2 impacts at a time.
-    const a=e.angle,offset=3.8+Math.sqrt(e.i)*2.1;
-    e.to=new THREE.Vector3(player.position.x+Math.cos(a)*offset,.03,player.position.z+Math.sin(a)*offset);
+    e.mode=2;e.attackAt=t+(e.i%8)*170+Math.floor(e.i/8)*220;
+    e.sx=e.x;e.sy=e.y;e.sz=e.z;
+    const r=1.2+(e.i%11)*1.2,ang=e.angle;
+    e.tx=player.position.x+Math.cos(ang)*r;
+    e.tz=player.position.z+Math.sin(ang)*r;
+    e.duration=Math.max(2200,Math.hypot(e.tx-e.x,e.tz-e.z,e.y)/escortSpeed*1000);
    }else{
-    const theta=e.angle+t*.00024,ring=65+(e.i%5)*19;
-    const tx=hatchX+Math.cos(theta)*ring,tz=Math.sin(theta)*ring;
-    const ty=36+(e.i%6)*9+Math.sin(t*.001+e.i)*3;
-    const dx=tx-g.position.x,dz=tz-g.position.z,dy=ty-g.position.y;
-    const len=Math.hypot(dx,dy,dz)||1,step=Math.min(len,escortSpeed*dt);
-    g.position.x+=dx/len*step;g.position.y+=dy/len*step;g.position.z+=dz/len*step;
-    g.rotation.y=Math.atan2(-dx,-dz);g.rotation.x=Math.atan2(dy,Math.hypot(dx,dz));g.rotation.z=Math.PI;
-    if(!active&&Math.abs(g.position.x)>400){scene.remove(g);e.mode='dead'}
+    // Cohesive guard formation follows the ship; individual units only have offsets.
+    const theta=e.angle+t*.00014,tx=hatchX+Math.cos(theta)*e.ring,tz=Math.sin(theta)*e.ring;
+    const ty=26+(e.i%9)*4.2;
+    const distance=Math.hypot(tx-e.x,ty-e.y,tz-e.z)||1,step=Math.min(distance,escortSpeed*dt);
+    e.x+=(tx-e.x)/distance*step;e.y+=(ty-e.y)/distance*step;e.z+=(tz-e.z)/distance*step;
    }
-  }else if(e.mode==='dive'){
-   if(t<e.attackStart)continue;
-   const duration=Math.max(3400,e.from.distanceTo(e.to)/escortSpeed*1000);
-   const q=Math.min(1,(t-e.attackStart)/duration),s=q*q*(3-2*q);
-   // Fixed cubic Bezier trajectory: no braking, retargeting, or mid-flight turns.
-   const mid=e.from.clone().lerp(e.to,.45);mid.y=Math.max(e.from.y+18,48);
-   const end=e.to;
-   const a=1-q,b=q;
-   g.position.set(a*a*e.from.x+2*a*b*mid.x+b*b*end.x,
-     a*a*e.from.y+2*a*b*mid.y+b*b*end.y,
-     a*a*e.from.z+2*a*b*mid.z+b*b*end.z);
-   const tx=2*a*(mid.x-e.from.x)+2*b*(end.x-mid.x);
-   const ty=2*a*(mid.y-e.from.y)+2*b*(end.y-mid.y);
-   const tz=2*a*(mid.z-e.from.z)+2*b*(end.z-mid.z);
-   g.rotation.y=Math.atan2(-tx,-tz);g.rotation.x=Math.atan2(ty,Math.hypot(tx,tz));g.rotation.z=Math.PI;
-   if(g.position.y<=1.25||q>=1){
-    if(Math.hypot(g.position.x-player.position.x,g.position.z-player.position.z)<1.5&&t>=dashInvulnerableUntil)applySpecialDamage(1,t);
-    // The chrome needle dies on first contact with the deck.
-    scene.remove(g);e.mode='dead';
+  }else if(e.mode===2){
+   if(t>=e.attackAt){
+    const q=Math.min(1,(t-e.attackAt)/e.duration),a=1-q;
+    const mx=(e.sx+e.tx)*.5,mz=(e.sz+e.tz)*.5,my=Math.max(e.sy+24,60);
+    e.x=a*a*e.sx+2*a*q*mx+q*q*e.tx;
+    e.y=a*a*e.sy+2*a*q*my+q*q*.04;
+    e.z=a*a*e.sz+2*a*q*mz+q*q*e.tz;
+    if(e.y<=1.25||q>=1){
+     if(Math.hypot(e.x-player.position.x,e.z-player.position.z)<1.5&&t>=dashInvulnerableUntil)applySpecialDamage(1,t);
+     escortGlassSound(t);e.mode=3;continue;
+    }
    }
   }
+  // Culling by range avoids flooding iPhone with invisible 260 instances.
+  if(Math.abs(e.x-player.position.x)>430||Math.abs(e.z-player.position.z)>430)continue;
+  escortDummy.position.set(e.x,e.y,e.z);
+  escortDummy.rotation.set(e.mode===2?-Math.PI*.42:Math.PI,Math.atan2(e.tx-e.x,e.tz-e.z),0);
+  escortDummy.scale.set(1,1,1);escortDummy.updateMatrix();escortMesh.setMatrixAt(drawn++,escortDummy.matrix);
  }
+ escortMesh.count=drawn;if(drawn)escortMesh.instanceMatrix.needsUpdate=true;
+ if(!active&&!escortsAlerted){escortMesh.count=0;for(const e of escortData)e.mode=3}
 }
 function updateBlackTransit(t){
  const elapsed=Math.max(0,t-vesselSceneStart),departAt=Math.min(vesselSceneStart+vesselHoldMs,vesselAwakenAt),travel=Math.max(0,t-departAt);
