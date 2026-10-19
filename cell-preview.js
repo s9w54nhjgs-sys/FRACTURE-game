@@ -227,16 +227,17 @@ if(hoverAmount>=180){
  }
 }
 // Mechanically articulated spike root collars, with red light channels on heartbeat CELLs.
+let pulseSpikeIndex=0;
 group.traverse(obj=>{
  const sp=obj.userData.cellSpike;
  if(!sp)return;
  const len=obj.geometry.parameters.height||1;
  const root=new THREE.Mesh(new THREE.CylinderGeometry(.085,.13,Math.min(.25,len*.17),6),dark);
  root.position.y=-len*.43;obj.add(root);
- if(heartbeat){
-  for(let segment=0;segment<5;segment++){
+ if(heartbeat&&pulseSpikeIndex++<20){
+  for(let segment=0;segment<3;segment++){
    const channel=new THREE.Mesh(new THREE.CylinderGeometry(.022,.03,len*.145,5),new THREE.MeshBasicMaterial({color:0xff273a,transparent:true,opacity:0,depthWrite:false}));
-   channel.position.y=-len*.34+segment*len*.165;
+   channel.position.y=-len*.3+segment*len*.3;
    channel.name='cellPulseSegment'+segment;
    obj.add(channel);
   }
@@ -296,7 +297,7 @@ mixInputs.forEach(n=>n.addEventListener('input',forecast));
 select.addEventListener('change',()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');show((d.cells||[]).filter(c=>c.recipe)[Number(select.value)])});document.getElementById('frMix')?.addEventListener('click',()=>setTimeout(refresh,0));document.getElementById('frHome')?.addEventListener('click',refresh);window.addEventListener('fracture-cell-updated',refresh);const resize=()=>{const w=viewport.clientWidth||320;renderer.setSize(w,290);camera.aspect=w/290;camera.updateProjectionMatrix()};resize();refresh();let frame=0;function animate(){requestAnimationFrame(animate);if(wrap.getBoundingClientRect().width===0)return;if(++frame%2)return;if(heartbeat){const t=(frame*.016)%2.15;const beat=Math.exp(-Math.pow((t-.18)/.095,2))+.72*Math.exp(-Math.pow((t-.48)/.11,2));heartbeat.mat.emissiveIntensity=.3+beat*5;heartbeat.mesh.scale.setScalar(1+beat*.28)}group.rotation.y+=.009;group.rotation.x=Math.sin(frame*.006)*.15;for(const o of animatedOrbits){o.pivot.rotation.z+=o.speed*.35;for(const p of o.particles){p.phase+=o.speed;p.mesh.position.set(Math.cos(p.phase)*o.radius,Math.sin(p.phase)*o.radius*o.ellipse,0)}}group.traverse(o=>{const sp=o.userData.cellSpike;if(sp){const breathing=Math.sin(frame*.018+sp.phase)*.035;o.position.copy(sp.base).addScaledVector(sp.direction,breathing);o.scale.y=1+breathing*.35;
  if(heartbeat){
   const cycle=(frame*.016)%2.15;
-  for(let segment=0;segment<5;segment++){
+  for(let segment=0;segment<3;segment++){
    const channel=o.getObjectByName('cellPulseSegment'+segment);
    if(!channel)continue;
    const delay=segment*.065+sp.phase*.025;
