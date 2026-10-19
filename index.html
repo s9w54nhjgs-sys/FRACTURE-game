@@ -860,6 +860,21 @@ for(const side of [-1,1]){
  tip.position.set(side*1.12,-.12,.1);playerRig.add(tip);rollFins.push({mesh:tip,side,baseX:side*1.12});
 }
 const spike=new THREE.Mesh(new THREE.ConeGeometry(.32,2.1,4),petalMat);spike.rotation.x=-Math.PI/2;spike.position.set(0,0,-.55);spike.scale.set(.15,.05,.15);playerRig.add(spike);scene.add(player);player.position.set(0,1.3,0);
+// Equip the actual workshop mesh, retaining the existing movement and combat rig.
+let equippedCellMesh=null,equippedHeart=[],equippedNeedsSync=true;
+window.addEventListener('fracture-cell-equipped',()=>{equippedNeedsSync=true});
+function syncEquippedCell(){
+ if(typeof window.fractureBuildEquippedCell!=='function')return;
+ equippedNeedsSync=false;
+ if(equippedCellMesh){playerRig.remove(equippedCellMesh);equippedCellMesh.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}});equippedCellMesh=null}
+ const built=window.fractureBuildEquippedCell();
+ shell.visible=!built;
+ if(!built){equippedHeart=[];return}
+ equippedCellMesh=built.visual;equippedHeart=built.redParts||[];
+ equippedCellMesh.scale.setScalar(.43);
+ equippedCellMesh.rotation.set(0,0,0);
+ playerRig.add(equippedCellMesh);
+}
 const crystals=[];function crystal(x,z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.55),pillarMat);m.position.set(x,.85,z);scene.add(m);crystals.push(m)}
 [[7,-6],[-9,-7],[13,12],[-17,8],[25,-15],[-23,-19],[39,-22]].forEach(p=>crystal(...p));
 const exit=new THREE.Group();const beam=new THREE.Mesh(new THREE.CylinderGeometry(2,2,18,24,1,true),new THREE.MeshBasicMaterial({color:0x67f5b6,transparent:true,opacity:.12,side:THREE.DoubleSide,depthWrite:false}));beam.position.y=9;exit.add(beam);const ring=new THREE.Mesh(new THREE.TorusGeometry(2,.12,10,48),new THREE.MeshBasicMaterial({color:0x71ffba}));ring.rotation.x=Math.PI/2;ring.position.y=.1;exit.add(ring);exit.position.set(38,0,-25);scene.add(exit);
@@ -1131,7 +1146,7 @@ function jumpNow(){if(done||jumpCount>=2)return;
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
 function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;return walls.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
-function update(t){requestAnimationFrame(update);if(window.fractureMenuOpen)return;
+function update(t){requestAnimationFrame(update);if(window.fractureMenuOpen)return;if(equippedNeedsSync)syncEquippedCell();
  while(dashRechargeAt.length&&dashRechargeAt[0]<=t){dashRechargeAt.shift();dashCharges=Math.min(2,dashCharges+1);updateDashDisplay()}
 
  for(let i=shockwaves.length-1;i>=0;i--){const s=shockwaves[i],p=(t-s.born)/440;if(p>=1){scene.remove(s.m);s.m.material.dispose();shockwaves.splice(i,1)}else{const r=.4+s.radius*Math.pow(Math.max(0,p),.7);s.m.scale.setScalar(r);s.m.material.opacity=(1-p)*.88;s.m.position.y=.11+p*.12}}
@@ -1155,6 +1170,17 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  playerRig.rotation.z=rollActive&&!verticalDoubleJump?Math.PI*2*rollEase:0;
  playerRig.rotation.x=rollActive&&!verticalDoubleJump?Math.sin(Math.PI*rollP)*.1:0;
  playerRig.rotation.y=rollActive&&verticalDoubleJump?Math.PI*2*rollEase:0;
+ if(equippedCellMesh){
+ const velocity=Math.min(1,Math.hypot(moveVX,moveVZ)/7);
+ equippedCellMesh.rotation.y+=.008+velocity*.018;
+ equippedCellMesh.rotation.x=Math.sin(t*.0015)*.055-velocity*.12;
+ equippedCellMesh.rotation.z=Math.sin(t*.002)*.035+bank*.14;
+ equippedCellMesh.scale.setScalar(.43*(1+Math.sin(t*.0023)*.025+morph*.09));
+ const phase=(t*.001)%2.15;
+ const beat=Math.exp(-Math.pow((phase-.18)/.095,2))+.72*Math.exp(-Math.pow((phase-.48)/.11,2));
+ for(const h of equippedHeart){h.material.emissiveIntensity=.3+beat*5;h.scale.setScalar(1+beat*.28)}
+ }
+
  for(const f of rollFins){
  f.mesh.position.x=f.baseX+f.side*(rollScatter*(verticalDoubleJump?.95:.55)+combatScatter*.9);
  f.mesh.position.y=-.12+rollScatter*(verticalDoubleJump?.85:.2)+combatScatter*.35+(t<dashUntil&&dashChain===2?.25:0);
