@@ -558,8 +558,94 @@ function signalVessel(stage,t){
   notify('VESSEL ENGINE START // 巨大機関が起動した');
  }else if(stage===3){
   vesselAwakenAt=t+1400;vesselDepartureSoundAt=t+1400;
+  if(t+1400<vesselSceneStart+vesselHoldMs)launchVesselEscorts(t+1400);
   if(vesselAudio&&vesselDroneGain)vesselDroneGain.gain.setTargetAtTime(.072,vesselAudio.currentTime,1.8);
   notify('VESSEL DEPARTURE // 潜航艦が動き出す');
+ }
+}
+// Early-departure escort swarm: chrome needle drones from the ventral launch hatch.
+const escortChrome=new THREE.MeshStandardMaterial({color:0xc3d2d8,metalness:1,roughness:.12,flatShading:true});
+const escortCore=new THREE.MeshStandardMaterial({color:0x647983,metalness:.9,roughness:.2});
+const escortNeedle=new THREE.ConeGeometry(.36,3.1,5);
+const escortWing=new THREE.BoxGeometry(.12,.15,1.65);
+const vesselEscorts=[];
+let escortsLaunched=false,escortsAlerted=false;
+const escortCount=36,escortDetection=7,escortSpeed=22;
+function launchVesselEscorts(t){
+ if(escortsLaunched)return;escortsLaunched=true;
+ for(let i=0;i<escortCount;i++){
+  const g=new THREE.Group(),body=new THREE.Mesh(escortNeedle,escortChrome);
+  body.rotation.z=Math.PI;g.add(body);
+  const fin=new THREE.Mesh(escortWing,escortCore);fin.position.y=.35;g.add(fin);
+  const e={g,i,born:t+i*105,mode:'hatch',last:t,originX:0,originZ:0,originY:0,angle:i*2.39996,attackStart:0,from:null,to:null,hit:false};
+  g.visible=false;scene.add(g);vesselEscorts.push(e);
+ }
+ notify('VENTRAL HATCH OPEN // 護衛機群が射出された');
+}
+function updateVesselEscorts(t,dt,centerX,p,active){
+ if(!escortsLaunched)return;
+ const hatchX=centerX-420,hatchY=365;
+ // All aircraft share a single alarm state, triggered by any individual's detection.
+ if(!escortsAlerted){
+  for(const e of vesselEscorts){
+   if(e.mode!=='escort')continue;
+   const d=Math.hypot(e.g.position.x-player.position.x,e.g.position.z-player.position.z);
+   if(d<escortDetection&&Math.abs(e.g.position.y-player.position.y)<11){escortsAlerted=true;break}
+  }
+ }
+ for(const e of vesselEscorts){
+  if(e.mode==='dead')continue;
+  const g=e.g,age=(t-e.born)/1000;
+  if(age<0)continue;
+  if(e.mode==='hatch'){
+   g.visible=true;
+   // Release from the same underside aperture, then fan out into a protective ring.
+   if(age<1.8){
+    const q=age/1.8,spread=18+e.i*.85;
+    g.position.set(hatchX+Math.cos(e.angle)*spread*q,hatchY-22*q,Math.sin(e.angle)*spread*q);
+    g.rotation.set(0,e.angle,Math.PI);
+    continue;
+   }
+   e.mode='escort';
+  }
+  if(e.mode==='escort'){
+   if(escortsAlerted){
+    e.mode='dive';e.attackStart=t+e.i*115;
+    e.from=g.position.clone();
+    // A single committed arcing flight path, staggered to produce 1–2 impacts at a time.
+    const a=e.angle,offset=3.8+Math.sqrt(e.i)*2.1;
+    e.to=new THREE.Vector3(player.position.x+Math.cos(a)*offset,.03,player.position.z+Math.sin(a)*offset);
+   }else{
+    const theta=e.angle+t*.00024,ring=65+(e.i%5)*19;
+    const tx=hatchX+Math.cos(theta)*ring,tz=Math.sin(theta)*ring;
+    const ty=36+(e.i%6)*9+Math.sin(t*.001+e.i)*3;
+    const dx=tx-g.position.x,dz=tz-g.position.z,dy=ty-g.position.y;
+    const len=Math.hypot(dx,dy,dz)||1,step=Math.min(len,escortSpeed*dt);
+    g.position.x+=dx/len*step;g.position.y+=dy/len*step;g.position.z+=dz/len*step;
+    g.rotation.y=Math.atan2(-dx,-dz);g.rotation.x=Math.atan2(dy,Math.hypot(dx,dz));g.rotation.z=Math.PI;
+    if(!active&&Math.abs(g.position.x)>400){scene.remove(g);e.mode='dead'}
+   }
+  }else if(e.mode==='dive'){
+   if(t<e.attackStart)continue;
+   const duration=Math.max(3400,e.from.distanceTo(e.to)/escortSpeed*1000);
+   const q=Math.min(1,(t-e.attackStart)/duration),s=q*q*(3-2*q);
+   // Fixed cubic Bezier trajectory: no braking, retargeting, or mid-flight turns.
+   const mid=e.from.clone().lerp(e.to,.45);mid.y=Math.max(e.from.y+18,48);
+   const end=e.to;
+   const a=1-q,b=q;
+   g.position.set(a*a*e.from.x+2*a*b*mid.x+b*b*end.x,
+     a*a*e.from.y+2*a*b*mid.y+b*b*end.y,
+     a*a*e.from.z+2*a*b*mid.z+b*b*end.z);
+   const tx=2*a*(mid.x-e.from.x)+2*b*(end.x-mid.x);
+   const ty=2*a*(mid.y-e.from.y)+2*b*(end.y-mid.y);
+   const tz=2*a*(mid.z-e.from.z)+2*b*(end.z-mid.z);
+   g.rotation.y=Math.atan2(-tx,-tz);g.rotation.x=Math.atan2(ty,Math.hypot(tx,tz));g.rotation.z=Math.PI;
+   if(g.position.y<=1.25||q>=1){
+    if(Math.hypot(g.position.x-player.position.x,g.position.z-player.position.z)<1.5&&t>=dashInvulnerableUntil)applySpecialDamage(1,t);
+    // The chrome needle dies on first contact with the deck.
+    scene.remove(g);e.mode='dead';
+   }
+  }
  }
 }
 function updateBlackTransit(t){
@@ -579,6 +665,8 @@ function updateBlackTransit(t){
  const p=t<departAt?0:Math.max(0,Math.min(1,travel/vesselTransitMs));
  const centerX=2450-4900*p;
  blackVessel.position.set(centerX,465,0);
+ updateVesselEscorts(t,Math.min(.05,Math.max(0,(t-(updateVesselEscorts.lastTime||t))/1000)),centerX,p,active);
+ updateVesselEscorts.lastTime=t;
  updateVesselSound(t,p,centerX);
  // As the center of the kilometer-scale hull passes, the world sinks into shadow.
  const shadow=Math.max(0,Math.min(1,(1900-Math.abs(centerX))/900));
