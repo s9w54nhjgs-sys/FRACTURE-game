@@ -9,7 +9,24 @@ while(group.children.length){const o=group.children[0];group.remove(o);o.travers
 if(!cell)return;
 const p=cell.recipe||{},sum=Math.max(1,Object.values(p).reduce((a,b)=>a+(Number(b)||0),0)),rand=random(cell.seed||42);
 const power=Math.min(1,Math.log1p(sum)/Math.log1p(50000)),tier=Math.min(3,Math.floor(sum/250)),radius=.62+power*1.05;
-const metal=new THREE.MeshStandardMaterial({color:p.paint?new THREE.Color().setHSL(rand(),.9,.48):0x9aaec1,metalness:.94,roughness:.16,flatShading:true});
+// Seeded anodized-metal finish. Color roll stays stable across reinforcement.
+const colorSeed=((Number(cell.seed)||42)>>>0);
+const colorRoll=((Math.imul(colorSeed^0x6c8e9cf5,1664525)+1013904223)>>>0)/4294967296;
+const colorVariant=((Math.imul(colorSeed^0x39b7a4d1,22695477)+1)>>>0)/4294967296;
+const darkAnodized=[
+ ['ガンメタブラック',0x26313d],['ディープネイビー',0x172d50],['ダークパープル',0x302044],
+ ['ワインレッド',0x4b172a],['フォレストグリーン',0x163d32],['スモークブロンズ',0x493323],
+ ['ダークチタン',0x303943],['ミッドナイトブルー',0x12243b]
+];
+const vividAnodized=[
+ ['クリムゾンレッド',0xf01929],['エレクトリックブルー',0x1266ff],['ビビッドグリーン',0x10ed53],
+ ['ロイヤルパープル',0x922aff],['アノダイズドゴールド',0xffbb08]
+];
+const isRarePaint=Boolean(p.paint)&&colorRoll<.005;
+const paintPalette=isRarePaint?vividAnodized:darkAnodized;
+const paintChoice=paintPalette[Math.floor(colorVariant*paintPalette.length)];
+const paintLabel=p.paint?(isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装';
+const metal=new THREE.MeshStandardMaterial({color:p.paint?paintChoice[1]:0x9aaec1,metalness:.91,roughness:.23,flatShading:true});
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
 const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);group.add(m);return m};
@@ -196,7 +213,7 @@ if(hoverAmount>=180){
  }
 }
 group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
-info.textContent=cell.name+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
+info.textContent=cell.name+' / 塗装 '+paintLabel+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
 
