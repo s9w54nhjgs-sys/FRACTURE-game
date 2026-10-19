@@ -1199,7 +1199,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
     const tip=o.userData.heartbeatTip;
     const delayed=(t*.001-.16-spikeData.phase*.025)%2.15;
     const flash=Math.exp(-Math.pow((delayed-.18)/.12,2))+.7*Math.exp(-Math.pow((delayed-.48)/.12,2));
-    tip.material.opacity=Math.min(1,flash*.95);if(spikeData.channel){const wave=Math.max(0,Math.sin((delayed-.06)*18));spikeData.channel.material.opacity=Math.min(1,(flash*.25+wave*flash*.85));}
+    tip.material.opacity=Math.min(1,flash*.95);const channel=o.getObjectByName('cellHeartbeatChannel');if(channel){const wave=Math.max(0,Math.sin((delayed-.06)*18));channel.material.opacity=Math.min(1,(flash*.25+wave*flash*.85));}
     tip.scale.setScalar(1+flash*2);
    }
   }
