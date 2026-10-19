@@ -32,22 +32,69 @@ const cloudSky=new THREE.Mesh(new THREE.SphereGeometry(4000,32,16),new THREE.Sha
  void main(){vec3 d=normalize(skyDir);float n=noise(d*5.)*.52+noise(d*12.)*.31+noise(d*29.)*.17;float cloud=smoothstep(.34,.72,n);float horizon=clamp(d.y*.16+.7,0.,1.);vec3 base=mix(vec3(.57,.63,.67),vec3(.69,.74,.77),horizon);vec3 dark=vec3(.29,.35,.4);vec3 color=mix(base,dark,cloud*.78);color+=vec3(.08,.085,.08)*pow(max(dot(d,normalize(vec3(-.4,.8,.25))),0.),9.)*(1.-cloud);gl_FragColor=vec4(color,1.);}`
 }));cloudSky.frustumCulled=false;cloudSky.renderOrder=-1000;scene.add(cloudSky);
 const ambientSky=new THREE.HemisphereLight(0xbccbd5,0x242c33,1.65);scene.add(ambientSky);const sun=new THREE.DirectionalLight(0xffe9d5,2.35);sun.position.set(-35,65,18);scene.add(sun);renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=1.12;
-function noiseTexture(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.random()*32-16,streak=(x%64<2||y%96<2)?-20:0,v=Math.max(25,Math.min(220,137+grain+streak));im.data[i]=v;im.data[i+1]=v+3;im.data[i+2]=v+4;im.data[i+3]=255}ctx.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t}const concreteTex=noiseTexture(),concreteMat=new THREE.MeshStandardMaterial({color:0x88969b,metalness:.78,roughness:.39}),darkConcrete=new THREE.MeshStandardMaterial({color:0x3c4b52,metalness:.72,roughness:.47});const ground=new THREE.Mesh(new THREE.PlaneGeometry(740,740),new THREE.MeshStandardMaterial({color:0x575d5b,map:concreteTex,metalness:.7,roughness:.37}));ground.rotation.x=-Math.PI/2;scene.add(ground);
- // Sparse bronze alloy flecks: catch warm highlights without turning the plaza copper.
- const bronzeAlloy=new THREE.MeshStandardMaterial({color:0x88634b,metalness:.94,roughness:.25,side:THREE.DoubleSide});
- const bronzeDark=new THREE.MeshStandardMaterial({color:0x56463d,metalness:.82,roughness:.42,side:THREE.DoubleSide});
- const fleckGeo=new THREE.PlaneGeometry(.24,.055);
- const bronzeFlecks=new THREE.InstancedMesh(fleckGeo,bronzeAlloy,580);
- const bronzeFlecksDark=new THREE.InstancedMesh(fleckGeo,bronzeDark,260);
- const bronzeDummy=new THREE.Object3D();
- for(const [mesh,count] of [[bronzeFlecks,580],[bronzeFlecksDark,260]]){
- for(let i=0;i<count;i++){bronzeDummy.position.set((Math.random()-.5)*254,.032+(mesh===bronzeFlecks?.004:0),(Math.random()-.5)*254);
- bronzeDummy.rotation.set(-Math.PI/2,0,Math.random()*Math.PI);
- bronzeDummy.scale.set(.45+Math.random()*2.8,.35+Math.random()*2.3,1);
+function noiseTexture(){const c=document.createElement('canvas');c.width=c.height=256;const ctx=c.getContext('2d'),im=ctx.createImageData(256,256);for(let y=0;y<256;y++)for(let x=0;x<256;x++){const i=(y*256+x)*4,grain=Math.random()*32-16,streak=(x%64<2||y%96<2)?-20:0,v=Math.max(25,Math.min(220,137+grain+streak));im.data[i]=v;im.data[i+1]=v+3;im.data[i+2]=v+4;im.data[i+3]=255}ctx.putImageData(im,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.colorSpace=THREE.SRGBColorSpace;return t}const concreteTex=noiseTexture(),concreteMat=new THREE.MeshStandardMaterial({color:0x88969b,metalness:.78,roughness:.39}),darkConcrete=new THREE.MeshStandardMaterial({color:0x3c4b52,metalness:.72,roughness:.47});// FRACTURED ARMOR DECK — dark gunmetal plates, copper-scarred seams, collapsed edges.
+function deckTexture(){
+ const canvas=document.createElement('canvas');canvas.width=canvas.height=1024;
+ const g=canvas.getContext('2d');g.fillStyle='#161c21';g.fillRect(0,0,1024,1024);
+ let seed=71537;function rand(){seed=(seed*1664525+1013904223)>>>0;return seed/4294967296}
+ for(let py=0;py<1024;py+=128)for(let px=0;px<1024;px+=128){
+  const jitter=rand(),base=Math.floor(30+rand()*18);
+  g.fillStyle='rgb('+base+','+(base+6)+','+(base+10)+')';
+  g.fillRect(px+3,py+3,122,122);
+  g.fillStyle='rgba(5,9,12,.9)';g.fillRect(px,py,4,128);g.fillRect(px,py,128,4);
+  g.strokeStyle='rgba(135,94,62,'+(.16+rand()*.22)+')';g.lineWidth=1.5;g.strokeRect(px+6,py+6,116,116);
+  g.strokeStyle='rgba(170,177,171,.14)';g.lineWidth=1;g.beginPath();g.moveTo(px+9,py+10);g.lineTo(px+114,py+10);g.stroke();
+  // Ragged diagonal stress tears and scorched plate corners.
+  if(jitter>.43){g.beginPath();g.moveTo(px+rand()*32,py+rand()*50);g.lineTo(px+38+rand()*35,py+48+rand()*25);g.lineTo(px+80+rand()*40,py+80+rand()*42);g.strokeStyle='rgba(4,8,10,.85)';g.lineWidth=2+rand()*4;g.stroke();g.strokeStyle='rgba(156,95,57,.46)';g.lineWidth=1;g.stroke()}
+  for(let i=0;i<2;i++){const x=px+15+rand()*95,y=py+15+rand()*95;g.fillStyle='rgba(158,104,65,.25)';g.fillRect(x,y,12+rand()*25,1)}
+  for(const dx of [12,114])for(const dy of [12,114]){g.fillStyle='#0a1014';g.fillRect(px+dx,py+dy,4,4)}
+ }
+ for(let i=0;i<18000;i++){const x=rand()*1024,y=rand()*1024;g.fillStyle=rand()>.6?'rgba(195,141,93,.08)':'rgba(1,5,8,.14)';g.fillRect(x,y,1+rand()*5,1+rand()*2)}
+ const tex=new THREE.CanvasTexture(canvas);tex.colorSpace=THREE.SRGBColorSpace;
+ tex.wrapS=tex.wrapT=THREE.RepeatWrapping;tex.repeat.set(18,18);tex.anisotropy=Math.min(4,renderer.capabilities.getMaxAnisotropy());return tex;
+}
+const deckMetal=new THREE.MeshStandardMaterial({color:0x8c9699,map:deckTexture(),metalness:.78,roughness:.48});
+const ground=new THREE.Mesh(new THREE.PlaneGeometry(740,740),deckMetal);
+ground.rotation.x=-Math.PI/2;ground.position.y=-.035;scene.add(ground);
+// Irregular black voids below the torn armor, plus lifted plates that cast real shadows by silhouette.
+const deckVoidMat=new THREE.MeshBasicMaterial({color:0x070b0e,side:THREE.DoubleSide});
+const deckTornMat=new THREE.MeshStandardMaterial({color:0x303a3f,metalness:.83,roughness:.49,side:THREE.DoubleSide});
+const deckCopperEdge=new THREE.MeshStandardMaterial({color:0x79513b,metalness:.92,roughness:.38,side:THREE.DoubleSide});
+const deckDamage=new THREE.Group();scene.add(deckDamage);
+let deckSeed=9347;function deckRand(){deckSeed=(deckSeed*1664525+1013904223)>>>0;return deckSeed/4294967296}
+const voidGeo=new THREE.PlaneGeometry(1,1),liftGeo=new THREE.PlaneGeometry(1,1);
+const voidMesh=new THREE.InstancedMesh(voidGeo,deckVoidMat,115);
+const liftMesh=new THREE.InstancedMesh(liftGeo,deckTornMat,115);
+const rimMesh=new THREE.InstancedMesh(new THREE.BoxGeometry(1,1,1),deckCopperEdge,115);
+const deckDummy=new THREE.Object3D();
+for(let i=0;i<115;i++){
+ let x=(deckRand()-.5)*700,z=(deckRand()-.5)*700;
+ // Keep the original combat court readable; damage grows heavier toward the perimeter.
+ if(Math.abs(x)<38&&Math.abs(z)<38){x+=x>=0?48:-48;z+=z>=0?48:-48}
+ const w=2+deckRand()*8,d=1+deckRand()*5,angle=deckRand()*Math.PI*2;
+ deckDummy.position.set(x,.008,z);deckDummy.rotation.set(-Math.PI/2,0,angle);deckDummy.scale.set(w,d,1);deckDummy.updateMatrix();voidMesh.setMatrixAt(i,deckDummy.matrix);
+ deckDummy.position.set(x+w*.13,.055+deckRand()*.13,z+d*.1);
+ deckDummy.rotation.set(-Math.PI/2+(deckRand()-.5)*.28,(deckRand()-.5)*.14,angle+.15);
+ deckDummy.scale.set(w*.72,d*.75,1);deckDummy.updateMatrix();liftMesh.setMatrixAt(i,deckDummy.matrix);
+ deckDummy.position.set(x-w*.19,.075,z-d*.17);deckDummy.rotation.set(0,angle,0);
+ deckDummy.scale.set(w*.67,.07,d*.045);deckDummy.updateMatrix();rimMesh.setMatrixAt(i,deckDummy.matrix);
+}
+for(const m of [voidMesh,liftMesh,rimMesh]){m.instanceMatrix.needsUpdate=true;m.computeBoundingSphere();deckDamage.add(m)}
+// Sparse warm alloy scuffs, no bright copper carpeting.
+const bronzeAlloy=new THREE.MeshStandardMaterial({color:0x88634b,metalness:.94,roughness:.25,side:THREE.DoubleSide});
+const bronzeDark=new THREE.MeshStandardMaterial({color:0x56463d,metalness:.82,roughness:.42,side:THREE.DoubleSide});
+const fleckGeo=new THREE.PlaneGeometry(.24,.055);
+const bronzeFlecks=new THREE.InstancedMesh(fleckGeo,bronzeAlloy,580);
+const bronzeFlecksDark=new THREE.InstancedMesh(fleckGeo,bronzeDark,260);
+const bronzeDummy=new THREE.Object3D();
+for(const [mesh,count] of [[bronzeFlecks,580],[bronzeFlecksDark,260]]){
+ for(let i=0;i<count;i++){bronzeDummy.position.set((deckRand()-.5)*710,.035+(mesh===bronzeFlecks?.004:0),(deckRand()-.5)*710);
+ bronzeDummy.rotation.set(-Math.PI/2,0,deckRand()*Math.PI);
+ bronzeDummy.scale.set(.45+deckRand()*2.8,.35+deckRand()*2.3,1);
  bronzeDummy.updateMatrix();mesh.setMatrixAt(i,bronzeDummy.matrix)}
  mesh.instanceMatrix.needsUpdate=true;scene.add(mesh)
- }
-const grid=new THREE.GridHelper(740,74,0x879b9d,0x718084);grid.position.y=.025;grid.material.transparent=true;grid.material.opacity=.22;scene.add(grid);
+}
+// No prototype grid: the metal panel seams now provide the ground's structure.
 const walls=[];function block(x,z,w,h,d,color=0x273f4a){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),(color===0x273f4a?concreteMat:darkConcrete));m.position.set(x,h/2,z);scene.add(m);walls.push({x,z,w,d});return m}
 for(const [x,z,w,h,d] of [[-38,31,9,11,10],[51,14,12,17,10],[-55,-54,14,24,12]])block(x,z,w,h,d)
 // PROTOCOL: layered brutalist architecture, all procedural and mobile-conscious
