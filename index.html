@@ -874,7 +874,7 @@ function syncEquippedCell(){
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
- equippedParts=[];cellSpikes=[];equippedCellMesh.traverse(o=>{if(o.userData.cellSpike||o.userData.hover||o.userData.cellOrbitSpeed||o.userData.cellOrbitParticle||o.userData.cellOrbitTrack){if(o.userData.cellSpike){cellSpikes.push(o);o.userData.pulseChannels=[];for(let k=0;k<3;k++){const c=o.getObjectByName('cellPulseSegment'+k);if(c)o.userData.pulseChannels.push(c)}if(equippedHeart.length&&o.userData.pulseChannels.length){const tip=new THREE.Mesh(new THREE.SphereGeometry(.055,5,4),new THREE.MeshBasicMaterial({color:0xff2639,transparent:true,opacity:0,depthWrite:false}));tip.position.y=(o.geometry.parameters.height||1)*.5;o.add(tip);o.userData.heartbeatTip=tip}}equippedParts.push(o)}});
+ equippedParts=[];cellSpikes=[];equippedCellMesh.traverse(o=>{if(o.userData.cellSpike||o.userData.hover||o.userData.cellOrbitSpeed||o.userData.cellOrbitParticle||o.userData.cellOrbitTrack||o.userData.cellArmor){if(o.userData.cellSpike){cellSpikes.push(o);o.userData.pulseChannels=[];for(let k=0;k<3;k++){const c=o.getObjectByName('cellPulseSegment'+k);if(c)o.userData.pulseChannels.push(c)}if(equippedHeart.length&&o.userData.pulseChannels.length){const tip=new THREE.Mesh(new THREE.SphereGeometry(.055,5,4),new THREE.MeshBasicMaterial({color:0xff2639,transparent:true,opacity:0,depthWrite:false}));tip.position.y=(o.geometry.parameters.height||1)*.5;o.add(tip);o.userData.heartbeatTip=tip}}equippedParts.push(o)}});
 }
 const crystals=[];function crystal(x,z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.55),pillarMat);m.position.set(x,.85,z);scene.add(m);crystals.push(m)}
 [[7,-6],[-9,-7],[13,12],[-17,8],[25,-15],[-23,-19],[39,-22]].forEach(p=>crystal(...p));
@@ -1181,6 +1181,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const beat=Math.exp(-Math.pow((phase-.18)/.095,2))+.72*Math.exp(-Math.pow((phase-.48)/.11,2));
  for(const h of equippedHeart){h.material.emissiveIntensity=.3+beat*5;h.scale.setScalar(1+beat*.28)}
  const drive=Math.min(1,Math.max(morph,rollScatter,combatScatter));
+ const assembly=THREE.MathUtils.smoothstep(drive,.08,.85);
  const extended=drive>.24;
  if(equippedCellMesh.userData.cellRangedReload&&extended&&!cellWasExtended&&t-cellLastEject>360&&cellSpikes.length){
   cellLastEject=t;
@@ -1238,10 +1239,19 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   if(ud.cellOrbitTrack){o.scale.x=1+drive*.3;o.scale.z=1+drive*.3;o.material.opacity=.13+drive*.09;}
   const q=ud.cellOrbitParticle;
   if(q){q.phase+=.008+drive*.035+velocity*.009;o.position.set(Math.cos(q.phase)*q.radius,Math.sin(q.phase)*q.radius*q.ellipse,0)}
+  const armor=ud.cellArmor;
+  if(armor){
+   const b=armor.base,d=armor.direction;
+   const stagger=.7+.3*Math.sin(armor.phase+2.1);
+   const separation=assembly*(.65+stagger*.75);
+   o.position.set(b.x+d.x*separation,b.y+d.y*separation,b.z+d.z*separation);
+   o.rotation.x=Math.sin(armor.phase+assembly*2.4)*assembly*.55;
+   o.rotation.z=Math.cos(armor.phase+assembly*2.4)*assembly*.55;
+  }
   const sp=ud.cellSpike;
   if(sp){
    const base=sp.base,dir=sp.direction;
-   const extension=open*.3+extend*.55+full*.8;
+   const extension=open*.4+extend*.65+full*1.05;
    o.position.set(base.x+dir.x*extension,base.y+dir.y*extension,base.z+dir.z*extension);
    const regrow=sp.regrowStart?THREE.MathUtils.smoothstep(t-sp.regrowStart,90,650):1;
    o.scale.set(1+extend*.24,(1+open*.15+full*.85)*regrow,1+extend*.24);
@@ -1268,7 +1278,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   const hover=ud.hover;
   if(hover){
    const b=hover.base,d=hover.direction;
-   const release=open*.35+extend*.4+full*.5;
+   const release=open*.65+extend*.75+full*.7;
    o.position.set(b.x+d.x*release,b.y+d.y*release+Math.sin(t*.0025*hover.speed+hover.phase)*.1,b.z+d.z*release);
    o.rotation.y+=.004+drive*.025;o.rotation.z=Math.sin(t*.002+hover.phase)*.1+extend*.42;
   }
