@@ -571,22 +571,26 @@ const escortMesh=new THREE.InstancedMesh(new THREE.ConeGeometry(.29,2.7,5),escor
 escortMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);escortMesh.frustumCulled=false;
 escortMesh.count=0;scene.add(escortMesh);
 const escortDummy=new THREE.Object3D(),escortData=[];
+const escortBlueMat=new THREE.MeshBasicMaterial({color:0x39cfff,toneMapped:false});
+const escortBlueMeshes=[];
+for(let k=0;k<5;k++){const m=new THREE.InstancedMesh(new THREE.BoxGeometry(.10,.13,.17),escortBlueMat,escortCount);m.instanceMatrix.setUsage(THREE.DynamicDrawUsage);m.frustumCulled=false;m.count=0;scene.add(m);escortBlueMeshes.push(m)}
+const escortBlueDummy=new THREE.Object3D(),escortBlueOffset=new THREE.Vector3();
 let escortsLaunched=false,escortsAlerted=false,escortReleaseAt=Infinity,escortFlockAlertAt=0,escortLastCrunch=0,escortWarpAt=Infinity;
 function escortGlassSound(t){
- // Metallic impact: short hard transient + several inharmonic ringing partials.
- if(t-escortLastCrunch<85)return;escortLastCrunch=t;
+ if(t-escortLastCrunch<80)return;escortLastCrunch=t;
  if(!vesselAudio||vesselAudio.state!=='running')return;
- const ctx=vesselAudio,now=ctx.currentTime;
- const fundamental=570+(Math.floor(t/87)%7)*37;
- for(const [ratio,level,decay] of [[1,.09,.32],[1.49,.055,.23],[2.31,.045,.17],[3.83,.025,.1]]){
-  const o=ctx.createOscillator(),g=ctx.createGain(),f=ctx.createBiquadFilter();
-  o.type='sine';o.frequency.setValueAtTime(fundamental*ratio,now);
-  o.frequency.exponentialRampToValueAtTime(fundamental*ratio*.94,now+decay);
-  f.type='highpass';f.frequency.value=350;
-  g.gain.setValueAtTime(.0001,now);g.gain.exponentialRampToValueAtTime(level,now+.004);
-  g.gain.exponentialRampToValueAtTime(.0001,now+decay);
-  o.connect(f);f.connect(g);g.connect(vesselFarBus);
-  o.start(now);o.stop(now+decay+.01);
+ const ctx=vesselAudio,now=ctx.currentTime,sr=ctx.sampleRate,n=Math.floor(sr*.075);
+ const buffer=ctx.createBuffer(1,n,sr),samples=buffer.getChannelData(0);
+ for(let i=0;i<n;i++)samples[i]=(Math.random()*2-1)*Math.exp(-i/sr*105);
+ const hit=ctx.createBufferSource(),hp=ctx.createBiquadFilter(),lp=ctx.createBiquadFilter(),vol=ctx.createGain();
+ hit.buffer=buffer;hp.type='highpass';hp.frequency.value=720;lp.type='lowpass';lp.frequency.value=5300;
+ vol.gain.value=.36;hit.connect(hp);hp.connect(lp);lp.connect(vol);vol.connect(vesselFarBus);hit.start(now);
+ for(const [hz,amp,decay] of [[390,.045,.095],[870,.045,.12],[1445,.032,.075],[2290,.018,.052]]){
+  const osc=ctx.createOscillator(),gain=ctx.createGain();
+  osc.type='triangle';osc.frequency.setValueAtTime(hz,now);
+  osc.frequency.exponentialRampToValueAtTime(hz*.82,now+decay);
+  gain.gain.setValueAtTime(amp,now);gain.gain.exponentialRampToValueAtTime(.0001,now+decay);
+  osc.connect(gain);gain.connect(vesselFarBus);osc.start(now);osc.stop(now+decay+.005);
  }
 }
 function escortHollowAlarm(){
@@ -641,7 +645,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
     const r=1.2+(e.i%11)*1.2,ang=e.angle;
     e.tx=player.position.x+Math.cos(ang)*r;
     e.tz=player.position.z+Math.sin(ang)*r;
-    e.duration=Math.max(2200,Math.hypot(e.tx-e.x,e.tz-e.z,e.y)/escortSpeed*1000);e.vx=0;e.vy=0;e.vz=0;e.lastMove=t;
+    e.duration=Math.max(2200,Math.hypot(e.tx-e.x,e.tz-e.z,e.y)/escortSpeed*1000);e.vx=0;e.vy=0;e.vz=0;e.lastMove=t;e.lastHit=-Infinity;
    }else{
     // Cohesive guard formation follows the ship; individual units only have offsets.
     const theta=e.angle+t*.00014,tx=centerX+((e.i%25)-12)*35+Math.cos(theta)*e.ring,tz=((e.i%7)-3)*16+Math.sin(theta)*e.ring;
@@ -667,6 +671,14 @@ function updateVesselEscorts(t,dt,centerX,p,active){
     const vel=Math.hypot(e.vx,e.vy,e.vz)||1;
     e.vx=e.vx/vel*escortSpeed;e.vy=e.vy/vel*escortSpeed;e.vz=e.vz/vel*escortSpeed;
     e.x+=e.vx*step;e.y+=e.vy*step;e.z+=e.vz*step;
+    const px=player.position.x,py=player.position.y+1,pz=player.position.z;
+    const sx=e.x-e.vx*step,sy=e.y-e.vy*step,sz=e.z-e.vz*step;
+    const segX=e.x-sx,segY=e.y-sy,segZ=e.z-sz;
+    const u=Math.max(0,Math.min(1,((px-sx)*segX+(py-sy)*segY+(pz-sz)*segZ)/(segX*segX+segY*segY+segZ*segZ||1)));
+    if(Math.hypot(sx+segX*u-px,sy+segY*u-py,sz+segZ*u-pz)<1.45&&t-e.lastHit>1100){
+     e.lastHit=t;if(t>=dashInvulnerableUntil)applySpecialDamage(1,t);
+     escortGlassSound(t);e.mode=3;e.y=Math.max(.85,e.y);
+    }
     if(e.y<=1.25){
      if(Math.hypot(e.x-player.position.x,e.z-player.position.z)<1.5&&t>=dashInvulnerableUntil)applySpecialDamage(1,t);
      escortGlassSound(t);e.mode=3;e.y=.85;
@@ -677,7 +689,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
   if(Math.abs(e.x-player.position.x)>650||Math.abs(e.z-player.position.z)>650)continue;
   escortDummy.position.set(e.x,e.y,e.z);
   // Flying attitude is preserved. Embedded cones must point INTO the floor, not upward.
-  if(e.mode===2&&e.vx!==undefined){
+  if((e.mode===2||e.mode===3)&&e.vx!==undefined&&(e.vx||e.vy||e.vz)){
    const direction=new THREE.Vector3(e.vx,e.vy,e.vz).normalize();
    escortDummy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),direction);
   }else{
@@ -685,9 +697,19 @@ function updateVesselEscorts(t,dt,centerX,p,active){
   }
   // Small asynchronous glints read as polished chrome even under the vessel's shadow.
   const glint=1+.15*Math.sin(t*.012+e.i*2.4);
-  escortDummy.scale.set(glint,1,glint);escortDummy.updateMatrix();escortMesh.setMatrixAt(drawn++,escortDummy.matrix);
+  escortDummy.scale.set(glint,1,glint);escortDummy.updateMatrix();
+  const slot=drawn++;escortMesh.setMatrixAt(slot,escortDummy.matrix);
+  for(let k=0;k<5;k++){
+   escortBlueOffset.set(.245,-.72+k*.37,0);escortBlueOffset.applyQuaternion(escortDummy.quaternion);
+   escortBlueDummy.position.copy(escortDummy.position).add(escortBlueOffset);
+   escortBlueDummy.quaternion.copy(escortDummy.quaternion);
+   const pulse=1+.22*Math.sin(t*.008+e.i*.8+k*.6);
+   escortBlueDummy.scale.set(pulse,1,pulse);escortBlueDummy.updateMatrix();
+   escortBlueMeshes[k].setMatrixAt(slot,escortBlueDummy.matrix);
+  }
  }
  escortMesh.count=drawn;if(drawn)escortMesh.instanceMatrix.needsUpdate=true;
+ for(const mesh of escortBlueMeshes){mesh.count=drawn;if(drawn)mesh.instanceMatrix.needsUpdate=true;}
  if(!active&&escortWarpAt===Infinity)escortWarpAt=t;
  if(escortWarpAt!==Infinity){for(const e of escortData)if(e.mode!==3&&e.mode!==4){e.mode=4;e.attackAt=escortWarpAt+500;e.sy=e.y;}}
 
