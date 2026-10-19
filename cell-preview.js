@@ -208,9 +208,9 @@ if(orbitAmount>=60){
   const particleCount=2+Math.min(5,Math.floor(orbitAmount/400));
   for(let j=0;j<particleCount;j++){
    const particle=new THREE.Mesh(new THREE.IcosahedronGeometry(.045+power*.055,0),glow);pivot.add(particle);
-   particles.push({mesh:particle,phase:rand()*Math.PI*2});
+   const phase=rand()*Math.PI*2;particle.userData.cellOrbitParticle={phase,radius:orbitRadius,ellipse:track.scale.y};particles.push({mesh:particle,phase});
   }
-  animatedOrbits.push({pivot,particles,radius:orbitRadius,ellipse:track.scale.y,speed:(.006+rand()*.009)*(i%2?-1:1)});
+  const speed=(.006+rand()*.009)*(i%2?-1:1);pivot.userData.cellOrbitSpeed=speed;animatedOrbits.push({pivot,particles,radius:orbitRadius,ellipse:track.scale.y,speed});
  }
 }
 // Detached hovering artifacts: extend beyond the body without becoming a dense spike ball.
