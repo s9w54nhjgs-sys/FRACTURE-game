@@ -590,7 +590,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
   for(const e of vesselEscorts){
    if(e.mode!=='escort')continue;
    const d=Math.hypot(e.g.position.x-player.position.x,e.g.position.z-player.position.z);
-   if(d<escortDetection&&Math.abs(e.g.position.y-player.position.y)<11){escortsAlerted=true;break}
+   if(d<escortDetection&&e.g.position.y<65){escortsAlerted=true;break}
   }
  }
  for(const e of vesselEscorts){
