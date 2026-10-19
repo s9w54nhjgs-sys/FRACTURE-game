@@ -23,11 +23,15 @@ const vividAnodized=[
  ['ロイヤルパープル',0x922aff],['アノダイズドゴールド',0xffbb08]
 ];
 const specialPaint=[['純白',0xf7f7f4],['漆黒',0x050607]];
-const isSpecialPaint=Boolean(p.paint)&&colorRoll>=.005&&colorRoll<.01;
-const isRarePaint=Boolean(p.paint)&&colorRoll<.005;
-const paintPalette=isSpecialPaint?specialPaint:isRarePaint?vividAnodized:darkAnodized;
+const chromeGlass=[['クロームシルバー',0xe8ebed],['クロームゴールド',0xf0c85e],['無色クリア',0xe7f7ff],['レッドクリア',0xef5874],['ブルークリア',0x5c99f5],['グリーンクリア',0x59d7ac],['パープルクリア',0xaa82df]];
+const premiumBronze=[['シャンパンブロンズ',0xa78663],['アンティークブロンズ',0x74543b],['ローズブロンズ',0x9b6c65]];
+const isUltraPaint=Boolean(p.paint)&&colorRoll<.001;
+const isBronzePaint=Boolean(p.paint)&&colorRoll>=.001&&colorRoll<.006;
+const isSpecialPaint=Boolean(p.paint)&&colorRoll>=.006&&colorRoll<.011;
+const isRarePaint=Boolean(p.paint)&&colorRoll>=.011&&colorRoll<.016;
+const paintPalette=isUltraPaint?chromeGlass:isBronzePaint?premiumBronze:isSpecialPaint?specialPaint:isRarePaint?vividAnodized:darkAnodized;
 const paintChoice=paintPalette[Math.floor(colorVariant*paintPalette.length)];
-const paintLabel=p.paint?(isSpecialPaint?'特別塗装 / ':isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装 / サテンステンレス';
+const paintLabel=p.paint?(isUltraPaint?'超希少 / ':isBronzePaint?'高級ブロンズ / ':isSpecialPaint?'特別塗装 / ':isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装 / サテンステンレス';
 const metal=new THREE.MeshStandardMaterial({color:p.paint?paintChoice[1]:0x838b8d,metalness:p.paint?.91:.83,roughness:p.paint?.23:.43,flatShading:true});
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
