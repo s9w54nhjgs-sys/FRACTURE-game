@@ -23,15 +23,30 @@ const css=document.createElement('style');css.textContent=`
 #frNotice{min-height:22px;color:#ffe0a2;font-size:12px}#frHome{position:fixed;z-index:7;top:calc(58px + env(safe-area-inset-top));right:12px;background:#102c3de0;color:#c8fffa;border:1px solid #73dcd2;border-radius:8px;padding:7px 12px;display:none;pointer-events:auto}
 `;document.head.appendChild(css);
 const home=document.createElement('button');home.id='frHome';home.textContent='HOME';document.body.appendChild(home);
-const menu=document.createElement('div');menu.id='frMenu';menu.innerHTML='<div id="frPanel"><div class="frLine"><div><h1>FRACTURE</h1><div class="frMuted">REBIRTH PROTOCOL / 試作版</div></div><div id="frGen"></div></div><div id="frState"></div><div id="frNotice"></div><div class="frLine"><button class="frBtn" id="frDeploy">出撃する</button><button class="frBtn alt" id="frGacha">キルタグガチャ</button><button class="frBtn alt" id="frReset">テストデータ初期化</button></div><div class="frMuted">サンクチュアリ未実装。抽選結果・残機・タグはこのブラウザに保存。オンライン連携・課金・本番バランスは未実装。</div></div>';document.body.appendChild(menu);
+const menu=document.createElement('div');menu.id='frMenu';menu.innerHTML='<div id="frPanel"><div class="frLine"><div><h1>FRACTURE</h1><div class="frMuted">REBIRTH PROTOCOL / 試作版</div></div><div id="frGen"></div></div><div id="frState"></div><div id="frNotice"></div><div class="frLine"><button class="frBtn" id="frDeploy">出撃する</button><button class="frBtn alt" id="frGacha">キルタグガチャ</button><button class="frBtn alt" id="frTestTags">テスト用タグ +100</button><button class="frBtn alt" id="frReset">テストデータ初期化</button></div><div class="frMuted">サンクチュアリ未実装。抽選結果・残機・タグはこのブラウザに保存。オンライン連携・課金・本番バランスは未実装。</div></div>';document.body.appendChild(menu);
 let note='';
-function render(){document.getElementById('frGen').textContent='第 '+data.generation+' 世代';document.getElementById('frState').innerHTML='<div class="frCard"><div class="frLine"><b>現在の個性：'+data.ability.name+'</b><b>'+data.ability.type+'</b></div><div class="frMuted">'+data.ability.desc+'</div></div><div class="frLine"><span>残機：<b>'+data.lives+' / 2</b></span><span>キルタグ：<b>'+data.tags+' / 100</b></span><span>特殊抽選：<b>'+data.draws+' 回</b></span></div><div class="frCard"><b>特殊能力（試作）</b><div class="frMuted">'+(data.bonus?data.bonus.name+' / 残り使用回数 '+data.bonus.uses:'未所持')+'</div></div>';document.getElementById('frNotice').textContent=note;document.getElementById('frGacha').disabled=data.tags<100;}
+if(!Array.isArray(data.gachaHistory))data.gachaHistory=[];
+function render(){document.getElementById('frGen').textContent='第 '+data.generation+' 世代';document.getElementById('frState').innerHTML='<div class="frCard"><div class="frLine"><b>現在の個性：'+data.ability.name+'</b><b>'+data.ability.type+'</b></div><div class="frMuted">'+data.ability.desc+'</div></div><div class="frLine"><span>残機：<b>'+data.lives+' / 2</b></span><span>キルタグ：<b>'+data.tags+' / 100</b></span><span>特殊抽選：<b>'+data.draws+' 回</b></span></div><div class="frCard"><b>特殊能力（試作）</b><div class="frMuted">'+(data.bonus?data.bonus.name+' / 残り使用回数 '+data.bonus.uses:'未所持')+'</div></div>';document.getElementById('frState').insertAdjacentHTML('beforeend','<div class="frCard"><b>ガチャ履歴（直近5回）</b><div class="frMuted">'+(data.gachaHistory.length?data.gachaHistory.slice(-5).reverse().map((x,i)=>'・'+x).join('<br>'):'まだ抽選していません')+'</div></div>');document.getElementById('frNotice').textContent=note;document.getElementById('frGacha').disabled=data.tags<100;}
 function show(){window.fractureMenuOpen=true;menu.classList.remove('frHidden');home.style.display='none';render()}
 function hide(){window.fractureMenuOpen=false;menu.classList.add('frHidden');home.style.display='block'}
 document.getElementById('frDeploy').onclick=()=>{if(document.getElementById('result')?.classList.contains('show')){sessionStorage.setItem('frAutoDeploy','1');location.reload()}else hide()};
 home.onclick=show;
-document.getElementById('frGacha').onclick=()=>{if(data.tags<100)return;data.tags-=100;data.draws++;data.bonus={name:abilities[Math.floor(Math.random()*abilities.length)].name,uses:3};note='特殊抽選成功！ 使用回数3回の能力を獲得（戦闘への適用は次段階）';save();render()};
-document.getElementById('frReset').onclick=()=>{if(!confirm('試作データをすべて初期化しますか？'))return;data={generation:1,lives:2,ability:roll(),tags:0,draws:0,bonus:null};note='初期化しました';save();render()};
+document.getElementById('frGacha').onclick=()=>{
+ if(data.tags<100)return;
+ if(data.bonus?.uses>0&&!confirm('現在の特殊能力は上書きされます。100タグを使って抽選しますか？'))return;
+ data.tags-=100;data.draws++;
+ const prize=abilities[Math.floor(Math.random()*abilities.length)];
+ data.bonus={name:prize.name,type:prize.type,uses:3};
+ data.gachaHistory.push(prize.name+'（第'+data.generation+'世代）');
+ data.gachaHistory=data.gachaHistory.slice(-20);
+ note='抽選結果：'+prize.name+'！ 3回分の特殊能力を獲得（戦闘使用は未実装）';
+ save();render();
+};
+document.getElementById('frTestTags').onclick=()=>{
+ if(!confirm('開発テスト専用：キルタグ100個を追加します。実際のPvP報酬ではありません。'))return;
+ data.tags+=100;note='テスト用タグ +100 を付与';save();render();
+};
+document.getElementById('frReset').onclick=()=>{if(!confirm('試作データをすべて初期化しますか？'))return;data={generation:1,lives:2,ability:roll(),tags:0,draws:0,bonus:null,gachaHistory:[]};note='初期化しました';save();render()};
 window.fractureAwardDecoyTag=()=>{const gained=decoyTags+1;data.tags+=gained;note='デコイ撃破：相手の所持タグ '+decoyTags+' 個 ＋ 本人タグ 1 個 = '+gained+' 個獲得';save();render()};
 window.fractureFinish=(success,kills)=>{if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;note='永久死亡。キルタグ '+lost+' 個を失い、第 '+data.generation+' 世代に転生しました。'}else note='死亡。残機を1つ失いました。現在の個性は維持されます。'}save();setTimeout(show,30)};
 if(sessionStorage.getItem('frAutoDeploy')==='1'){sessionStorage.removeItem('frAutoDeploy');hide()}else show();
