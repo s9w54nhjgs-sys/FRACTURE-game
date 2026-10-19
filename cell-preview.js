@@ -66,7 +66,7 @@ if(hull==='prism'){for(let i=0;i<3;i++){const fin=add(new THREE.BoxGeometry(radi
 const inner=add(new THREE.OctahedronGeometry(radius*.38,0),dark,0,0,0);inner.rotation.set(.4,.3,.2);
 const eye=add(new THREE.OctahedronGeometry(radius*.22,0),glow,0,0,radius*.8);
 const auraSeed=((Math.imul(colorSeed^0x71d9e35b,1103515245)+12345)>>>0)/4294967296;
-if(forceHeartbeat||((Number(p.aura)||0)>=100&&auraSeed<.001)){const heartMat=new THREE.MeshStandardMaterial({color:0x7b0915,emissive:0xff001d,emissiveIntensity:.35,metalness:.4,roughness:.22});const heart=add(new THREE.IcosahedronGeometry(radius*.23,1),heartMat,0,0,radius*.88);heartbeat={mesh:heart,mat:heartMat,base:heart.scale.x};}
+if(forceHeartbeat||((Number(p.aura)||0)>=100&&auraSeed<.001)){const heartMat=new THREE.MeshStandardMaterial({color:0x7b0915,emissive:0xff001d,emissiveIntensity:.35,metalness:.4,roughness:.22});const heart=add(new THREE.IcosahedronGeometry(radius*.23,1),heartMat,0,0,radius*.88);heart.userData.cellHeartCore=true;heartbeat={mesh:heart,mat:heartMat,base:heart.scale.x};}
 const direction=()=>{const y=rand()*2-1,a=rand()*Math.PI*2,r=Math.sqrt(1-y*y);return new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r)};
 const point=(v,dist)=>v.clone().multiplyScalar(dist);
 const heavy=(p.heavy||0)/sum,aerial=(p.aerial||0)/sum,swarm=(p.swarm||0)/sum,stalker=(p.stalker||0)/sum,basic=(p.basic||0)/sum;
@@ -223,9 +223,21 @@ if(hoverAmount>=180){
   const position=point(directionVector,distance);
   const artifact=add(i%3===0?new THREE.OctahedronGeometry(.17+power*.18,0):new THREE.BoxGeometry(.18+power*.2,.35+power*.25,.16+power*.2),i%4===0?glow:metal,position.x,position.y,position.z);
   artifact.rotation.set(rand()*3,rand()*3,rand()*3);
-  artifact.userData.hover={baseY:position.y,phase:rand()*Math.PI*2,speed:.8+rand()*1.3};
+  artifact.userData.hover={baseY:position.y,base:position.clone(),direction:directionVector.clone(),phase:rand()*Math.PI*2,speed:.8+rand()*1.3};
  }
 }
+// Mechanically articulated spike root collars, with red light channels on heartbeat CELLs.
+group.traverse(obj=>{
+ const sp=obj.userData.cellSpike;
+ if(!sp)return;
+ const len=obj.geometry.parameters.height||1;
+ const root=new THREE.Mesh(new THREE.CylinderGeometry(.085,.13,Math.min(.25,len*.17),6),dark);
+ root.position.y=-len*.43;obj.add(root);
+ if(heartbeat){
+  const channel=new THREE.Mesh(new THREE.CylinderGeometry(.012,.035,len*.82,5),new THREE.MeshBasicMaterial({color:0xff2835,transparent:true,opacity:0,depthWrite:false}));
+  channel.position.y=-len*.02;obj.add(channel);sp.channel=channel;
+ }
+});
 // Two-tone paint begins at 500 paint units; stable seeded accent finish.
 let accentLabel='';
 if((Number(p.paint)||0)>=500){
