@@ -151,7 +151,7 @@ if(stalkerAmount>=90&&stalkerAmount>=Math.max(p.heavy||0,p.aerial||0,p.swarm||0)
   ornament.rotation.set(rand()*3,rand()*3,rand()*3);
  }
 }
-for(let i=0;i<count(heavy,62);i++){const d=direction(),size=(.18+rand()*.33)*(1+power*2.1),pos=point(d,radius*(.8+rand()*.6));const armor=add(new THREE.BoxGeometry(size,size*(.5+rand()),size*(.6+rand())),i%5===0?dark:metal,pos.x,pos.y,pos.z);armor.lookAt(pos.clone().multiplyScalar(2));armor.rotateZ(rand()*Math.PI);armor.userData.cellArmor={base:armor.position.clone(),direction:d.clone(),phase:rand()*6.28}}
+for(let i=0;i<count(heavy,62);i++){const d=direction(),size=(.18+rand()*.33)*(1+power*2.1),pos=point(d,radius*(.8+rand()*.6));const armor=add(new THREE.BoxGeometry(size,size*(.5+rand()),size*(.6+rand())),i%5===0?dark:metal,pos.x,pos.y,pos.z);armor.lookAt(pos.clone().multiplyScalar(2));armor.rotateZ(rand()*Math.PI);armor.userData.cellArmor={base:armor.position.clone(),rotation:armor.rotation.clone(),direction:d.clone(),phase:rand()*6.28}}
 // Absolute aerial quantity drives silhouette: 500 and 1300 must look distinctly different.
 const aerialAmount=Math.max(0,Number(p.aerial)||0);
 const aerialStage=Math.min(5,Math.floor(aerialAmount/350));
