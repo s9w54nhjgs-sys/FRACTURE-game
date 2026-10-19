@@ -874,7 +874,7 @@ function syncEquippedCell(){
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
- equippedParts=[];equippedCellMesh.traverse(o=>{if(o.userData.cellSpike||o.userData.hover||o.userData.cellOrbitSpeed||o.userData.cellOrbitParticle){if(o.userData.cellSpike){o.userData.pulseChannels=[];for(let k=0;k<5;k++){const c=o.getObjectByName('cellPulseSegment'+k);if(c)o.userData.pulseChannels.push(c)}if(equippedHeart.length){const tip=new THREE.Mesh(new THREE.SphereGeometry(.055,5,4),new THREE.MeshBasicMaterial({color:0xff2639,transparent:true,opacity:0,depthWrite:false}));tip.position.y=(o.geometry.parameters.height||1)*.5;o.add(tip);o.userData.heartbeatTip=tip}}equippedParts.push(o)}});
+ equippedParts=[];equippedCellMesh.traverse(o=>{if(o.userData.cellSpike||o.userData.hover||o.userData.cellOrbitSpeed||o.userData.cellOrbitParticle){if(o.userData.cellSpike){o.userData.pulseChannels=[];for(let k=0;k<3;k++){const c=o.getObjectByName('cellPulseSegment'+k);if(c)o.userData.pulseChannels.push(c)}if(equippedHeart.length&&o.userData.pulseChannels.length){const tip=new THREE.Mesh(new THREE.SphereGeometry(.055,5,4),new THREE.MeshBasicMaterial({color:0xff2639,transparent:true,opacity:0,depthWrite:false}));tip.position.y=(o.geometry.parameters.height||1)*.5;o.add(tip);o.userData.heartbeatTip=tip}}equippedParts.push(o)}});
 }
 const crystals=[];function crystal(x,z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.55),pillarMat);m.position.set(x,.85,z);scene.add(m);crystals.push(m)}
 [[7,-6],[-9,-7],[13,12],[-17,8],[25,-15],[-23,-19],[39,-22]].forEach(p=>crystal(...p));
@@ -1201,7 +1201,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    if(equippedHeart.length){
     const elapsed=(t*.001)%2.15;
     const delay=sp.phase*.018;
-    for(let segment=0;segment<5;segment++){
+    for(let segment=0;segment<3;segment++){
      const channel=ud.pulseChannels[segment];
      if(!channel)continue;
      const offset=segment*.065+delay;
