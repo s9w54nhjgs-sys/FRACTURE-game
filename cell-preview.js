@@ -25,8 +25,8 @@ const vividAnodized=[
 const isRarePaint=Boolean(p.paint)&&colorRoll<.005;
 const paintPalette=isRarePaint?vividAnodized:darkAnodized;
 const paintChoice=paintPalette[Math.floor(colorVariant*paintPalette.length)];
-const paintLabel=p.paint?(isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装';
-const metal=new THREE.MeshStandardMaterial({color:p.paint?paintChoice[1]:0x9aaec1,metalness:.91,roughness:.23,flatShading:true});
+const paintLabel=p.paint?(isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装 / サテンステンレス';
+const metal=new THREE.MeshStandardMaterial({color:p.paint?paintChoice[1]:0x838b8d,metalness:p.paint?.91:.83,roughness:p.paint?.23:.43,flatShading:true});
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
 const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);group.add(m);return m};
