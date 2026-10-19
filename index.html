@@ -874,7 +874,7 @@ function syncEquippedCell(){
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
- equippedParts=[];equippedCellMesh.traverse(o=>{if(o.userData.cellSpike||o.userData.hover||o.userData.cellOrbitSpeed||o.userData.cellOrbitParticle)equippedParts.push(o)});
+ equippedParts=[];equippedCellMesh.traverse(o=>{if(o.userData.cellSpike||o.userData.hover||o.userData.cellOrbitSpeed||o.userData.cellOrbitParticle){if(o.userData.cellSpike){o.userData.pulseChannels=[];for(let k=0;k<5;k++){const c=o.getObjectByName('cellPulseSegment'+k);if(c)o.userData.pulseChannels.push(c)}if(equippedHeart.length){const tip=new THREE.Mesh(new THREE.SphereGeometry(.055,5,4),new THREE.MeshBasicMaterial({color:0xff2639,transparent:true,opacity:0,depthWrite:false}));tip.position.y=(o.geometry.parameters.height||1)*.5;o.add(tip);o.userData.heartbeatTip=tip}}equippedParts.push(o)}});
 }
 const crystals=[];function crystal(x,z){const m=new THREE.Mesh(new THREE.OctahedronGeometry(.55),pillarMat);m.position.set(x,.85,z);scene.add(m);crystals.push(m)}
 [[7,-6],[-9,-7],[13,12],[-17,8],[25,-15],[-23,-19],[39,-22]].forEach(p=>crystal(...p));
@@ -1196,13 +1196,13 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    o.position.set(base.x+dir.x*extension,base.y+dir.y*extension,base.z+dir.z*extension);
    o.scale.set(1+extend*.24,1+open*.15+full*.85,1+extend*.24);
    cellTmpDir.set(dir.x,dir.y,dir.z);
-   o.quaternion.setFromUnitVectors(THREE.Object3D.DEFAULT_UP||new THREE.Vector3(0,1,0),cellTmpDir);
+   o.quaternion.setFromUnitVectors(player.up,cellTmpDir);
    o.rotateX(extend*.28*Math.sin(sp.phase));o.rotateZ(extend*.32*Math.cos(sp.phase));
    if(equippedHeart.length){
     const elapsed=(t*.001)%2.15;
     const delay=sp.phase*.018;
     for(let segment=0;segment<5;segment++){
-     const channel=o.getObjectByName('cellPulseSegment'+segment);
+     const channel=ud.pulseChannels[segment];
      if(!channel)continue;
      const offset=segment*.065+delay;
      channel.material.opacity=Math.min(1,Math.exp(-Math.pow((elapsed-.18-offset)/.07,2))+.78*Math.exp(-Math.pow((elapsed-.48-offset)/.08,2)));
