@@ -18,7 +18,7 @@ const seededRoll=(salt)=>((Math.imul((colorSeed^salt)>>>0,1664525)+1013904223)>>
 const auraSpinChance=auraAmount<500?0:Math.min(1,.10+(auraAmount-500)*.0001);
 const casingChance=(Number(p.aerial)||0)<500?0:Math.min(1,.001+((Number(p.aerial)||0)-500)*.00001);
 const auraSpin=seededRoll(0x5b23d9a1)<auraSpinChance;
-const casingEject=seededRoll(0x19ac7e33)<casingChance;
+const casingEject=(Number(p.aerial)||0)>=500; // TEMP TEST: 100% for eligible CELLs; restore seededRoll(0x19ac7e33)<casingChance after confirmation
 
 const colorRoll=((Math.imul(colorSeed^0x6c8e9cf5,1664525)+1013904223)>>>0)/4294967296;
 const colorVariant=((Math.imul(colorSeed^0x39b7a4d1,22695477)+1)>>>0)/4294967296;
