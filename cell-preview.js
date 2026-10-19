@@ -60,7 +60,7 @@ const core=add(hullGeo(),metal,0,0,0);
 if(hull==='delta'){core.rotation.x=Math.PI/2;for(const side of [-1,1]){const wing=add(new THREE.BoxGeometry(radius*1.7,radius*.11,radius*.65),metal,side*radius*.83,-radius*.15,radius*.1);wing.rotation.y=side*.4;const engine=add(new THREE.CylinderGeometry(radius*.13,radius*.2,radius*.7,6),glow,side*radius*.45,-radius*.12,-radius*.65);engine.rotation.x=Math.PI/2}}
 if(hull==='spire'){for(let i=0;i<3;i++){const blade=add(new THREE.ConeGeometry(radius*.25,radius*1.55,3),i===1?glow:metal,Math.cos(i*Math.PI*2/3)*radius*.38,radius*.65,Math.sin(i*Math.PI*2/3)*radius*.38);blade.rotation.z=(i-1)*.16}}
 if(hull==='fork'){for(const side of [-1,1]){const arm=add(new THREE.BoxGeometry(radius*.22,radius*2.5,radius*.24),metal,side*radius*.75,0,0);arm.rotation.z=-side*.22;add(new THREE.OctahedronGeometry(radius*.2,0),glow,side*radius*.9,radius*1.2,0)}}
-if(hull==='disc'){const edge=add(new THREE.TorusGeometry(radius*1.45,radius*.08,5,32),glow,0,0,0);edge.rotation.x=Math.PI/2}
+// Disc hull keeps its flat geometry without a luminous torus outline.
 if(hull==='prism'){for(let i=0;i<3;i++){const fin=add(new THREE.BoxGeometry(radius*.12,radius*1.7,radius*.65),i===0?glow:dark,(i-1)*radius*.4,0,radius*.46);fin.rotation.z=(i-1)*.18}}
 
 const inner=add(new THREE.OctahedronGeometry(radius*.38,0),dark,0,0,0);inner.rotation.set(.4,.3,.2);
@@ -176,8 +176,7 @@ if(aerialStage>=2){
 for(let i=0;i<count(swarm,105);i++){const d=direction(),dist=radius*(1.2+rand()*(.3+power*1.6));const pos=point(d,dist);add(new THREE.IcosahedronGeometry(.035+rand()*.09+power*.025,0),i%3===0?glow:metal,pos.x,pos.y,pos.z)}
 for(let i=0;i<count(stalker,27);i++){const d=direction(),len=.6+rand()*(1+power*4.5),pts=[];for(let j=0;j<=9;j++){const t=j/9;pts.push(new THREE.Vector3(d.x*(radius+len*t)+Math.sin(t*8+i)*t*.45,d.y*(radius+len*t)+Math.cos(t*7+i)*t*.45,d.z*(radius+len*t)+Math.sin(t*9+i)*t*.45))}const tube=add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),18,.035+power*.09,6,false),i%3===0?glow:dark,0,0,0)}
 for(let i=0;i<Math.round(basic*(3+power*22));i++){const d=direction(),pos=point(d,radius*1.04);const plate=add(new THREE.OctahedronGeometry(.12+power*.24,0),i%4===0?glow:metal,pos.x,pos.y,pos.z);plate.scale.set(1,.3+rand(),1.1+rand()*1.7)}
-if(power>.18){for(let i=0;i<1+tier;i++){const ring=add(new THREE.TorusGeometry(radius*(1.23+i*.21),.025+power*.025,5,64),i%2?glow:metal,0,0,0);ring.rotation.set(rand()*Math.PI,rand()*Math.PI,rand()*Math.PI)}}
-if(p.aura){for(let i=0;i<1+Math.min(3,Math.ceil(p.aura/30));i++){const halo=add(new THREE.TorusGeometry(radius*(1.5+i*.3),.015+power*.04,4,64),glow,0,0,0);halo.rotation.set(rand()*3,rand()*3,rand()*3)}}
+// No permanent CELL rings: all aura motion comes from orbital light particles.
 if(power>.55){for(let i=0;i<3+tier*2;i++){const d=direction(),pos=point(d,radius*(1.45+rand()*.5));const satellite=add(new THREE.OctahedronGeometry(.12+power*.13,0),glow,pos.x,pos.y,pos.z);satellite.rotation.set(rand()*3,rand()*3,rand()*3)}}
 
 // Directional lance array: coherent forward-facing spikes rather than a uniform pincushion.
