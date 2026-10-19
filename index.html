@@ -570,7 +570,7 @@ const escortMesh=new THREE.InstancedMesh(new THREE.ConeGeometry(.29,2.7,5),escor
 escortMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);escortMesh.frustumCulled=false;
 escortMesh.count=0;scene.add(escortMesh);
 const escortDummy=new THREE.Object3D(),escortData=[];
-let escortsLaunched=false,escortsAlerted=false,escortReleaseAt=Infinity,escortFlockAlertAt=0,escortLastCrunch=0;
+let escortsLaunched=false,escortsAlerted=false,escortReleaseAt=Infinity,escortFlockAlertAt=0,escortLastCrunch=0,escortWarpAt=Infinity;
 function escortGlassSound(t){
  if(t-escortLastCrunch<130)return;escortLastCrunch=t;
  if(!vesselAudio||vesselAudio.state!=='running')return;
@@ -614,7 +614,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
   }
  }
  for(const e of escortData){
-  if(e.mode===3||t<e.born)continue;
+  if(t<e.born)continue;
   const age=(t-e.born)/1000;
   if(e.mode===0){
    // Ventral light arrays and black rectangular launch housing, staggered 32ms apart.
@@ -622,12 +622,13 @@ function updateVesselEscorts(t,dt,centerX,p,active){
    const q=Math.min(1,age/2.4);
    e.x=launchX+Math.cos(e.angle)*e.ring*q;
    e.z=((e.i%7)-3)*16+Math.sin(e.angle)*e.ring*q;
-   e.y=290-(224*q);
+   e.y=290-(274*q);
    if(q>=1)e.mode=1;
   }
+  if(e.mode===4){if(t>=e.attackAt){const fall=(t-e.attackAt)/1000;e.y=Math.max(.85,e.sy-4.9*fall*fall*2);if(e.y<=.85){e.mode=3;escortGlassSound(t)}}}
   if(e.mode===1){
    if(escortsAlerted){
-    e.mode=2;e.attackAt=t+(e.i%8)*170+Math.floor(e.i/8)*220;
+    e.mode=2;e.attackAt=t+(e.i%8)*85+Math.floor(e.i/8)*110;
     e.sx=e.x;e.sy=e.y;e.sz=e.z;
     const r=1.2+(e.i%11)*1.2,ang=e.angle;
     e.tx=player.position.x+Math.cos(ang)*r;
@@ -636,7 +637,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
    }else{
     // Cohesive guard formation follows the ship; individual units only have offsets.
     const theta=e.angle+t*.00014,tx=centerX+((e.i%25)-12)*35+Math.cos(theta)*e.ring,tz=((e.i%7)-3)*16+Math.sin(theta)*e.ring;
-    const ty=18+(e.i%9)*6.2;
+    const ty=7+(e.i%9)*1.4;
     const distance=Math.hypot(tx-e.x,ty-e.y,tz-e.z)||1,step=Math.min(distance,escortSpeed*dt);
     e.x+=(tx-e.x)/distance*step;e.y+=(ty-e.y)/distance*step;e.z+=(tz-e.z)/distance*step;
    }
@@ -649,18 +650,20 @@ function updateVesselEscorts(t,dt,centerX,p,active){
     e.z=a*a*e.sz+2*a*q*mz+q*q*e.tz;
     if(e.y<=1.25||q>=1){
      if(Math.hypot(e.x-player.position.x,e.z-player.position.z)<1.5&&t>=dashInvulnerableUntil)applySpecialDamage(1,t);
-     escortGlassSound(t);e.mode=3;continue;
+     escortGlassSound(t);e.mode=3;e.y=.85;
     }
    }
   }
-  // Culling by range avoids flooding iPhone with invisible 260 instances.
+  // Culling by range avoids flooding iPhone with invisible 300 instances.
   if(Math.abs(e.x-player.position.x)>650||Math.abs(e.z-player.position.z)>650)continue;
   escortDummy.position.set(e.x,e.y,e.z);
-  escortDummy.rotation.set(e.mode===2?-Math.PI*.42:Math.PI,Math.atan2(e.tx-e.x,e.tz-e.z),0);
+  escortDummy.rotation.set(e.mode===3?0:e.mode===2?-Math.PI*.42:Math.PI/2,0,e.mode===3?0:Math.PI/2);
   escortDummy.scale.set(1,1,1);escortDummy.updateMatrix();escortMesh.setMatrixAt(drawn++,escortDummy.matrix);
  }
  escortMesh.count=drawn;if(drawn)escortMesh.instanceMatrix.needsUpdate=true;
- if(!active&&!escortsAlerted){escortMesh.count=0;for(const e of escortData)e.mode=3}
+ if(!active&&escortWarpAt===Infinity)escortWarpAt=t;
+ if(escortWarpAt!==Infinity){for(const e of escortData)if(e.mode!==3&&e.mode!==4){e.mode=4;e.attackAt=escortWarpAt+500;e.sy=e.y;}}
+
 }
 // Final ascent and jump: flash, sub-bass swell and a long hollow echo after disappearance.
 const jumpFlash=new THREE.Mesh(new THREE.SphereGeometry(1,12,8),new THREE.MeshBasicMaterial({color:0xb8e5f3,transparent:true,opacity:0,depthWrite:false,blending:THREE.AdditiveBlending}));
@@ -692,7 +695,7 @@ function updateBlackTransit(t){
  vesselGlint.opacity=Math.min(.96,.58+.15*Math.sin(t*.00032)+signalStage*.06);
  for(const b of vesselBeacons){const blink=((t/1000+b.phase)%3.2)<.48;const lit=signalStage>0&&(vesselLightsAt===Infinity||t>=vesselLightsAt+Math.min(2,Math.max(0,Math.floor((b.bulb.position.x+90)/60)))*900);b.bulb.material=!lit?beaconOff:b.mode==='steady'?beaconOn:b.mode==='warm'?beaconWarm:b.mode==='chase'?((((t/1000+b.phase)%3.2)<1.15)?beaconOn:beaconOff):(blink?beaconOn:beaconOff)}
 
- if(!active){jumpFlash.visible=false;vesselThreat=0;ambientSky.intensity=1.65;sun.intensity=2.35;return}
+ if(!active){updateVesselEscorts(t,Math.min(.05,Math.max(0,(t-(updateVesselEscorts.lastTime||t))/1000)),blackVessel.position.x,1,false);updateVesselEscorts.lastTime=t;jumpFlash.visible=false;vesselThreat=0;ambientSky.intensity=1.65;sun.intensity=2.35;return}
  const p=t<departAt?0:Math.max(0,Math.min(1,travel/vesselTransitMs));
  const centerX=2450-4900*p;
  const jumpStart=.86,jumpQ=Math.max(0,Math.min(1,(p-jumpStart)/(1-jumpStart)));
