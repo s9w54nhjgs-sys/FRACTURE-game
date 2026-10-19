@@ -235,7 +235,7 @@ group.traverse(obj=>{
  root.position.y=-len*.43;obj.add(root);
  if(heartbeat){
   const channel=new THREE.Mesh(new THREE.CylinderGeometry(.012,.035,len*.82,5),new THREE.MeshBasicMaterial({color:0xff2835,transparent:true,opacity:0,depthWrite:false}));
-  channel.position.y=-len*.02;obj.add(channel);sp.channel=channel;
+  channel.position.y=-len*.02;channel.name='cellHeartbeatChannel';obj.add(channel);
  }
 });
 // Two-tone paint begins at 500 paint units; stable seeded accent finish.
