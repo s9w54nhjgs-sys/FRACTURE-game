@@ -564,7 +564,7 @@ function signalVessel(stage,t){
  }
 }
 // CHROME NEEDLE STORM: one shared flock controller, instanced render, fixed ballistic arcs.
-const escortCount=260,escortSpeed=22,escortDetection=7;
+const escortCount=300,escortSpeed=22,escortDetection=7;
 const escortChrome=new THREE.MeshStandardMaterial({color:0xd5e2e8,metalness:1,roughness:.09,flatShading:true});
 const escortMesh=new THREE.InstancedMesh(new THREE.ConeGeometry(.29,2.7,5),escortChrome,escortCount);
 escortMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);escortMesh.frustumCulled=false;
@@ -596,7 +596,7 @@ function launchVesselEscorts(t){
  if(escortsLaunched)return;
  escortsLaunched=true;escortReleaseAt=t;
  for(let i=0;i<escortCount;i++){
-  const angle=i*2.399963,ring=8+(i%16)*3.5;
+  const angle=i*2.399963,ring=16+(i%16)*2.9;
   escortData.push({i,angle,ring,born:Infinity,mode:0,x:0,y:0,z:0,sx:0,sy:0,sz:0,tx:0,tz:0,attackAt:0,duration:0});
  }
  notify('VENTRAL HATCH OPEN // CHROME ESCORTS DEPLOYED');
@@ -605,11 +605,11 @@ function updateVesselEscorts(t,dt,centerX,p,active){
  if(!escortsLaunched)return;
  // Launch only as the ventral hatch enters the visible station, not kilometers away.
  const hatchX=centerX-420;
- if(escortReleaseAt!==Infinity&&escortData[0]?.born===Infinity){if(Math.abs(hatchX)>430)return;for(const e of escortData)e.born=t+e.i*36;}
+ if(escortReleaseAt!==Infinity&&escortData[0]?.born===Infinity){if(Math.abs(centerX)>1450)return;for(const e of escortData)e.born=t+e.i*14;notify('CHROME HATCHES // 300機展開');}
  let drawn=0;
  // One flock-wide alert, no per-agent AI pathfinding.
  if(!escortsAlerted)for(const e of escortData){
-  if(e.mode===1&&e.y<65&&Math.hypot(e.x-player.position.x,e.z-player.position.z)<escortDetection){
+  if(e.mode===1&&e.y<75&&Math.hypot(e.x-player.position.x,e.z-player.position.z)<escortDetection){
    escortsAlerted=true;escortFlockAlertAt=t;escortHollowAlarm();notify('ESCORT SWARM // 全機が捕捉');break;
   }
  }
@@ -618,11 +618,11 @@ function updateVesselEscorts(t,dt,centerX,p,active){
   const age=(t-e.born)/1000;
   if(e.mode===0){
    // Ventral light arrays and black rectangular launch housing, staggered 32ms apart.
-   const launchX=hatchX+((e.i%15)-7)*11;
-   const q=Math.min(1,age/4.2);
+   const launchX=centerX+((e.i%25)-12)*35;
+   const q=Math.min(1,age/2.4);
    e.x=launchX+Math.cos(e.angle)*e.ring*q;
-   e.z=Math.sin(e.angle)*e.ring*q;
-   e.y=315-(270*q);
+   e.z=((e.i%7)-3)*16+Math.sin(e.angle)*e.ring*q;
+   e.y=290-(224*q);
    if(q>=1)e.mode=1;
   }
   if(e.mode===1){
@@ -635,8 +635,8 @@ function updateVesselEscorts(t,dt,centerX,p,active){
     e.duration=Math.max(2200,Math.hypot(e.tx-e.x,e.tz-e.z,e.y)/escortSpeed*1000);
    }else{
     // Cohesive guard formation follows the ship; individual units only have offsets.
-    const theta=e.angle+t*.00014,tx=hatchX+Math.cos(theta)*e.ring,tz=Math.sin(theta)*e.ring;
-    const ty=26+(e.i%9)*4.2;
+    const theta=e.angle+t*.00014,tx=centerX+((e.i%25)-12)*35+Math.cos(theta)*e.ring,tz=((e.i%7)-3)*16+Math.sin(theta)*e.ring;
+    const ty=18+(e.i%9)*6.2;
     const distance=Math.hypot(tx-e.x,ty-e.y,tz-e.z)||1,step=Math.min(distance,escortSpeed*dt);
     e.x+=(tx-e.x)/distance*step;e.y+=(ty-e.y)/distance*step;e.z+=(tz-e.z)/distance*step;
    }
@@ -654,7 +654,7 @@ function updateVesselEscorts(t,dt,centerX,p,active){
    }
   }
   // Culling by range avoids flooding iPhone with invisible 260 instances.
-  if(Math.abs(e.x-player.position.x)>430||Math.abs(e.z-player.position.z)>430)continue;
+  if(Math.abs(e.x-player.position.x)>650||Math.abs(e.z-player.position.z)>650)continue;
   escortDummy.position.set(e.x,e.y,e.z);
   escortDummy.rotation.set(e.mode===2?-Math.PI*.42:Math.PI,Math.atan2(e.tx-e.x,e.tz-e.z),0);
   escortDummy.scale.set(1,1,1);escortDummy.updateMatrix();escortMesh.setMatrixAt(drawn++,escortDummy.matrix);
