@@ -867,7 +867,7 @@ function syncEquippedCell(){
  if(typeof window.fractureBuildEquippedCell!=='function'){equippedNeedsSync=true;return;}
  equippedNeedsSync=false;
  if(equippedCellMesh){playerRig.remove(equippedCellMesh);equippedCellMesh.traverse(o=>{if(o.isMesh){o.geometry.dispose();o.material.dispose()}});equippedCellMesh=null}
- const built=window.fractureBuildEquippedCell();
+ let built=null;try{built=window.fractureBuildEquippedCell()}catch(err){console.error('CELL equip failed',err);equippedNeedsSync=true;return}
  shell.visible=!built;core.visible=!built;spike.visible=!built;for(const p of petals)p.m.visible=!built;for(const f of rollFins)f.mesh.visible=!built;
  if(!built){equippedHeart=[];return}
  equippedCellMesh=built.visual;equippedHeart=built.redParts||[];
