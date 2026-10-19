@@ -22,10 +22,12 @@ const vividAnodized=[
  ['クリムゾンレッド',0xf01929],['エレクトリックブルー',0x1266ff],['ビビッドグリーン',0x10ed53],
  ['ロイヤルパープル',0x922aff],['アノダイズドゴールド',0xffbb08]
 ];
+const specialPaint=[['純白',0xf7f7f4],['漆黒',0x050607]];
+const isSpecialPaint=Boolean(p.paint)&&colorRoll>=.005&&colorRoll<.01;
 const isRarePaint=Boolean(p.paint)&&colorRoll<.005;
-const paintPalette=isRarePaint?vividAnodized:darkAnodized;
+const paintPalette=isSpecialPaint?specialPaint:isRarePaint?vividAnodized:darkAnodized;
 const paintChoice=paintPalette[Math.floor(colorVariant*paintPalette.length)];
-const paintLabel=p.paint?(isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装 / サテンステンレス';
+const paintLabel=p.paint?(isSpecialPaint?'特別塗装 / ':isRarePaint?'希少アルマイト / ':'ダークアルマイト / ')+paintChoice[0]:'無塗装 / サテンステンレス';
 const metal=new THREE.MeshStandardMaterial({color:p.paint?paintChoice[1]:0x838b8d,metalness:p.paint?.91:.83,roughness:p.paint?.23:.43,flatShading:true});
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
