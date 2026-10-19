@@ -13,9 +13,29 @@ const metal=new THREE.MeshStandardMaterial({color:p.paint?new THREE.Color().setH
 const dark=new THREE.MeshStandardMaterial({color:0x0b1828,metalness:.8,roughness:.28,flatShading:true});
 const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emissiveIntensity:2.2,metalness:.35,roughness:.2});
 const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);group.add(m);return m};
-const core=add(new THREE.IcosahedronGeometry(radius,1),metal,0,0,0);
-const inner=add(new THREE.IcosahedronGeometry(radius*.75,0),dark,0,0,0);inner.rotation.set(.4,.3,.2);
-const eye=add(new THREE.OctahedronGeometry(radius*.38,0),glow,0,0,radius*.8);
+// Deterministic base hulls: a CELL is not necessarily spherical.
+const hullTypes=['orb','spire','delta','disc','prism','fork','diamond'];
+const weights=[.6+(p.basic||0)/sum,.3+(p.stalker||0)/sum,.25+(p.aerial||0)/sum,.2+(p.swarm||0)/sum,.3+(p.heavy||0)/sum,.2+Math.min((p.aerial||0),(p.heavy||0))/sum,.2+Math.min((p.stalker||0),(p.basic||0))/sum];
+const hullRoll=rand()*weights.reduce((a,b)=>a+b,0);let cursor=0,hull='orb';
+for(let i=0;i<hullTypes.length;i++){cursor+=weights[i];if(hullRoll<=cursor){hull=hullTypes[i];break}}
+const hullGeo=()=>{
+ if(hull==='spire')return new THREE.CylinderGeometry(radius*.16,radius*.35,radius*3.9,6,1);
+ if(hull==='delta')return new THREE.ConeGeometry(radius*1.25,radius*2.65,3,1);
+ if(hull==='disc')return new THREE.CylinderGeometry(radius*1.55,radius*1.4,radius*.26,10,1);
+ if(hull==='prism')return new THREE.BoxGeometry(radius*1.1,radius*2.5,radius*.75);
+ if(hull==='fork')return new THREE.CylinderGeometry(radius*.25,radius*.65,radius*2.6,5,1);
+ if(hull==='diamond')return new THREE.OctahedronGeometry(radius*1.4,0);
+ return new THREE.IcosahedronGeometry(radius,1);
+};
+const core=add(hullGeo(),metal,0,0,0);
+if(hull==='delta'){core.rotation.x=Math.PI/2;for(const side of [-1,1]){const wing=add(new THREE.BoxGeometry(radius*1.7,radius*.11,radius*.65),metal,side*radius*.83,-radius*.15,radius*.1);wing.rotation.y=side*.4;const engine=add(new THREE.CylinderGeometry(radius*.13,radius*.2,radius*.7,6),glow,side*radius*.45,-radius*.12,-radius*.65);engine.rotation.x=Math.PI/2}}
+if(hull==='spire'){for(let i=0;i<3;i++){const blade=add(new THREE.ConeGeometry(radius*.25,radius*1.55,3),i===1?glow:metal,Math.cos(i*Math.PI*2/3)*radius*.38,radius*.65,Math.sin(i*Math.PI*2/3)*radius*.38);blade.rotation.z=(i-1)*.16}}
+if(hull==='fork'){for(const side of [-1,1]){const arm=add(new THREE.BoxGeometry(radius*.22,radius*2.5,radius*.24),metal,side*radius*.75,0,0);arm.rotation.z=-side*.22;add(new THREE.OctahedronGeometry(radius*.2,0),glow,side*radius*.9,radius*1.2,0)}}
+if(hull==='disc'){const edge=add(new THREE.TorusGeometry(radius*1.45,radius*.08,5,32),glow,0,0,0);edge.rotation.x=Math.PI/2}
+if(hull==='prism'){for(let i=0;i<3;i++){const fin=add(new THREE.BoxGeometry(radius*.12,radius*1.7,radius*.65),i===0?glow:dark,(i-1)*radius*.4,0,radius*.46);fin.rotation.z=(i-1)*.18}}
+
+const inner=add(new THREE.OctahedronGeometry(radius*.38,0),dark,0,0,0);inner.rotation.set(.4,.3,.2);
+const eye=add(new THREE.OctahedronGeometry(radius*.22,0),glow,0,0,radius*.8);
 const direction=()=>{const y=rand()*2-1,a=rand()*Math.PI*2,r=Math.sqrt(1-y*y);return new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r)};
 const point=(v,dist)=>v.clone().multiplyScalar(dist);
 const heavy=(p.heavy||0)/sum,aerial=(p.aerial||0)/sum,swarm=(p.swarm||0)/sum,stalker=(p.stalker||0)/sum,basic=(p.basic||0)/sum;
@@ -31,7 +51,7 @@ const morphs=[['多層核',basic],['肋骨',stalker],['要塞',heavy],['穿刺',
 const dominant=morphs.slice().sort((a,b)=>b[1]-a[1])[0];
 const asym=(rand()-.5)*(.12+chaos*.8),shift=new THREE.Vector3(asym*radius,(rand()-.5)*chaos*radius*.6,0);
 core.position.add(shift);inner.position.add(shift);eye.position.add(shift);
-core.scale.set(mix(1,1.8,fortress),mix(1,1.2,ribFactor),mix(1,.75,fortress));
+core.scale.set(mix(1,1.35,fortress),mix(1,1.15,ribFactor),mix(1,.85,fortress));
 if(fortress>.08){
  for(let i=0;i<Math.round(3+fortress*15*power);i++){
  const d=direction(),pos=point(d,radius*(.8+rand()*.65));
@@ -176,7 +196,7 @@ if(hoverAmount>=180){
  }
 }
 group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
-info.textContent=cell.name+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
+info.textContent=cell.name+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
 
