@@ -12,6 +12,14 @@ const p=cell.recipe||{},sum=Math.max(1,Object.values(p).reduce((a,b)=>a+(Number(
 const power=Math.min(1,Math.log1p(sum)/Math.log1p(50000)),tier=Math.min(3,Math.floor(sum/250)),radius=.62+power*1.05;
 // Seeded anodized-metal finish. Color roll stays stable across reinforcement.
 const colorSeed=((Number(cell.seed)||42)>>>0);
+const auraAmount=Math.max(0,Number(p.aura)||0),swarmAmount=Math.max(0,Number(p.swarm)||0);
+const seededRoll=(salt)=>((Math.imul((colorSeed^salt)>>>0,1664525)+1013904223)>>>0)/4294967296;
+// Odds are rolled once from the CELL seed, not per frame or deployment.
+const auraSpinChance=auraAmount<500?0:Math.min(1,.10+(auraAmount-500)*.0001);
+const casingChance=(Number(p.aerial)||0)<500?0:Math.min(1,.001+((Number(p.aerial)||0)-500)*.00001);
+const auraSpin=seededRoll(0x5b23d9a1)<auraSpinChance;
+const casingEject=seededRoll(0x19ac7e33)<casingChance;
+
 const colorRoll=((Math.imul(colorSeed^0x6c8e9cf5,1664525)+1013904223)>>>0)/4294967296;
 const colorVariant=((Math.imul(colorSeed^0x39b7a4d1,22695477)+1)>>>0)/4294967296;
 const darkAnodized=[
@@ -162,7 +170,7 @@ for(let i=0;i<aerialCount;i++){
  const len=(major?1.5:.55)*aerialReach*(.72+rand()*.55);
  const pos=point(d,radius*(.76+rand()*.23));
  const spike=add(new THREE.ConeGeometry((.075+power*.12)*(major?1.55:1)*(1+rand()*.6),len,4),i%5===0?glow:metal,pos.x+d.x*len*.44,pos.y+d.y*len*.44,pos.z+d.z*len*.44);
- spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d);spike.userData.cellSpike={base:spike.position.clone(),direction:d.clone(),phase:rand()*6.28};
+ spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d);spike.userData.cellSpike={base:spike.position.clone(),direction:d.clone(),phase:rand()*6.28,swarmFloat:Math.min(1,swarmAmount/Math.max(250,swarmAmount+Number(p.aerial)||0))};
 }
 if(aerialStage>=2){
  const crown=Math.min(9,2+aerialStage*2);
@@ -257,7 +265,7 @@ if((Number(p.paint)||0)>=500){
  let painted=0;
  group.traverse(obj=>{if(obj.isMesh&&obj.material===metal){if((painted++%3)===1)obj.material=accent}});
 }
-group.userData.power=power;group.userData.cellHeartbeat=Boolean(heartbeat);group.userData.cellRangedReload=aerialAmount>=500;group.userData.cellAerial=Math.min(1,(Number(p.aerial)||0)/Math.max(1,structureSum));camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
+group.userData.power=power;group.userData.cellHeartbeat=Boolean(heartbeat);group.userData.cellRangedReload=casingEject;group.userData.cellAuraSpin=auraSpin;group.userData.cellAuraSpinChance=auraSpinChance;group.userData.cellCasingChance=casingChance;group.userData.cellAerial=Math.min(1,(Number(p.aerial)||0)/Math.max(1,structureSum));camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
 info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+(heartbeat?' / ♥ 鼓動CELL':'')+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 window.fractureBuildEquippedCell=()=>{
