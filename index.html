@@ -1183,6 +1183,25 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   if(o.userData.cellOrbitSpeed)o.rotation.z+=o.userData.cellOrbitSpeed*(1+velocity*.5);
   const q=o.userData.cellOrbitParticle;
   if(q){q.phase+=.008+velocity*.009;o.position.set(Math.cos(q.phase)*q.radius,Math.sin(q.phase)*q.radius*q.ellipse,0)}
+  const spikeData=o.userData.cellSpike;
+  if(spikeData){
+   const spread=Math.min(1.8,morph*.95+velocity*.16);
+   const pulse=equippedHeart.length?(Math.exp(-Math.pow((((t*.001)%2.15)-.18)/.095,2))+.72*Math.exp(-Math.pow((((t*.001)%2.15)-.48)/.11,2))):0;
+   o.position.copy(spikeData.base).addScaledVector(spikeData.direction,spread*(.35+equippedCellMesh.userData.cellAerial*.55)+pulse*.065);
+   o.scale.set(1+spread*.14,1+spread*.38+pulse*.08,1+spread*.14);
+   if(equippedHeart.length){
+    if(!o.userData.heartbeatTip){
+     const tip=new THREE.Mesh(new THREE.SphereGeometry(.075,6,5),new THREE.MeshBasicMaterial({color:0xff1a24,transparent:true,opacity:0,depthWrite:false}));
+     tip.position.y=o.geometry.parameters.height*.5;
+     o.add(tip);o.userData.heartbeatTip=tip;
+    }
+    const tip=o.userData.heartbeatTip;
+    const delayed=(t*.001-.16-spikeData.phase*.025)%2.15;
+    const flash=Math.exp(-Math.pow((delayed-.18)/.12,2))+.7*Math.exp(-Math.pow((delayed-.48)/.12,2));
+    tip.material.opacity=Math.min(1,flash*.95);
+    tip.scale.setScalar(1+flash*2);
+   }
+  }
   const hover=o.userData.hover;
   if(hover){o.position.y=hover.baseY+Math.sin(t*.025*hover.speed+hover.phase)*(.12+velocity*.09);o.rotation.y+=.004+velocity*.008}
  });
