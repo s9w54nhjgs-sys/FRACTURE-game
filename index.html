@@ -1213,31 +1213,30 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  cellBreakup+= (breakupTarget-cellBreakup)*(breakupTarget>cellBreakup?.38:.115);
  const assembly=cellBreakup;
  const extended=drive>.24;
- if(equippedCellMesh.userData.cellRangedReload&&t-cellLastEject>1100&&cellSpikes.length){
+ if(equippedCellMesh.userData.cellRangedReload&&t-cellLastEject>1100){
   cellLastEject=t;
   playerRig.updateWorldMatrix(true,true);
-  const count=Math.min(6,cellSpikes.length);
+  const count=Math.min(6,Math.max(1,cellSpikes.length));
   let emitted=0;
   const stride=Math.max(1,Math.floor(cellSpikes.length/count));
   for(let j=0;j<count;j++){
-   const spikeMesh=cellSpikes[(Math.floor(t/97)+j*stride)%cellSpikes.length];
-   const sp=spikeMesh.userData.cellSpike;
+   const spikeMesh=cellSpikes.length?cellSpikes[(Math.floor(t/97)+j*stride)%cellSpikes.length]:null;
+   const sp=spikeMesh?.userData.cellSpike||{direction:new THREE.Vector3(1,0,0)};
    if(sp.regrowStart&&t-sp.regrowStart<450)continue;
    let casing=cellCasings.find(c=>!c.active);
    if(!casing){
     if(cellCasings.length>=12)break;
-    const mesh=new THREE.Mesh(spikeMesh.geometry,spikeMesh.material.clone());
+    const mesh=new THREE.Mesh(spikeMesh?spikeMesh.geometry:new THREE.CylinderGeometry(.11,.15,.48,6),spikeMesh?spikeMesh.material.clone():new THREE.MeshStandardMaterial({color:0xb8e8fa,metalness:.85,roughness:.25}));
     mesh.material.transparent=true;mesh.material.depthWrite=false;
     scene.add(mesh);casing={mesh,active:false};cellCasings.push(casing);
    }
-   if(casing.mesh.geometry!==spikeMesh.geometry)casing.mesh.geometry=spikeMesh.geometry;
-   casing.mesh.material.color.copy(spikeMesh.material.color);
+   if(spikeMesh&&casing.mesh.geometry!==spikeMesh.geometry)casing.mesh.geometry=spikeMesh.geometry;
+   if(spikeMesh)casing.mesh.material.color.copy(spikeMesh.material.color);
    casing.mesh.material.opacity=1;
-   spikeMesh.getWorldPosition(cellWorldPos);
-   spikeMesh.getWorldQuaternion(cellWorldQuat);
+   if(spikeMesh){spikeMesh.getWorldPosition(cellWorldPos);spikeMesh.getWorldQuaternion(cellWorldQuat)}else{playerRig.getWorldPosition(cellWorldPos);cellWorldPos.y+=.8;cellWorldQuat.identity()}
    casing.mesh.position.copy(cellWorldPos);
    casing.mesh.quaternion.copy(cellWorldQuat);
-   spikeMesh.getWorldScale(casing.mesh.scale);
+   if(spikeMesh)spikeMesh.getWorldScale(casing.mesh.scale);else casing.mesh.scale.setScalar(1);
    // Visible casing size in world space, even when the equipped CELL is scaled down.
    casing.mesh.scale.x=Math.max(.24,casing.mesh.scale.x*1.8);
    casing.mesh.scale.y=Math.max(.34,casing.mesh.scale.y*1.8);
@@ -1250,7 +1249,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    casing.vy=cellWorldDir.y*7+3.5;
    casing.vz=cellWorldDir.z*7;
    casing.sx=casing.mesh.scale.x;casing.sy=casing.mesh.scale.y;casing.sz=casing.mesh.scale.z;
-   sp.regrowStart=t;
+   if(spikeMesh)sp.regrowStart=t;
   }
   if(emitted)playCellCasingPing();
  }
@@ -1398,4 +1397,4 @@ else if(u.phase==='recover'){u.tell.material.opacity=0;u.body.scale.lerp(new THR
 }
 for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.position.x+=p.vx*dt;p.m.position.z+=p.vz*dt;p.m.rotation.y+=dt*7}const distance=p.m.position.distanceTo(player.position);if(distance<1.05&&t>=dashInvulnerableUntil&&!done){let damage=12;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(false,shielded);glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=.85;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false);scene.remove(p.m);projectiles.splice(i,1)}else if(t-p.born>3200||collides(p.m.position.x,p.m.position.z)){scene.remove(p.m);projectiles.splice(i,1)}}if(t-lastHit>7000&&shield<50){shield=Math.min(50,shield+dt*4);$('shield').textContent=Math.round(shield)}if(Math.hypot(player.position.x-38,player.position.z+25)<2.7){if(loot>=3&&relaysActive===3){finish(true)}else if(t%2200<35)notify('脱出には素材3個＋中継器3基の起動が必要')}}const camDist=8,cy=player.position.y+3.2-Math.sin(pitch)*2;const desiredCam=new THREE.Vector3(player.position.x+Math.sin(yaw)*camDist,cy,player.position.z+Math.cos(yaw)*camDist);if(!cameraReady){camera.position.copy(desiredCam);cameraReady=true}else{const follow=1-Math.exp(-7*Math.min((t-cameraFrameTime)/1000,.05));camera.position.lerp(desiredCam,follow)}cameraFrameTime=t;if(hitPulse>0){camera.position.x+=Math.sin(t*.14)*hitPulse*.23;camera.position.y+=Math.cos(t*.19)*hitPulse*.17;camera.position.z+=Math.sin(t*.23)*hitPulse*.12}if(watcherMode==='killRush'){camera.position.lerp(new THREE.Vector3(player.position.x+Math.sin(yaw)*2.4,player.position.y+1.65,player.position.z+Math.cos(yaw)*2.4),.35)}camera.lookAt(player.position.x,player.position.y+.5+Math.tan(Math.min(1.54,Math.max(-.7,pitch)))*13,player.position.z);cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=33"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=34"></script></body></html>
