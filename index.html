@@ -565,7 +565,8 @@ function signalVessel(stage,t){
 }
 // CHROME NEEDLE STORM: one shared flock controller, instanced render, fixed ballistic arcs.
 const escortCount=300,escortSpeed=22,escortDetection=7;
-const escortChrome=new THREE.MeshStandardMaterial({color:0xd5e2e8,metalness:1,roughness:.09,flatShading:true});
+const escortChrome=new THREE.MeshStandardMaterial({color:0xf0f7ff,metalness:.82,roughness:.075,flatShading:true,emissive:0x344955,emissiveIntensity:.24});
+const escortShine=new THREE.PointLight(0xe6f5ff,2.2,65,2);escortShine.position.set(0,16,0);scene.add(escortShine);
 const escortMesh=new THREE.InstancedMesh(new THREE.ConeGeometry(.29,2.7,5),escortChrome,escortCount);
 escortMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);escortMesh.frustumCulled=false;
 escortMesh.count=0;scene.add(escortMesh);
@@ -657,8 +658,11 @@ function updateVesselEscorts(t,dt,centerX,p,active){
   // Culling by range avoids flooding iPhone with invisible 300 instances.
   if(Math.abs(e.x-player.position.x)>650||Math.abs(e.z-player.position.z)>650)continue;
   escortDummy.position.set(e.x,e.y,e.z);
-  escortDummy.rotation.set(e.mode===3?0:e.mode===2?-Math.PI*.42:Math.PI/2,0,e.mode===3?0:Math.PI/2);
-  escortDummy.scale.set(1,1,1);escortDummy.updateMatrix();escortMesh.setMatrixAt(drawn++,escortDummy.matrix);
+  // Flying attitude is preserved. Embedded cones must point INTO the floor, not upward.
+  escortDummy.rotation.set(e.mode===3?Math.PI:e.mode===2?-Math.PI*.42:Math.PI/2,0,e.mode===3?0:Math.PI/2);
+  // Small asynchronous glints read as polished chrome even under the vessel's shadow.
+  const glint=1+.15*Math.sin(t*.012+e.i*2.4);
+  escortDummy.scale.set(glint,1,glint);escortDummy.updateMatrix();escortMesh.setMatrixAt(drawn++,escortDummy.matrix);
  }
  escortMesh.count=drawn;if(drawn)escortMesh.instanceMatrix.needsUpdate=true;
  if(!active&&escortWarpAt===Infinity)escortWarpAt=t;
