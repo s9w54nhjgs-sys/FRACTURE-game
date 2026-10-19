@@ -1179,6 +1179,13 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const phase=(t*.001)%2.15;
  const beat=Math.exp(-Math.pow((phase-.18)/.095,2))+.72*Math.exp(-Math.pow((phase-.48)/.11,2));
  for(const h of equippedHeart){h.material.emissiveIntensity=.3+beat*5;h.scale.setScalar(1+beat*.28)}
+ equippedCellMesh.traverse(o=>{
+  if(o.userData.cellOrbitSpeed)o.rotation.z+=o.userData.cellOrbitSpeed*(1+velocity*.5);
+  const q=o.userData.cellOrbitParticle;
+  if(q){q.phase+=.008+velocity*.009;o.position.set(Math.cos(q.phase)*q.radius,Math.sin(q.phase)*q.radius*q.ellipse,0)}
+  const hover=o.userData.hover;
+  if(hover){o.position.y=hover.baseY+Math.sin(t*.025*hover.speed+hover.phase)*(.12+velocity*.09);o.rotation.y+=.004+velocity*.008}
+ });
  }
 
  for(const f of rollFins){
