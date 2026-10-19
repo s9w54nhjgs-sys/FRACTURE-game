@@ -32,8 +32,10 @@ const glow=new THREE.MeshStandardMaterial({color:0x5eeeff,emissive:0x12bfe8,emis
 const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z);group.add(m);return m};
 // Deterministic base hulls: a CELL is not necessarily spherical.
 const hullTypes=['orb','spire','delta','disc','prism','fork','diamond'];
-const weights=[.6+(p.basic||0)/sum,.3+(p.stalker||0)/sum,.25+(p.aerial||0)/sum,.2+(p.swarm||0)/sum,.3+(p.heavy||0)/sum,.2+Math.min((p.aerial||0),(p.heavy||0))/sum,.2+Math.min((p.stalker||0),(p.basic||0))/sum];
-const hullRoll=rand()*weights.reduce((a,b)=>a+b,0);let cursor=0,hull='orb';
+const structureSum=Math.max(1,['basic','heavy','aerial','swarm','stalker'].reduce((a,k)=>a+(Number(p[k])||0),0));
+const structureRand=random((Number(cell.seed)||42)^0x5f3759df);
+const weights=[.6+(p.basic||0)/structureSum,.3+(p.stalker||0)/structureSum,.25+(p.aerial||0)/sum,.2+(p.swarm||0)/sum,.3+(p.heavy||0)/sum,.2+Math.min((p.aerial||0),(p.heavy||0))/sum,.2+Math.min((p.stalker||0),(p.basic||0))/sum];
+const hullRoll=structureRand()*weights.reduce((a,b)=>a+b,0);let cursor=0,hull='orb';
 for(let i=0;i<hullTypes.length;i++){cursor+=weights[i];if(hullRoll<=cursor){hull=hullTypes[i];break}}
 const hullGeo=()=>{
  if(hull==='spire')return new THREE.CylinderGeometry(radius*.16,radius*.35,radius*3.9,6,1);
