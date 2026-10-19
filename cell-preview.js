@@ -245,7 +245,7 @@ window.fractureBuildEquippedCell=()=>{
  const chosen=(data.cells||[]).find(c=>c.recipe&&String(c.seed)===seed);
  if(!chosen)return null;
  const selected=select.value,previousTrial=trialFinish,previousMode=previewMode,previousHeartbeat=forceHeartbeat;
- trialFinish='';forceHeartbeat=false;show(chosen);
+ trialFinish=sessionStorage.getItem('fracture_trial_finish')||'';forceHeartbeat=sessionStorage.getItem('fracture_heartbeat_test')==='1';show(chosen);
  const visual=group.clone(true);
  visual.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone()}});
  const pulse=heartbeat?{name:heartbeat.mesh.name,material:heartbeat.mat}:null;
@@ -268,10 +268,10 @@ trial.style.cssText='width:100%;padding:10px;background:#102736;color:#e9ffff;ma
 trial.innerHTML='<option value="">カラー試着OFF（実際の塗装）</option>';
 for(const n of ['クロームシルバー','クロームゴールド','無色クリア','レッドクリア','ブルークリア','グリーンクリア','パープルクリア','純白','漆黒','シャンパンブロンズ','アンティークブロンズ','ローズブロンズ','ガンメタブラック','ディープネイビー','ダークパープル','ワインレッド','フォレストグリーン','スモークブロンズ','ダークチタン','ミッドナイトブルー','クリムゾンレッド','エレクトリックブルー','ビビッドグリーン','ロイヤルパープル','アノダイズドゴールド']){const o=document.createElement('option');o.value=n;o.textContent=n;trial.appendChild(o)}
 wrap.insertBefore(trial,viewport);
-trial.onchange=()=>{trialFinish=trial.value;if(previewMode)forecast();else refresh()};
-const deploy=document.createElement('button');deploy.className='frBtn';deploy.textContent='このCELLで出撃（試着色は保存されません）';wrap.insertBefore(deploy,viewport);
-deploy.onclick=()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const chosen=items[Number(select.value)];if(!chosen){info.textContent='まずCELLを合成してから出撃してください';return}localStorage.setItem('fracture_equipped_cell_seed',String(chosen.seed));window.dispatchEvent(new Event('fracture-cell-equipped'));document.getElementById('frDeploy')?.click();document.getElementById('frLaunch')?.click();info.textContent='装備CELLを設定しました。出撃ボタンから開始できます。'};
-const heartTest=document.createElement('button');heartTest.className='frBtn alt';heartTest.textContent='♥ 鼓動を試聴（演出テスト）';wrap.insertBefore(heartTest,viewport);heartTest.onclick=()=>{forceHeartbeat=!forceHeartbeat;heartTest.textContent=forceHeartbeat?'♥ 鼓動テスト中（解除）':'♥ 鼓動を試聴（演出テスト）';if(previewMode)forecast();else refresh()};
+trial.onchange=()=>{trialFinish=trial.value;sessionStorage.setItem('fracture_trial_finish',trialFinish);if(previewMode)forecast();else refresh()};
+const deploy=document.createElement('button');deploy.className='frBtn';deploy.textContent='この姿で出撃（試着色は出撃中のみ）';wrap.insertBefore(deploy,viewport);
+deploy.onclick=()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const chosen=items[Number(select.value)];if(!chosen){info.textContent='まずCELLを合成してから出撃してください';return}localStorage.setItem('fracture_equipped_cell_seed',String(chosen.seed));sessionStorage.setItem('fracture_trial_finish',trialFinish);sessionStorage.setItem('fracture_heartbeat_test',forceHeartbeat?'1':'0');window.dispatchEvent(new Event('fracture-cell-equipped'));document.getElementById('frDeploy')?.click();document.getElementById('frLaunch')?.click();info.textContent='装備CELLを設定しました。出撃ボタンから開始できます。'};
+const heartTest=document.createElement('button');heartTest.className='frBtn alt';heartTest.textContent='♥ 鼓動を試聴（演出テスト）';wrap.insertBefore(heartTest,viewport);heartTest.onclick=()=>{forceHeartbeat=!forceHeartbeat;sessionStorage.setItem('fracture_heartbeat_test',forceHeartbeat?'1':'0');heartTest.textContent=forceHeartbeat?'♥ 鼓動テスト中（解除）':'♥ 鼓動を試聴（演出テスト）';if(previewMode)forecast();else refresh()};
 const hint=document.createElement('div');hint.className='frMuted';hint.textContent='配合で基本形態を予測。完成品の細部は合成時にランダム決定。';wrap.insertBefore(hint,viewport);
 const forecast=()=>{if(!previewMode)return;const recipe=Object.fromEntries(mixInputs.map(n=>[n.dataset.part,Math.max(0,Number(n.value)||0)]));const total=Object.values(recipe).reduce((a,b)=>a+b,0);if(total===0){show(null);info.textContent='素材を入力すると形態を予測します';return}show({name:'製作前・予測形態',recipe,seed:1357911})};
 live.onclick=()=>{previewMode=!previewMode;live.textContent=previewMode?'完成CELL一覧に戻る':'投入配合の予測プレビュー';select.disabled=previewMode;if(previewMode)forecast();else refresh()};
