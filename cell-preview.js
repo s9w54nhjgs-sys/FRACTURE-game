@@ -20,6 +20,49 @@ const point=(v,dist)=>v.clone().multiplyScalar(dist);
 const heavy=(p.heavy||0)/sum,aerial=(p.aerial||0)/sum,swarm=(p.swarm||0)/sum,stalker=(p.stalker||0)/sum,basic=(p.basic||0)/sum;
 const count=(share,max)=>Math.min(max,Math.round(share*(4+power*85)));
 
+
+// Morphology engine: continuous material weights, with seeded individual variation.
+const mix=(a,b,t)=>a+(b-a)*Math.max(0,Math.min(1,t));
+const fortress=Math.min(1,heavy*1.8),predator=Math.min(1,Math.min(stalker,aerial)*3.2),nebula=Math.min(1,swarm*1.8);
+const floating=Math.min(1,Math.min(heavy,swarm)*3.5),ribFactor=Math.min(1,stalker*1.8);
+const chaos=Math.min(1,Math.min(heavy,aerial,swarm,stalker,basic)*7);
+const morphs=[['多層核',basic],['肋骨',stalker],['要塞',heavy],['穿刺',aerial],['星雲',swarm],['捕食',predator],['浮遊要塞',floating],['異形核',chaos]];
+const dominant=morphs.slice().sort((a,b)=>b[1]-a[1])[0];
+const asym=(rand()-.5)*(.12+chaos*.8),shift=new THREE.Vector3(asym*radius,(rand()-.5)*chaos*radius*.6,0);
+core.position.add(shift);inner.position.add(shift);eye.position.add(shift);
+core.scale.set(mix(1,1.8,fortress),mix(1,1.2,ribFactor),mix(1,.75,fortress));
+if(fortress>.08){
+ for(let i=0;i<Math.round(3+fortress*15*power);i++){
+ const d=direction(),pos=point(d,radius*(.8+rand()*.65));
+ const block=add(new THREE.BoxGeometry(.3+fortress*.7,.2+fortress*.45,.35+fortress*.65),i%4===0?dark:metal,pos.x,pos.y,pos.z);
+ block.rotation.set(rand()*3,rand()*3,rand()*3);
+ }
+}
+if(predator>.08){
+ for(let i=0;i<Math.round(3+predator*14*power);i++){
+ const a=i*Math.PI*2/(3+Math.round(predator*14*power)),side=i%2?1:-1;
+ const points=[];
+ for(let j=0;j<=9;j++){const t=j/9;const rr=radius*(.8+Math.sin(t*Math.PI)*(.5+predator*.7)-predator*t*.38);
+ points.push(new THREE.Vector3(Math.cos(a)*rr,side*radius*(t-.45)*2.2,Math.sin(a)*rr))}
+ add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(points),15,.035+predator*.085,5,false),i%5===0?glow:metal,0,0,0);
+ }
+}
+if(nebula>.06){
+ for(let i=0;i<Math.round(nebula*(8+power*90));i++){
+ const d=direction(),dist=radius*(1.4+rand()*(1+nebula*1.6)),pos=point(d,dist);
+ const shard=add(new THREE.TetrahedronGeometry(.04+rand()*.11,0),i%3===0?glow:metal,pos.x,pos.y,pos.z);
+ shard.rotation.set(rand()*3,rand()*3,rand()*3);
+ }
+}
+if(floating>.08){
+ for(let i=0;i<Math.round(2+floating*12*power);i++){
+ const d=direction(),pos=point(d,radius*(1.6+rand()*.8));
+ const chunk=add(new THREE.DodecahedronGeometry(.16+floating*.35*rand(),0),i%3===0?glow:metal,pos.x,pos.y,pos.z);
+ chunk.rotation.set(rand()*3,rand()*3,rand()*3);
+ }
+}
+if(chaos>.1){core.rotation.set(rand()*1.3,rand()*1.3,rand()*1.3);eye.position.x+=chaos*radius*.7}
+
 // 基本素材は量に応じて中心核を多層化。ストーカー主体は他素材を肋骨状の保護フレームに変換。
 const baseAmount=p.basic||0,stalkerAmount=p.stalker||0;
 if(baseAmount>=80){
@@ -65,8 +108,19 @@ if(power>.18){for(let i=0;i<1+tier;i++){const ring=add(new THREE.TorusGeometry(r
 if(p.aura){for(let i=0;i<1+Math.min(3,Math.ceil(p.aura/30));i++){const halo=add(new THREE.TorusGeometry(radius*(1.5+i*.3),.015+power*.04,4,64),glow,0,0,0);halo.rotation.set(rand()*3,rand()*3,rand()*3)}}
 if(power>.55){for(let i=0;i<3+tier*2;i++){const d=direction(),pos=point(d,radius*(1.45+rand()*.5));const satellite=add(new THREE.OctahedronGeometry(.12+power*.13,0),glow,pos.x,pos.y,pos.z);satellite.rotation.set(rand()*3,rand()*3,rand()*3)}}
 group.userData.power=power;
-info.textContent=cell.name+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
+info.textContent=cell.name+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
-function refresh(){const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
+function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
+
+// Before crafting, show the expected silhouette with a fixed preview seed.
+// The actual synthesis still rolls a new seed and retains that identity.
+const mixInputs=[...document.querySelectorAll('#frParts input[data-part]')];
+let previewMode=false;
+const live=document.createElement('button');live.className='frBtn alt';live.textContent='投入配合の予測プレビュー';wrap.insertBefore(live,viewport);
+const hint=document.createElement('div');hint.className='frMuted';hint.textContent='配合で基本形態を予測。完成品の細部は合成時にランダム決定。';wrap.insertBefore(hint,viewport);
+const forecast=()=>{if(!previewMode)return;const recipe=Object.fromEntries(mixInputs.map(n=>[n.dataset.part,Math.max(0,Number(n.value)||0)]));const total=Object.values(recipe).reduce((a,b)=>a+b,0);if(total===0){show(null);info.textContent='素材を入力すると形態を予測します';return}show({name:'製作前・予測形態',recipe,seed:1357911})};
+live.onclick=()=>{previewMode=!previewMode;live.textContent=previewMode?'完成CELL一覧に戻る':'投入配合の予測プレビュー';select.disabled=previewMode;if(previewMode)forecast();else refresh()};
+mixInputs.forEach(n=>n.addEventListener('input',forecast));
+
 select.addEventListener('change',()=>{const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');show((d.cells||[]).filter(c=>c.recipe)[Number(select.value)])});document.getElementById('frMix')?.addEventListener('click',()=>setTimeout(refresh,0));document.getElementById('frHome')?.addEventListener('click',refresh);const resize=()=>{const w=viewport.clientWidth||320;renderer.setSize(w,290);camera.aspect=w/290;camera.updateProjectionMatrix()};resize();refresh();let frame=0;function animate(){requestAnimationFrame(animate);if(wrap.getBoundingClientRect().width===0)return;if(++frame%2)return;group.rotation.y+=.009;group.rotation.x=Math.sin(frame*.006)*.15;renderer.render(scene,camera)}animate();
 }
