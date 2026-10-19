@@ -44,7 +44,7 @@ const add=(geo,mat,x,y,z)=>{const m=new THREE.Mesh(geo,mat);m.position.set(x,y,z
 const hullTypes=['orb','spire','delta','disc','prism','fork','diamond'];
 const structureSum=Math.max(1,['basic','heavy','aerial','swarm','stalker'].reduce((a,k)=>a+(Number(p[k])||0),0));
 const structureRand=random((Number(cell.seed)||42)^0x5f3759df);
-const weights=[.6+(p.basic||0)/structureSum,.3+(p.stalker||0)/structureSum,.25+(p.aerial||0)/sum,.2+(p.swarm||0)/sum,.3+(p.heavy||0)/sum,.2+Math.min((p.aerial||0),(p.heavy||0))/sum,.2+Math.min((p.stalker||0),(p.basic||0))/sum];
+const weights=[.6+(p.basic||0)/structureSum,.3+(p.stalker||0)/structureSum,.25+(p.aerial||0)/structureSum,.2+(p.swarm||0)/structureSum,.3+(p.heavy||0)/structureSum,.2+Math.min((p.aerial||0),(p.heavy||0))/structureSum,.2+Math.min((p.stalker||0),(p.basic||0))/structureSum];
 const hullRoll=structureRand()*weights.reduce((a,b)=>a+b,0);let cursor=0,hull='orb';
 for(let i=0;i<hullTypes.length;i++){cursor+=weights[i];if(hullRoll<=cursor){hull=hullTypes[i];break}}
 const hullGeo=()=>{
@@ -237,7 +237,7 @@ if((Number(p.paint)||0)>=500){
  group.traverse(obj=>{if(obj.isMesh&&obj.material===metal){if((painted++%3)===1)obj.material=accent}});
 }
 group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
-info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+'+(heartbeat?' / ♥ 鼓動CELL':'')+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
+info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+(heartbeat?' / ♥ 鼓動CELL':'')+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
 
