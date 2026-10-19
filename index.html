@@ -139,6 +139,63 @@ for(const mat of [expansionConcrete,expansionSteel,expansionShadow]){
  for(let i=0;i<pieces.length;i++){const p=pieces[i];expansionDummy.position.set(p.x,p.y,p.z);expansionDummy.scale.set(p.w,p.h,p.d);expansionDummy.rotation.set(0,0,0);expansionDummy.updateMatrix();mesh.setMatrixAt(i,expansionDummy.matrix)}
  mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();expansionCity.add(mesh);
 }
+// TITAN-SCALE VESSEL TERMINAL: 10x-human departure architecture, not ordinary towers.
+const titanGroup=new THREE.Group();scene.add(titanGroup);
+const titanConcrete=new THREE.MeshStandardMaterial({color:0x536067,metalness:.45,roughness:.7});
+const titanSteel=new THREE.MeshStandardMaterial({color:0x293740,metalness:.82,roughness:.43});
+const titanBronze=new THREE.MeshStandardMaterial({color:0x785a41,metalness:.9,roughness:.36});
+const titanBlack=new THREE.MeshStandardMaterial({color:0x0e1921,roughness:.9});
+const titanPieces=[];
+function titanBox(x,y,z,w,h,d,mat){titanPieces.push([x,y,z,w,h,d,mat])}
+for(const side of [-1,1]){
+ const x=side*274;
+ // Continuous boarding terminal: three gigantic open bays per side.
+ for(const z of [-210,0,210]){
+  for(const edge of [-1,1])titanBox(x+edge*43,88,z,12,176,119,titanConcrete);
+  titanBox(x,184,z,106,19,133,titanSteel);
+  titanBox(x,143,z-59,86,9,9,titanConcrete);
+  for(const offset of [-26,0,26]){
+   titanBox(x+offset,51,z-60,19,100,2,titanBlack);
+   titanBox(x+offset,103,z-61,21,3,5,titanBronze);
+  }
+  for(const y of [46,92,137])titanBox(x+side*49,y,z,4,3,125,titanBronze);
+ }
+ titanBox(x,204,0,50,18,635,titanSteel);
+ for(const z of [-300,-150,0,150,300]){
+  titanBox(x,217,z,64,7,14,titanConcrete);
+  titanBox(x,192,z,9,25,12,titanBronze);
+ }
+ // Ship berth rails and their monumental clamp housings.
+ titanBox(side*133,5,0,13,10,538,titanSteel);
+ titanBox(side*133,11,0,3,2,538,titanBronze);
+ for(const z of [-225,-150,-75,0,75,150,225]){
+  titanBox(side*133,15,z,17,8,9,titanConcrete);
+ }
+ for(const z of [-175,0,175]){
+  titanBox(side*176,4,z,33,8,46,titanConcrete);
+  titanBox(side*176,10,z,38,4,52,titanSteel);
+  for(const e of [-1,1])titanBox(side*176+e*16,20,z,4,18,42,titanBronze);
+ }
+}
+// Overhead ship servicing bridges. The central court remains open at ground level.
+for(const z of [-290,290]){
+ for(const x of [-210,210]){
+  titanBox(x,120,z,26,240,29,titanConcrete);
+  titanBox(x,186,z,33,9,38,titanBronze);
+ }
+ titanBox(0,248,z,442,23,35,titanSteel);
+ titanBox(0,231,z,410,7,12,titanConcrete);
+ for(const x of [-150,-75,0,75,150]){
+  titanBox(x,221,z,7,23,36,titanBronze);
+  titanBox(x,208,z,15,7,42,titanBlack);
+ }
+}
+const titanGeometry=new THREE.BoxGeometry(1,1,1),titanDummy=new THREE.Object3D();
+for(const mat of [titanConcrete,titanSteel,titanBronze,titanBlack]){
+ const p=titanPieces.filter(v=>v[6]===mat),mesh=new THREE.InstancedMesh(titanGeometry,mat,p.length);
+ for(let i=0;i<p.length;i++){const [x,y,z,w,h,d]=p[i];titanDummy.position.set(x,y,z);titanDummy.scale.set(w,h,d);titanDummy.updateMatrix();mesh.setMatrixAt(i,titanDummy.matrix)}
+ mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();titanGroup.add(mesh);
+}
 // Empty plaza emphasizes scale; scattered blocks intentionally removed.
 const lightStripMat=new THREE.MeshBasicMaterial({color:0x8bd9d4});for(const [x,z] of [[-33,-32],[48,33],[-64,45]]){slab(x,.08,z,9,.12,.16,lightStripMat)}
 // Metal-clad composite structures: panel seams, ribs, oxidized surfaces and restrained highlights
