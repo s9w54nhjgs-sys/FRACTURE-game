@@ -234,8 +234,12 @@ group.traverse(obj=>{
  const root=new THREE.Mesh(new THREE.CylinderGeometry(.085,.13,Math.min(.25,len*.17),6),dark);
  root.position.y=-len*.43;obj.add(root);
  if(heartbeat){
-  const channel=new THREE.Mesh(new THREE.CylinderGeometry(.012,.035,len*.82,5),new THREE.MeshBasicMaterial({color:0xff2835,transparent:true,opacity:0,depthWrite:false}));
-  channel.position.y=-len*.02;channel.name='cellHeartbeatChannel';obj.add(channel);
+  for(let segment=0;segment<5;segment++){
+   const channel=new THREE.Mesh(new THREE.CylinderGeometry(.022,.03,len*.145,5),new THREE.MeshBasicMaterial({color:0xff273a,transparent:true,opacity:0,depthWrite:false}));
+   channel.position.y=-len*.34+segment*len*.165;
+   channel.name='cellPulseSegment'+segment;
+   obj.add(channel);
+  }
  }
 });
 // Two-tone paint begins at 500 paint units; stable seeded accent finish.
