@@ -605,7 +605,7 @@ function updateExploration(t,dt){
  const next=relaySites.filter(s=>!s.active).sort((a,b)=>Math.hypot(player.position.x-a.x,player.position.z-a.z)-Math.hypot(player.position.x-b.x,player.position.z-b.z))[0];
  const target=next||{x:38,z:-25,name:'EXTRACTION / 脱出地点'};
  const dx=target.x-player.position.x,dz=target.z-player.position.z;
- const bearing=Math.atan2(-dx,-dz)-yaw,arrow=['↑','↗','→','↘','↓','↙','←','↖'][((Math.round(bearing/(Math.PI/4))%8)+8)%8];
+ const bearing=Math.atan2(dx,-dz)+yaw,arrow=['↑','↗','→','↘','↓','↙','←','↖'][((Math.round(bearing/(Math.PI/4))%8)+8)%8];
  document.getElementById('objectiveNav').textContent='SIGNAL '+relaysActive+'/3　'+arrow+' '+Math.round(Math.hypot(dx,dz))+'m　'+target.name;
  $('extract').textContent=next?'中継器を起動：'+relaysActive+'/3　｜　素材 '+loot+'/3':'脱出地点が開放！　素材 '+loot+'/3';
 }
