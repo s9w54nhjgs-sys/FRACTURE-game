@@ -202,8 +202,8 @@ if(orbitAmount>=60){
   const pivot=new THREE.Group();group.add(pivot);
   pivot.rotation.set(rand()*Math.PI,rand()*Math.PI,rand()*Math.PI);
   const orbitRadius=radius*(1.35+i*.14+rand()*.14);
-  const track=new THREE.Mesh(new THREE.TorusGeometry(orbitRadius,.012+power*.012,5,70),new THREE.MeshBasicMaterial({color:0xd9faff,transparent:true,opacity:.8}));
-  track.scale.y=.65+rand()*.25;pivot.add(track);
+  const track=new THREE.Mesh(new THREE.TorusGeometry(orbitRadius,.012+power*.012,5,70),new THREE.MeshBasicMaterial({color:0xb7e4f0,transparent:true,opacity:.17,depthWrite:false}));
+  track.scale.y=.65+rand()*.25;track.userData.cellOrbitTrack=true;pivot.add(track);
   const particles=[];
   const particleCount=2+Math.min(5,Math.floor(orbitAmount/400));
   for(let j=0;j<particleCount;j++){
@@ -253,7 +253,7 @@ if((Number(p.paint)||0)>=500){
  let painted=0;
  group.traverse(obj=>{if(obj.isMesh&&obj.material===metal){if((painted++%3)===1)obj.material=accent}});
 }
-group.userData.power=power;group.userData.cellHeartbeat=Boolean(heartbeat);group.userData.cellAerial=Math.min(1,(Number(p.aerial)||0)/Math.max(1,structureSum));camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
+group.userData.power=power;group.userData.cellHeartbeat=Boolean(heartbeat);group.userData.cellRangedReload=aerialAmount>=500;group.userData.cellAerial=Math.min(1,(Number(p.aerial)||0)/Math.max(1,structureSum));camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
 info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+(heartbeat?' / ♥ 鼓動CELL':'')+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 window.fractureBuildEquippedCell=()=>{
