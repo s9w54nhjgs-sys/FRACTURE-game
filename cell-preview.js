@@ -100,14 +100,34 @@ if(stalkerAmount>=90&&stalkerAmount>=Math.max(p.heavy||0,p.aerial||0,p.swarm||0)
  }
 }
 for(let i=0;i<count(heavy,62);i++){const d=direction(),size=(.18+rand()*.33)*(1+power*2.1),pos=point(d,radius*(.8+rand()*.6));const armor=add(new THREE.BoxGeometry(size,size*(.5+rand()),size*(.6+rand())),i%5===0?dark:metal,pos.x,pos.y,pos.z);armor.lookAt(pos.clone().multiplyScalar(2));armor.rotateZ(rand()*Math.PI)}
-for(let i=0;i<count(aerial,72);i++){const d=direction(),len=(.25+rand()*.75)*(1+power*3.7),pos=point(d,radius*.93);const spike=add(new THREE.ConeGeometry((.09+power*.14)*(1+rand()),len,4),i%4===0?glow:metal,pos.x+d.x*len*.4,pos.y+d.y*len*.4,pos.z+d.z*len*.4);spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d)}
+// Absolute aerial quantity drives silhouette: 500 and 1300 must look distinctly different.
+const aerialAmount=Math.max(0,Number(p.aerial)||0);
+const aerialStage=Math.min(5,Math.floor(aerialAmount/350));
+const aerialCount=Math.min(115,Math.round(5+Math.sqrt(aerialAmount)*1.5));
+const aerialReach=Math.min(5.8,.5+Math.sqrt(aerialAmount)/17);
+for(let i=0;i<aerialCount;i++){
+ const d=direction(),major=i<Math.max(3,Math.round(aerialCount*.18));
+ const len=(major?1.5:.55)*aerialReach*(.72+rand()*.55);
+ const pos=point(d,radius*(.76+rand()*.23));
+ const spike=add(new THREE.ConeGeometry((.075+power*.12)*(major?1.55:1)*(1+rand()*.6),len,4),i%5===0?glow:metal,pos.x+d.x*len*.44,pos.y+d.y*len*.44,pos.z+d.z*len*.44);
+ spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d);
+}
+if(aerialStage>=2){
+ const crown=Math.min(9,2+aerialStage*2);
+ for(let i=0;i<crown;i++){
+ const a=i*Math.PI*2/crown+(rand()-.5)*.18,dir=new THREE.Vector3(Math.cos(a)*.28,.95,Math.sin(a)*.28).normalize();
+ const len=aerialReach*(.7+aerialStage*.24);
+ const spike=add(new THREE.ConeGeometry(.16+aerialStage*.055,len,5),i%3===0?glow:metal,dir.x*(radius+len*.35),dir.y*(radius+len*.35),dir.z*(radius+len*.35));
+ spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);
+ }
+}
 for(let i=0;i<count(swarm,105);i++){const d=direction(),dist=radius*(1.2+rand()*(.3+power*1.6));const pos=point(d,dist);add(new THREE.IcosahedronGeometry(.035+rand()*.09+power*.025,0),i%3===0?glow:metal,pos.x,pos.y,pos.z)}
 for(let i=0;i<count(stalker,27);i++){const d=direction(),len=.6+rand()*(1+power*4.5),pts=[];for(let j=0;j<=9;j++){const t=j/9;pts.push(new THREE.Vector3(d.x*(radius+len*t)+Math.sin(t*8+i)*t*.45,d.y*(radius+len*t)+Math.cos(t*7+i)*t*.45,d.z*(radius+len*t)+Math.sin(t*9+i)*t*.45))}const tube=add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),18,.035+power*.09,6,false),i%3===0?glow:dark,0,0,0)}
 for(let i=0;i<Math.round(basic*(3+power*22));i++){const d=direction(),pos=point(d,radius*1.04);const plate=add(new THREE.OctahedronGeometry(.12+power*.24,0),i%4===0?glow:metal,pos.x,pos.y,pos.z);plate.scale.set(1,.3+rand(),1.1+rand()*1.7)}
 if(power>.18){for(let i=0;i<1+tier;i++){const ring=add(new THREE.TorusGeometry(radius*(1.23+i*.21),.025+power*.025,5,64),i%2?glow:metal,0,0,0);ring.rotation.set(rand()*Math.PI,rand()*Math.PI,rand()*Math.PI)}}
 if(p.aura){for(let i=0;i<1+Math.min(3,Math.ceil(p.aura/30));i++){const halo=add(new THREE.TorusGeometry(radius*(1.5+i*.3),.015+power*.04,4,64),glow,0,0,0);halo.rotation.set(rand()*3,rand()*3,rand()*3)}}
 if(power>.55){for(let i=0;i<3+tier*2;i++){const d=direction(),pos=point(d,radius*(1.45+rand()*.5));const satellite=add(new THREE.OctahedronGeometry(.12+power*.13,0),glow,pos.x,pos.y,pos.z);satellite.rotation.set(rand()*3,rand()*3,rand()*3)}}
-group.userData.power=power;
+group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
 info.textContent=cell.name+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
 function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
