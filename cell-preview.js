@@ -19,6 +19,43 @@ const direction=()=>{const y=rand()*2-1,a=rand()*Math.PI*2,r=Math.sqrt(1-y*y);re
 const point=(v,dist)=>v.clone().multiplyScalar(dist);
 const heavy=(p.heavy||0)/sum,aerial=(p.aerial||0)/sum,swarm=(p.swarm||0)/sum,stalker=(p.stalker||0)/sum,basic=(p.basic||0)/sum;
 const count=(share,max)=>Math.min(max,Math.round(share*(4+power*85)));
+
+// 基本素材は量に応じて中心核を多層化。ストーカー主体は他素材を肋骨状の保護フレームに変換。
+const baseAmount=p.basic||0,stalkerAmount=p.stalker||0;
+if(baseAmount>=80){
+ const layers=Math.min(4,Math.floor(baseAmount/180)+1);
+ for(let i=0;i<layers;i++){
+  const shell=add(new THREE.IcosahedronGeometry(radius*(.48+i*.12),i%2?1:0),i%2?metal:dark,0,0,0);
+  shell.rotation.set(rand()*2,rand()*2,rand()*2);
+ }
+ const heart=add(new THREE.OctahedronGeometry(radius*(.22+Math.min(.3,baseAmount/1500)),1),glow,0,0,0);
+ heart.rotation.set(rand(),rand(),rand());
+}
+if(stalkerAmount>=90&&stalkerAmount>=Math.max(p.heavy||0,p.aerial||0,p.swarm||0)){
+ const ribs=Math.min(18,Math.max(5,Math.floor(stalkerAmount/55)+Math.floor((p.heavy||0)/130)));
+ const ribLength=radius*(1.6+power*.9);
+ const ribMaterial=(p.heavy||0)>80?metal:dark;
+ for(let i=0;i<ribs;i++){
+  const a=i*Math.PI*2/ribs+(rand()-.5)*.18;
+  const side=i%2===0?1:-1;
+  const pts=[];
+  for(let j=0;j<=12;j++){
+   const t=j/12,curve=Math.sin(t*Math.PI);
+   const r=radius*(.55+curve*(.7+power*.65));
+   pts.push(new THREE.Vector3(Math.cos(a)*r, (t-.5)*ribLength*side,Math.sin(a)*r));
+  }
+  const bone=add(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts),22,.055+power*.07,6,false),i%4===0?glow:ribMaterial,0,0,0);
+  const tip=pts[pts.length-1],point=add(new THREE.ConeGeometry(.08+power*.08,.25+power*.38,4),i%3===0?glow:metal,tip.x,tip.y,tip.z);
+  point.rotation.z=side>0?Math.PI:0;
+ }
+ // 中心核を守る複数の肋骨を、投入した他素材に応じて装飾
+ const accents=Math.min(20,Math.floor(((p.aerial||0)+(p.swarm||0)+(p.heavy||0))/40));
+ for(let i=0;i<accents;i++){
+  const a=rand()*Math.PI*2,y=(rand()-.5)*ribLength*.8,r=radius*(1.1+rand()*.4);
+  const ornament=add(new THREE.OctahedronGeometry(.1+power*.11,0),(p.aerial||0)>(p.heavy||0)?glow:metal,Math.cos(a)*r,y,Math.sin(a)*r);
+  ornament.rotation.set(rand()*3,rand()*3,rand()*3);
+ }
+}
 for(let i=0;i<count(heavy,62);i++){const d=direction(),size=(.18+rand()*.33)*(1+power*2.1),pos=point(d,radius*(.8+rand()*.6));const armor=add(new THREE.BoxGeometry(size,size*(.5+rand()),size*(.6+rand())),i%5===0?dark:metal,pos.x,pos.y,pos.z);armor.lookAt(pos.clone().multiplyScalar(2));armor.rotateZ(rand()*Math.PI)}
 for(let i=0;i<count(aerial,72);i++){const d=direction(),len=(.25+rand()*.75)*(1+power*3.7),pos=point(d,radius*.93);const spike=add(new THREE.ConeGeometry((.09+power*.14)*(1+rand()),len,4),i%4===0?glow:metal,pos.x+d.x*len*.4,pos.y+d.y*len*.4,pos.z+d.z*len*.4);spike.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d)}
 for(let i=0;i<count(swarm,105);i++){const d=direction(),dist=radius*(1.2+rand()*(.3+power*1.6));const pos=point(d,dist);add(new THREE.IcosahedronGeometry(.035+rand()*.09+power*.025,0),i%3===0?glow:metal,pos.x,pos.y,pos.z)}
