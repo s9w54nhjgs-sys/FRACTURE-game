@@ -239,6 +239,23 @@ if((Number(p.paint)||0)>=500){
 group.userData.power=power;camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
 info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+(heartbeat?' / ♥ 鼓動CELL':'')+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
+window.fractureBuildEquippedCell=()=>{
+ const data=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');
+ const seed=localStorage.getItem('fracture_equipped_cell_seed');
+ const chosen=(data.cells||[]).find(c=>c.recipe&&String(c.seed)===seed);
+ if(!chosen)return null;
+ const selected=select.value,previousTrial=trialFinish,previousMode=previewMode;
+ trialFinish='';show(chosen);
+ const visual=group.clone(true);
+ visual.traverse(o=>{if(o.isMesh){o.geometry=o.geometry.clone();o.material=Array.isArray(o.material)?o.material.map(m=>m.clone()):o.material.clone()}});
+ const pulse=heartbeat?{name:heartbeat.mesh.name,material:heartbeat.mat}:null;
+ const redParts=[];visual.traverse(o=>{if(o.isMesh&&o.material.emissive&&o.material.emissive.getHex()===0xff001d)redParts.push(o)});
+ trialFinish=previousTrial;
+ const current=(data.cells||[]).filter(c=>c.recipe)[Number(selected)];
+ if(previousMode){const recipe=Object.fromEntries(mixInputs.map(n=>[n.dataset.part,Math.max(0,Number(n.value)||0)]));show({name:'製作前・予測形態',recipe,seed:1357911})}
+ else show(current||chosen);
+ return {visual,redParts};
+};
 function refresh(){previewMode=false;select.disabled=false;live.textContent='投入配合の予測プレビュー';const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');const items=(d.cells||[]).filter(c=>c.recipe);const old=select.value;select.replaceChildren();items.forEach((c,i)=>{const o=document.createElement('option');o.value=i;o.textContent=c.name;select.appendChild(o)});if(!items.length){info.textContent='外装CELLを合成すると3Dプレビューに表示されます。';show(null);return}select.value=old&&Number(old)<items.length?old:String(items.length-1);show(items[Number(select.value)])}
 
 // Before crafting, show the expected silhouette with a fixed preview seed.
