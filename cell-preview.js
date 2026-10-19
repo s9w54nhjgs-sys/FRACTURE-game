@@ -66,7 +66,7 @@ if(hull==='prism'){for(let i=0;i<3;i++){const fin=add(new THREE.BoxGeometry(radi
 const inner=add(new THREE.OctahedronGeometry(radius*.38,0),dark,0,0,0);inner.rotation.set(.4,.3,.2);
 const eye=add(new THREE.OctahedronGeometry(radius*.22,0),glow,0,0,radius*.8);
 const auraSeed=((Math.imul(colorSeed^0x71d9e35b,1103515245)+12345)>>>0)/4294967296;
-if((Number(p.aura)||0)>=100&&(auraSeed<.001||forceHeartbeat)){const heartMat=new THREE.MeshStandardMaterial({color:0x7b0915,emissive:0xff001d,emissiveIntensity:.35,metalness:.4,roughness:.22});const heart=add(new THREE.IcosahedronGeometry(radius*.23,1),heartMat,0,0,radius*.88);heartbeat={mesh:heart,mat:heartMat,base:heart.scale.x};}
+if(forceHeartbeat||((Number(p.aura)||0)>=100&&auraSeed<.001)){const heartMat=new THREE.MeshStandardMaterial({color:0x7b0915,emissive:0xff001d,emissiveIntensity:.35,metalness:.4,roughness:.22});const heart=add(new THREE.IcosahedronGeometry(radius*.23,1),heartMat,0,0,radius*.88);heartbeat={mesh:heart,mat:heartMat,base:heart.scale.x};}
 const direction=()=>{const y=rand()*2-1,a=rand()*Math.PI*2,r=Math.sqrt(1-y*y);return new THREE.Vector3(Math.cos(a)*r,y,Math.sin(a)*r)};
 const point=(v,dist)=>v.clone().multiplyScalar(dist);
 const heavy=(p.heavy||0)/sum,aerial=(p.aerial||0)/sum,swarm=(p.swarm||0)/sum,stalker=(p.stalker||0)/sum,basic=(p.basic||0)/sum;
