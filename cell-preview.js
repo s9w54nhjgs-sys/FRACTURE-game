@@ -155,7 +155,7 @@ for(let i=0;i<count(heavy,62);i++){const d=direction(),size=(.18+rand()*.33)*(1+
 // Absolute aerial quantity drives silhouette: 500 and 1300 must look distinctly different.
 const aerialAmount=Math.max(0,Number(p.aerial)||0);
 const aerialStage=Math.min(5,Math.floor(aerialAmount/350));
-const aerialCount=Math.min(115,Math.round(5+Math.sqrt(aerialAmount)*1.5));
+const aerialCount=Math.min(65,Math.round(5+Math.sqrt(aerialAmount)*1.2));
 const aerialReach=Math.min(5.8,.5+Math.sqrt(aerialAmount)/17);
 for(let i=0;i<aerialCount;i++){
  const d=direction(),major=i<Math.max(3,Math.round(aerialCount*.18));
