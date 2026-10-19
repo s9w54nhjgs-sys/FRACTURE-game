@@ -861,7 +861,7 @@ for(const side of [-1,1]){
 }
 const spike=new THREE.Mesh(new THREE.ConeGeometry(.32,2.1,4),petalMat);spike.rotation.x=-Math.PI/2;spike.position.set(0,0,-.55);spike.scale.set(.15,.05,.15);playerRig.add(spike);scene.add(player);player.position.set(0,1.3,0);
 // Equip the actual workshop mesh, retaining the existing movement and combat rig.
-let equippedCellMesh=null,equippedHeart=[],equippedNeedsSync=true,equippedParts=[],cellSpikes=[],cellCasings=[],cellLastEject=0,cellWasExtended=false;const cellTmpDir=new THREE.Vector3(),cellWorldPos=new THREE.Vector3(),cellWorldDir=new THREE.Vector3(),cellWorldQuat=new THREE.Quaternion();
+let equippedCellMesh=null,equippedHeart=[],equippedNeedsSync=true,equippedParts=[],cellSpikes=[],cellCasings=[],cellLastEject=0,cellWasExtended=false,cellBreakup=0;const cellTmpDir=new THREE.Vector3(),cellWorldPos=new THREE.Vector3(),cellWorldDir=new THREE.Vector3(),cellWorldQuat=new THREE.Quaternion();
 window.addEventListener('fracture-cell-equipped',()=>{equippedNeedsSync=true});
 function syncEquippedCell(){
  if(typeof window.fractureBuildEquippedCell!=='function'){equippedNeedsSync=true;return;}
@@ -1181,7 +1181,10 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const beat=Math.exp(-Math.pow((phase-.18)/.095,2))+.72*Math.exp(-Math.pow((phase-.48)/.11,2));
  for(const h of equippedHeart){h.material.emissiveIntensity=.3+beat*5;h.scale.setScalar(1+beat*.28)}
  const drive=Math.min(1,Math.max(morph,rollScatter,combatScatter));
- const assembly=THREE.MathUtils.smoothstep(drive,.08,.85);
+ // Spring-like separation lingers after the action; stagger each panel for Mk42-style reassembly.
+ const breakupTarget=THREE.MathUtils.smoothstep(drive,.06,.7);
+ cellBreakup+= (breakupTarget-cellBreakup)*(breakupTarget>cellBreakup?.38:.115);
+ const assembly=cellBreakup;
  const extended=drive>.24;
  if(equippedCellMesh.userData.cellRangedReload&&extended&&!cellWasExtended&&t-cellLastEject>360&&cellSpikes.length){
   cellLastEject=t;
@@ -1242,23 +1245,28 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   const armor=ud.cellArmor;
   if(armor){
    const b=armor.base,d=armor.direction;
-   const stagger=.7+.3*Math.sin(armor.phase+2.1);
-   const separation=assembly*(.65+stagger*.75);
-   o.position.set(b.x+d.x*separation,b.y+d.y*separation,b.z+d.z*separation);
-   o.rotation.x=Math.sin(armor.phase+assembly*2.4)*assembly*.55;
-   o.rotation.z=Math.cos(armor.phase+assembly*2.4)*assembly*.55;
+   const delay=.12+.22*(.5+.5*Math.sin(armor.phase*3.7));
+   const separation=THREE.MathUtils.smoothstep(assembly,delay,.94);
+   const swing=Math.sin(armor.phase*2.1)*.9;
+   const lift=Math.cos(armor.phase*1.7)*.8;
+   const travel=separation*(1.5+.6*Math.sin(armor.phase+2.1));
+   o.position.set(b.x+d.x*travel+swing*separation,b.y+d.y*travel+lift*separation,b.z+d.z*travel+Math.cos(armor.phase*2.1)*separation*.9);
+   o.rotation.x=Math.sin(armor.phase+1.1)*separation*.95;
+   o.rotation.z=Math.cos(armor.phase+2.4)*separation*1.1;
   }
   const sp=ud.cellSpike;
   if(sp){
    const base=sp.base,dir=sp.direction;
-   const extension=open*.4+extend*.65+full*1.05;
-   o.position.set(base.x+dir.x*extension,base.y+dir.y*extension,base.z+dir.z*extension);
+   const delay=.06+.24*(.5+.5*Math.sin(sp.phase*2.3));
+   const separated=THREE.MathUtils.smoothstep(assembly,delay,.92);
+   const extension=separated*(1.65+.55*Math.sin(sp.phase));
+   o.position.set(base.x+dir.x*extension+Math.sin(sp.phase*2.7)*separated*.7,base.y+dir.y*extension+Math.cos(sp.phase*1.9)*separated*.6,base.z+dir.z*extension+Math.cos(sp.phase*2.7)*separated*.7);
    const regrow=sp.regrowStart?THREE.MathUtils.smoothstep(t-sp.regrowStart,90,650):1;
-   o.scale.set(1+extend*.24,(1+open*.15+full*.85)*regrow,1+extend*.24);
+   o.scale.set(1+separated*.06,(1+separated*.08)*regrow,1+separated*.06);
    if(sp.regrowStart&&t-sp.regrowStart>700)sp.regrowStart=0;
    cellTmpDir.set(dir.x,dir.y,dir.z);
    o.quaternion.setFromUnitVectors(player.up,cellTmpDir);
-   o.rotateX(extend*.28*Math.sin(sp.phase));o.rotateZ(extend*.32*Math.cos(sp.phase));
+   o.rotateX(separated*.8*Math.sin(sp.phase));o.rotateZ(separated*.9*Math.cos(sp.phase));
    if(equippedHeart.length){
     const elapsed=(t*.001)%2.15;
     const delay=sp.phase*.018;
@@ -1278,7 +1286,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   const hover=ud.hover;
   if(hover){
    const b=hover.base,d=hover.direction;
-   const release=open*.65+extend*.75+full*.7;
+   const release=assembly*(1.8+.55*Math.sin(hover.phase));
    o.position.set(b.x+d.x*release,b.y+d.y*release+Math.sin(t*.0025*hover.speed+hover.phase)*.1,b.z+d.z*release);
    o.rotation.y+=.004+drive*.025;o.rotation.z=Math.sin(t*.002+hover.phase)*.1+extend*.42;
   }
