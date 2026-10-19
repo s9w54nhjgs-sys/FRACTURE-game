@@ -202,15 +202,20 @@ if(orbitAmount>=60){
   const pivot=new THREE.Group();group.add(pivot);
   pivot.rotation.set(rand()*Math.PI,rand()*Math.PI,rand()*Math.PI);
   const orbitRadius=radius*(1.35+i*.14+rand()*.14);
-  const track=new THREE.Mesh(new THREE.TorusGeometry(orbitRadius,.012+power*.012,5,70),new THREE.MeshBasicMaterial({color:0xb7e4f0,transparent:true,opacity:.17,depthWrite:false}));
-  track.scale.y=.65+rand()*.25;track.userData.cellOrbitTrack=true;pivot.add(track);
+  // Invisible orbital path: only a tiny satellite and two fading light echoes.
+  const ellipse=.65+rand()*.25;
   const particles=[];
-  const particleCount=2+Math.min(5,Math.floor(orbitAmount/400));
-  for(let j=0;j<particleCount;j++){
-   const particle=new THREE.Mesh(new THREE.IcosahedronGeometry(.045+power*.055,0),glow);pivot.add(particle);
-   const phase=rand()*Math.PI*2;particle.position.set(Math.cos(phase)*orbitRadius,Math.sin(phase)*orbitRadius*track.scale.y,0);particle.userData.cellOrbitParticle={phase,radius:orbitRadius,ellipse:track.scale.y};particles.push({mesh:particle,phase});
+  const satellitePhase=rand()*Math.PI*2;
+  for(let j=0;j<3;j++){
+   const mat=new THREE.MeshBasicMaterial({color:j===0?0xb6faff:0x52c5e7,transparent:true,opacity:j===0?.95:j===1?.32:.1,depthWrite:false});
+   const particle=new THREE.Mesh(new THREE.IcosahedronGeometry((.038+power*.045)*(j===0?1.4:j===1?.75:.48),0),mat);
+   pivot.add(particle);
+   const phase=satellitePhase-j*.16;
+   particle.position.set(Math.cos(phase)*orbitRadius,Math.sin(phase)*orbitRadius*ellipse,0);
+   particle.userData.cellOrbitParticle={phase,radius:orbitRadius,ellipse,tail:j};
+   particles.push({mesh:particle,phase,tail:j});
   }
-  const speed=(.006+rand()*.009)*(i%2?-1:1);pivot.userData.cellOrbitSpeed=speed;animatedOrbits.push({pivot,particles,radius:orbitRadius,ellipse:track.scale.y,speed});
+  const speed=(.006+rand()*.009)*(i%2?-1:1);pivot.userData.cellOrbitSpeed=speed;animatedOrbits.push({pivot,particles,radius:orbitRadius,ellipse,speed});
  }
 }
 // Detached hovering artifacts: extend beyond the body without becoming a dense spike ball.
