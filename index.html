@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V53 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V54 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -256,31 +256,7 @@ const abyss=new THREE.MeshStandardMaterial({color:0x111b22,metalness:.42,roughne
 const edgeSilver=new THREE.MeshStandardMaterial({color:0x78868b,metalness:.8,roughness:.34});
 const dimCyan=new THREE.MeshBasicMaterial({color:0x6b9a9e});
 function megaBeam(x,y,z,w,h,d,angle=0,mat=voidMetal){const m=detailBox(x,y,z,w,h,d,mat);m.rotation.z=angle;return m}
-function floatingCore(x,y,z,r){// Persistent cracks accumulate as shield percentage falls; cyan crystals repair instantly.
-const shieldCrackGroup=new THREE.Group();playerRig.add(shieldCrackGroup);
-const crackSegments=[];
-const crackMaterial=new THREE.LineBasicMaterial({color:0x8af3ff,transparent:true,opacity:.8,depthWrite:false});
-for(let i=0;i<32;i++){
- const a=i*2.399963, y=Math.sin(i*1.73)*.75, rr=Math.sqrt(1-y*y);
- const dir=new THREE.Vector3(Math.cos(a)*rr,y,Math.sin(a)*rr);
- const side=new THREE.Vector3(-Math.sin(a),.12,Math.cos(a)).normalize();
- const points=[dir.clone().multiplyScalar(.87),dir.clone().multiplyScalar(.88).addScaledVector(side,.15),dir.clone().multiplyScalar(.9).addScaledVector(side,.28)];
- const line=new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),crackMaterial);
- line.visible=false;shieldCrackGroup.add(line);crackSegments.push(line);
-}
-let shieldCrackCount=0;
-function updateShieldCracks(){
- const n=Math.min(crackSegments.length,Math.floor((1-Math.max(0,shield)/50)*crackSegments.length));
- shieldCrackCount=n;
- for(let i=0;i<crackSegments.length;i++)crackSegments[i].visible=i<n;
-}
-function restoreShieldFromCrystal(){
- shield=50;updateShieldCracks();$('shield').textContent='50';
- fractureStarted=-10000;fractureShell.visible=false;
- for(const m of fractureShards)m.visible=false;
- notify('SHIELD RESTORED // 装甲修復');
-}
-const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
+function floatingCore(x,y,z,r){const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
 // The sky is divided by an enormous vertical ring, with no building-like windows or roof.
 const halo=new THREE.Group();halo.position.set(5,88,-120);halo.rotation.y=.28;architecture.add(halo);
 const haloBody=new THREE.Mesh(new THREE.TorusGeometry(70,5.5,7,64),voidMetal);halo.add(haloBody);
@@ -893,6 +869,46 @@ function triggerShieldFracture(broken=false,strength=1){
  fractureShell.visible=true;
  for(const m of fractureShards)m.visible=true;
 }
+// V54: screen-space cracks persist and accumulate until a cyan crystal repairs the shield.
+let shieldCrackCount=0,screenBlood=0;
+function updateShieldCracks(){shieldCrackCount=Math.round((1-Math.max(0,Math.min(50,shield))/50)*32);renderPersistentDamage();}
+function renderPersistentDamage(){
+ const canvas=document.getElementById('damageGlass'),ctx=canvas.getContext('2d');
+ const w=innerWidth,h=innerHeight,dpr=Math.min(2,devicePixelRatio||1);
+ canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);
+ ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+ const count=shieldCrackCount;
+ for(let i=0;i<count;i++){
+  const side=i%4,seed=i*2.399963,along=((i*37)%101)/101;
+  const edge=side===0?[along*w,0]:side===1?[w,along*h]:side===2?[along*w,h]:[0,along*h];
+  const reach=Math.min(w,h)*(.13+((i*17)%11)/65);
+  const dx=side===1?-1:side===3?1:Math.sin(seed)*.38;
+  const dy=side===0?1:side===2?-1:Math.cos(seed)*.38;
+  const mx=edge[0]+dx*reach*.52,my=edge[1]+dy*reach*.52;
+  ctx.beginPath();ctx.moveTo(...edge);ctx.lineTo(mx+Math.sin(seed)*15,my+Math.cos(seed)*15);ctx.lineTo(edge[0]+dx*reach,edge[1]+dy*reach);
+  ctx.strokeStyle='rgba(187,239,248,.78)';ctx.lineWidth=1.1;ctx.stroke();
+  ctx.beginPath();ctx.moveTo(mx,my);ctx.lineTo(mx+Math.cos(seed)*reach*.34,my-Math.sin(seed)*reach*.34);
+  ctx.strokeStyle='rgba(95,169,187,.56)';ctx.stroke();
+ }
+ if(screenBlood>0){
+  const n=Math.ceil(screenBlood*9);
+  for(let i=0;i<n;i++){
+   const x=w*(.13+((i*37)%71)/100),y=h*(.1+((i*19)%77)/100);
+   ctx.beginPath();ctx.ellipse(x,y,2+i%4,9+i%9,i*.7,0,Math.PI*2);
+   ctx.fillStyle='rgba(100,8,24,.27)';ctx.fill();
+   ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+Math.sin(i*2)*19,y+13+i%8);
+   ctx.strokeStyle='rgba(138,12,29,.45)';ctx.lineWidth=1.7;ctx.stroke();
+  }
+ }
+ canvas.style.opacity=(count||screenBlood)?'1':'0';
+}
+function restoreShieldFromCrystal(){
+ shield=50;screenBlood=0;updateShieldCracks();$('shield').textContent='50';
+ fractureStarted=-10000;fractureShell.visible=false;
+ for(const m of fractureShards)m.visible=false;
+ notify('SHIELD RESTORED // 装甲修復');
+}
+window.addEventListener('resize',renderPersistentDamage);
 const shell=new THREE.Mesh(new THREE.OctahedronGeometry(.64,0),new THREE.MeshStandardMaterial({color:0x8abcc7,metalness:.65,roughness:.28,flatShading:true,emissive:0x184a55,emissiveIntensity:.35}));playerRig.add(shell);
 const core=new THREE.Mesh(new THREE.OctahedronGeometry(.34),new THREE.MeshStandardMaterial({color:0xb6ffff,metalness:.2,roughness:.25,emissive:0x42a9bc,emissiveIntensity:.8}));playerRig.add(core);
 const petalMat=new THREE.MeshStandardMaterial({color:0x91c5ce,metalness:.78,roughness:.27,flatShading:true,side:THREE.DoubleSide});
@@ -1219,7 +1235,7 @@ function updateSpecial(t,dt){if(done)return;
  }
 }
 function applySpecialDamage(amount,t){if(done)return;let damage=amount;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=Math.min(2.2,.55+amount/23);drawDamageGlass(amount>=20,damage<=0);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}
-let glassUntil=-10000,glassDuration=850;const damageGlass=document.getElementById('damageGlass'),glassCtx=damageGlass.getContext('2d');function drawDamageGlass(heavy,shielded){updateShieldCracks();triggerShieldFracture(!shielded,heavy?1.5:1);const w=window.innerWidth,h=window.innerHeight,dpr=Math.min(2,window.devicePixelRatio||1);damageGlass.width=Math.round(w*dpr);damageGlass.height=Math.round(h*dpr);glassCtx.setTransform(dpr,0,0,dpr,0,0);glassCtx.clearRect(0,0,w,h);const ctx=glassCtx,reach=Math.min(w,h)*(heavy?.49:.38);for(let side=0;side<4;side++){const len=side%2===0?w:h,segments=heavy?12:10;for(let i=0;i<segments;i++){const p0=i/segments*len,p1=(i+1)/segments*len,mid=(p0+p1)/2+(Math.random()-.5)*len/segments*.5,depth=reach*(.45+Math.random()*.6),tip=depth*(.68+Math.random()*.3);const xy=(along,inset)=>side===0?[along,inset]:side===1?[w-inset,along]:side===2?[along,h-inset]:[inset,along];const A=xy(p0,0),B=xy(p1,0),C=xy(mid,depth),D=xy(mid+(Math.random()-.5)*len/segments,tip*.36);for(const points of [[A,D,C],[D,B,C]]){ctx.beginPath();points.forEach((pt,j)=>j?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));ctx.closePath();const g=ctx.createLinearGradient(points[0][0],points[0][1],points[2][0],points[2][1]);g.addColorStop(0,'rgba(195,207,213,'+(.36+Math.random()*.18)+')');g.addColorStop(.5,'rgba(115,128,137,.17)');g.addColorStop(1,'rgba(225,233,237,.025)');ctx.fillStyle=g;ctx.fill();if(!shielded){ctx.fillStyle='rgba(113,8,25,.19)';ctx.fill();}ctx.strokeStyle=shielded?'rgba(157,241,255,.72)':'rgba(144,15,30,.83)';ctx.lineWidth=1.7;ctx.stroke();ctx.beginPath();ctx.moveTo(points[0][0]+2,points[0][1]+2);ctx.lineTo(points[2][0]+2,points[2][1]+2);ctx.strokeStyle='rgba(12,22,30,.48)';ctx.lineWidth=2.5;ctx.stroke()}ctx.beginPath();ctx.moveTo(C[0],C[1]);const split=xy(mid+(Math.random()-.5)*len/segments*.8,depth+Math.random()*reach*.17);ctx.lineTo(split[0],split[1]);ctx.strokeStyle=shielded?'rgba(180,245,255,.6)':'rgba(190,25,44,.78)';ctx.lineWidth=1.3;ctx.stroke()}}}let hitReactionAt=-10000,hitReactionPower=0;let chargeStart=0,charging=false,chargeLevel=0,attackPower=1;let iaiUntil=0,iaiX=0,iaiZ=0,iaiLastHit=0,iaiPower=1;let hp=100,shield=50,loot=0,kills=0,yaw=0,pitch=.02,last=performance.now(),lastHit=0,lastAttack=0,lastDash=0,dashUntil=0,dashCharges=2,dashRechargeAt=[],dashChain=0,dashChainUntil=0,dashBurstUntil=0,done=false,noticeTimer,hitStopUntil=0,lungeUntil=0,lungeX=0,lungeZ=0,cameraReady=false,cameraFrameTime=performance.now();
+let glassUntil=-10000,glassDuration=850;const damageGlass=document.getElementById('damageGlass'),glassCtx=damageGlass.getContext('2d');function drawDamageGlass(heavy,shielded){if(!shielded)screenBlood=Math.min(1,screenBlood+.22);updateShieldCracks();triggerShieldFracture(!shielded,heavy?1.5:1);const w=window.innerWidth,h=window.innerHeight,dpr=Math.min(2,window.devicePixelRatio||1);damageGlass.width=Math.round(w*dpr);damageGlass.height=Math.round(h*dpr);glassCtx.setTransform(dpr,0,0,dpr,0,0);glassCtx.clearRect(0,0,w,h);const ctx=glassCtx,reach=Math.min(w,h)*(heavy?.49:.38);for(let side=0;side<4;side++){const len=side%2===0?w:h,segments=heavy?12:10;for(let i=0;i<segments;i++){const p0=i/segments*len,p1=(i+1)/segments*len,mid=(p0+p1)/2+(Math.random()-.5)*len/segments*.5,depth=reach*(.45+Math.random()*.6),tip=depth*(.68+Math.random()*.3);const xy=(along,inset)=>side===0?[along,inset]:side===1?[w-inset,along]:side===2?[along,h-inset]:[inset,along];const A=xy(p0,0),B=xy(p1,0),C=xy(mid,depth),D=xy(mid+(Math.random()-.5)*len/segments,tip*.36);for(const points of [[A,D,C],[D,B,C]]){ctx.beginPath();points.forEach((pt,j)=>j?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));ctx.closePath();const g=ctx.createLinearGradient(points[0][0],points[0][1],points[2][0],points[2][1]);g.addColorStop(0,'rgba(195,207,213,'+(.36+Math.random()*.18)+')');g.addColorStop(.5,'rgba(115,128,137,.17)');g.addColorStop(1,'rgba(225,233,237,.025)');ctx.fillStyle=g;ctx.fill();if(!shielded){ctx.fillStyle='rgba(113,8,25,.19)';ctx.fill();}ctx.strokeStyle=shielded?'rgba(157,241,255,.72)':'rgba(144,15,30,.83)';ctx.lineWidth=1.7;ctx.stroke();ctx.beginPath();ctx.moveTo(points[0][0]+2,points[0][1]+2);ctx.lineTo(points[2][0]+2,points[2][1]+2);ctx.strokeStyle='rgba(12,22,30,.48)';ctx.lineWidth=2.5;ctx.stroke()}ctx.beginPath();ctx.moveTo(C[0],C[1]);const split=xy(mid+(Math.random()-.5)*len/segments*.8,depth+Math.random()*reach*.17);ctx.lineTo(split[0],split[1]);ctx.strokeStyle=shielded?'rgba(180,245,255,.6)':'rgba(190,25,44,.78)';ctx.lineWidth=1.3;ctx.stroke()}}}let hitReactionAt=-10000,hitReactionPower=0;let chargeStart=0,charging=false,chargeLevel=0,attackPower=1;let iaiUntil=0,iaiX=0,iaiZ=0,iaiLastHit=0,iaiPower=1;let hp=100,shield=50,loot=0,kills=0,yaw=0,pitch=.02,last=performance.now(),lastHit=0,lastAttack=0,lastDash=0,dashUntil=0,dashCharges=2,dashRechargeAt=[],dashChain=0,dashChainUntil=0,dashBurstUntil=0,done=false,noticeTimer,hitStopUntil=0,lungeUntil=0,lungeX=0,lungeZ=0,cameraReady=false,cameraFrameTime=performance.now();
 const $=id=>document.getElementById(id);function notify(t){$('notice').textContent=t;$('notice').classList.add('show');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').classList.remove('show'),2600)}
 const input={x:0,y:0};let autoRun=false;const joy=$('joy'),knob=$('knob');$('autoRun').addEventListener('click',()=>{autoRun=!autoRun;$('autoRun').classList.toggle('active',autoRun)});let joyId=null;
 function setJoy(e){if(autoRun){autoRun=false;$('autoRun').classList.remove('active')}const r=joy.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),len=Math.max(1,Math.hypot(dx,dy)),k=Math.min(1,len/48);input.x=dx/len*k;input.y=dy/len*k;knob.style.transform='translate('+input.x*43+'px,'+input.y*43+'px)'}
@@ -1311,7 +1327,7 @@ if(window.fractureMenuOpen)return;if(equippedNeedsSync)syncEquippedCell();
   else d.mesh.scale.setScalar(Math.max(.01,1-p*.9));
   d.mesh.traverse(o=>{if(o.isMesh)o.material.opacity=1-p});
  }
-updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if(charging){attackButton.textContent=chargeLevel>=1?'MAX':Math.round(chargeLevel*100)+'%';attackButton.style.background=chargeLevel>=1?'#8a6847':'#214550'}damageGlass.style.opacity=glassUntil<0?0:Math.max(0,Math.min(1,(glassDuration-(t-glassUntil))/550));const hitAge=t-hitReactionAt,hitPulse=hitAge>=0&&hitAge<380?Math.sin(Math.PI*hitAge/380)*hitReactionPower:0;const elapsed=t-lastAttack;const windup=elapsed<95?Math.max(0,elapsed/95):0;const strike=elapsed>=95&&elapsed<250?Math.sin((elapsed-95)/155*Math.PI):0;const dashMorph=t<dashUntil?(dashChain===2?1:.65):0;const iaiMorph=t<iaiUntil?.9:0;const morph=Math.max(windup*.6,strike,chargeLevel*.9,dashMorph,iaiMorph);
+updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if(charging){attackButton.textContent=chargeLevel>=1?'MAX':Math.round(chargeLevel*100)+'%';attackButton.style.background=chargeLevel>=1?'#8a6847':'#214550'}if(t-glassUntil>glassDuration&&glassUntil>=0){glassUntil=-10000;renderPersistentDamage()}else if(glassUntil>=0){damageGlass.style.opacity=Math.max(0,Math.min(1,(glassDuration-(t-glassUntil))/550))}const hitAge=t-hitReactionAt,hitPulse=hitAge>=0&&hitAge<380?Math.sin(Math.PI*hitAge/380)*hitReactionPower:0;const elapsed=t-lastAttack;const windup=elapsed<95?Math.max(0,elapsed/95):0;const strike=elapsed>=95&&elapsed<250?Math.sin((elapsed-95)/155*Math.PI):0;const dashMorph=t<dashUntil?(dashChain===2?1:.65):0;const iaiMorph=t<iaiUntil?.9:0;const morph=Math.max(windup*.6,strike,chargeLevel*.9,dashMorph,iaiMorph);
  const rollP=THREE.MathUtils.clamp((t-barrelStart)/barrelDuration,0,1);
  const rollActive=rollP<1&&rollP>=0;
  const rollEase=rollP*rollP*(3-2*rollP);
@@ -1529,4 +1545,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=53"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=54"></script></body></html>
