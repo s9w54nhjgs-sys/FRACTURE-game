@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V49 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V50 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1278,7 +1278,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    shard.mesh.position.set(shard.side*.95,-.18,-5.4);
    shard.mesh.rotation.set(0,0,0);
    shard.mesh.scale.setScalar(casingEffectMode==='charge'?1.15:.55);
-   for(const needle of shard.mesh.children){const m=needle.material;if(casingEffectMode==='charge'){m.color.setHex(0xff4528);m.emissive.setHex(0xed2107);m.emissiveIntensity=1.7}else{m.color.setHex(0xb6c4d1);m.emissive.setHex(0x000000);m.emissiveIntensity=0}}
+   for(const needle of shard.mesh.children){const m=needle.material;if(casingEffectMode==='charge'){m.color.setHex(needle.position.z>0?0xff6b29:0x9d221b);m.emissive.setHex(needle.position.z>0?0xff4109:0xd51a04);m.emissiveIntensity=2.2}else{m.color.setHex(0xb6c4d1);m.emissive.setHex(0x000000);m.emissiveIntensity=0}}
   }
   for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=casingEffectMode==='charge'||fx.j<3;fx.mesh.material.color.setHex(casingEffectMode==='charge'&&!fx.smoke?(fx.j%3===0?0xff3a12:0xffb347):fx.smoke?0x8b98a0:0xb8f7ff);}
   for(const puff of shardSmokeTrails){puff.birth=t;puff.mesh.visible=casingEffectMode==='charge'||puff.k===0;}
@@ -1456,9 +1456,9 @@ for(const fx of casingFlybyFx){
  if(p>=1){fx.mesh.visible=false;continue}
  const drift=(fx.j%5-2)*.095;
  fx.mesh.position.set(fx.side*(.92-p*.68)+drift*p,-.22+Math.sin(p*Math.PI)*.32+(fx.smoke?p*.3:p*.18),-5.1+p*4.65);
- fx.mesh.scale.setScalar(fx.smoke?(casingEffectMode==='charge'?1.1:.45)+p*1.8:(casingEffectMode==='charge'?3.3:1.15)*(1-p));
- fx.mesh.material.opacity=fx.smoke?(casingEffectMode==='charge'?.35:.09)*(1-p):1*(1-p);
+ fx.mesh.scale.setScalar(fx.smoke?(casingEffectMode==='charge'?1.1:.45)+p*1.8:(casingEffectMode==='charge'?4.0:1.15)*(1-p));
+ fx.mesh.material.opacity=fx.smoke?(casingEffectMode==='charge'?.42:.09)*(1-p):1*(1-p);
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=49"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=50"></script></body></html>
