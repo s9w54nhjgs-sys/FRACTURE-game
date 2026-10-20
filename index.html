@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V48 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V49 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -878,7 +878,7 @@ const shardSmokeTrails=[]; // Declare before the bundle creation loop.
 for(let side of [-1,1]){
  const bundle=new THREE.Group();
  for(let i=0;i<7;i++){
-  const needle=new THREE.Mesh(shardNeedleGeo,i%3===0?shardDark:shardSteel);
+  const needle=new THREE.Mesh(shardNeedleGeo,(i%3===0?shardDark:shardSteel).clone());
   const angle=i*2.39996;
   needle.position.set(Math.cos(angle)*(.075+i*.017),Math.sin(angle)*(.07+i*.012),(i-3)*.047);
   needle.rotation.z=Math.sin(angle)*.46;
@@ -912,7 +912,8 @@ for(let side of [-1,1]){
  }
 }
 let auraPulseCount=0;
-let pendingCasingEject=false,weakAttackCombo=0,lastWeakComboAt=-10000;
+let pendingCasingEject=null,weakAttackCombo=0,lastWeakComboAt=-10000;
+let casingEffectMode='dash';
 let casingSpikeRegrowAt=-10000;
 const lightweightCasingGeo=new THREE.CylinderGeometry(.10,.13,.46,5);
 const lightweightCasingMat=new THREE.MeshBasicMaterial({color:0xc4f7ff,transparent:true,opacity:1,depthWrite:false});
@@ -1186,7 +1187,7 @@ function aerialSlash(power,now){
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
 function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;
- if(power===1){weakAttackCombo=now-lastWeakComboAt>1700?1:weakAttackCombo+1;lastWeakComboAt=now;if(weakAttackCombo>=3){pendingCasingEject=true;weakAttackCombo=0}}
+ if(power>1)pendingCasingEject='charge'; // Only charged attacks eject molten shards.
  if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
  if(now<dashUntil){
   iaiUntil=now+185;iaiLastHit=0;iaiPower=power;
@@ -1203,7 +1204,7 @@ function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  dashCharges--;dashRechargeAt.push(now+2400);lastDash=now;
  dashUntil=now+(dashChain===2?390:300);dashBurstUntil=now+180;
  dashInvulnerableUntil=now+(dashChain===2?270:210);updateDashDisplay();
- if(dashChain===2){pendingCasingEject=true;shockRing(player.position.x,player.position.z,3.3,now);impact(player.position.x,player.position.y,player.position.z);notify('DOUBLE DASH // OVERDRIVE')}
+ if(dashChain===2){pendingCasingEject='dash';shockRing(player.position.x,player.position.z,3.3,now);impact(player.position.x,player.position.y,player.position.z);notify('DOUBLE DASH // OVERDRIVE')}
  let mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0);
  const airborneSecond=jumpCount===1&&jumpHeight>.1;
  const neutral=Math.hypot(mx,my)<.1&&!autoRun;
@@ -1223,7 +1224,7 @@ function jumpNow(){if(done||jumpCount>=2)return;
  const neutral=Math.hypot(input.x+(keys.d?1:0)-(keys.a?1:0),input.y+(keys.s?1:0)-(keys.w?1:0))<.1&&!autoRun;
  if(jumpCount===1){if(neutral){moveVX=0;moveVZ=0}else{const mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0),m=Math.max(1,Math.hypot(mx,my));moveVX=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/m*6.2;moveVZ=(-Math.sin(yaw)*mx+Math.cos(yaw)*my)/m*6.2}}
  jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
- if(jumpCount===2){pendingCasingEject=true;verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
+ if(jumpCount===2){verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
 }
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
@@ -1267,24 +1268,26 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  cellBreakup+= (breakupTarget-cellBreakup)*(breakupTarget>cellBreakup?.38:.115);
  const assembly=cellBreakup;
  const extended=drive>.24;
- if(pendingCasingEject){ // Eject on second jump or every third accepted weak attack
-  pendingCasingEject=false;
+ if(pendingCasingEject){ // Eject only on double dash or charged attack.
+  casingEffectMode=pendingCasingEject;
+  pendingCasingEject=null;
   casingDebugCount++;
   for(const shard of casingShards){
    shard.birth=t;
    shard.mesh.visible=true;
    shard.mesh.position.set(shard.side*.95,-.18,-5.4);
    shard.mesh.rotation.set(0,0,0);
-   shard.mesh.scale.setScalar(.9);
+   shard.mesh.scale.setScalar(casingEffectMode==='charge'?1.15:.55);
+   for(const needle of shard.mesh.children){const m=needle.material;if(casingEffectMode==='charge'){m.color.setHex(0xff4528);m.emissive.setHex(0xed2107);m.emissiveIntensity=1.7}else{m.color.setHex(0xb6c4d1);m.emissive.setHex(0x000000);m.emissiveIntensity=0}}
   }
-  for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=true;}
-  for(const puff of shardSmokeTrails){puff.birth=t;puff.mesh.visible=true;}
+  for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=casingEffectMode==='charge'||fx.j<3;fx.mesh.material.color.setHex(casingEffectMode==='charge'&&!fx.smoke?(fx.j%3===0?0xff3a12:0xffb347):fx.smoke?0x8b98a0:0xb8f7ff);}
+  for(const puff of shardSmokeTrails){puff.birth=t;puff.mesh.visible=casingEffectMode==='charge'||puff.k===0;}
   // Retract the two largest physical CELL spikes immediately; regrow after flyby.
   const biggest=cellSpikes.slice().sort((a,b)=>(b.geometry?.parameters?.height||0)-(a.geometry?.parameters?.height||0)).slice(0,2);
   for(const spike of cellSpikes)spike.userData.casingRegrow=false;
   for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+390;}
   casingSpikeRegrowAt=t;
-  casingDebug.textContent='V48 | action ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V49 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1436,7 +1439,7 @@ for(const shard of casingShards){
  shard.mesh.rotation.x=p*Math.PI*13;
  shard.mesh.rotation.y=shard.side*p*Math.PI*7;
  shard.mesh.rotation.z=p*Math.PI*5;
- shard.mesh.scale.setScalar(.9+p*.3);
+ shard.mesh.scale.setScalar((casingEffectMode==='charge'?1.15:.55)*(1+p*.32));
  if(p>=1)shard.mesh.visible=false;
 }
 for(const puff of shardSmokeTrails){
@@ -1445,7 +1448,7 @@ for(const puff of shardSmokeTrails){
  if(p>=1){puff.mesh.visible=false;continue}
  const lag=Math.max(0,p-puff.k*.12);
  puff.mesh.position.set(puff.side*(.95-lag*.73)+puff.side*.08*(puff.k-1),-.18+Math.sin(lag*Math.PI)*.3,-5.4+lag*5.05-.28*puff.k);
- puff.mesh.scale.setScalar(.5+p*2.5);puff.mesh.material.opacity=.22*(1-p);
+ puff.mesh.scale.setScalar(.5+p*2.5);puff.mesh.material.opacity=(casingEffectMode==='charge'?.38:.10)*(1-p);
 }
 for(const fx of casingFlybyFx){
  if(!fx.mesh.visible)continue;
@@ -1453,9 +1456,9 @@ for(const fx of casingFlybyFx){
  if(p>=1){fx.mesh.visible=false;continue}
  const drift=(fx.j%5-2)*.095;
  fx.mesh.position.set(fx.side*(.92-p*.68)+drift*p,-.22+Math.sin(p*Math.PI)*.32+(fx.smoke?p*.3:p*.18),-5.1+p*4.65);
- fx.mesh.scale.setScalar(fx.smoke?.65+p*1.8:2.4*(1-p));
- fx.mesh.material.opacity=fx.smoke?.20*(1-p):1*(1-p);
+ fx.mesh.scale.setScalar(fx.smoke?(casingEffectMode==='charge'?1.1:.45)+p*1.8:(casingEffectMode==='charge'?3.3:1.15)*(1-p));
+ fx.mesh.material.opacity=fx.smoke?(casingEffectMode==='charge'?.35:.09)*(1-p):1*(1-p);
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=48"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=49"></script></body></html>
