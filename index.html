@@ -15,11 +15,11 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V41 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V42 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
-const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
+const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);scene.add(camera); // Required: camera-attached flyby meshes must be in the rendered scene graph.const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
 // OPEN OVERCAST SKY: procedural daytime cloud field, replacing the geodesic dome.
 scene.background=new THREE.Color(0x87949d);
 scene.fog=new THREE.FogExp2(0x8b98a0,.0032);
@@ -914,7 +914,7 @@ function emitCellCasingSparks(pos,t){
   const a=j*2.399;fx.vx=Math.cos(a)*(2.5+j*.45);fx.vy=2.5+j*.4;fx.vz=Math.sin(a)*(2.5+j*.45);
  }
 }
-const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V41 AURA + STEEL FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
+const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V42 AURA + STEEL FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
 let casingDebugCount=0;
 window.addEventListener('fracture-cell-equipped',()=>{equippedNeedsSync=true});
 function syncEquippedCell(){
@@ -925,7 +925,7 @@ function syncEquippedCell(){
  shell.visible=!built;core.visible=!built;spike.visible=!built;for(const p of petals)p.m.visible=!built;for(const f of rollFins)f.mesh.visible=!built;
  if(!built){equippedHeart=[];equippedParts=[];cellSpikes=[];return}
  equippedCellMesh=built.visual;equippedHeart=built.redParts||[];
- casingDebug.textContent='V41 AURA + STEEL FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
+ casingDebug.textContent='V42 AURA + STEEL FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
@@ -1248,11 +1248,11 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   for(const shard of casingShards){
    shard.birth=t;
    shard.mesh.visible=true;
-   shard.mesh.position.set(shard.side*2.55,-.28,-5.4);
+   shard.mesh.position.set(shard.side*1.9,-.18,-5.4);
    shard.mesh.rotation.set(0,0,0);
    shard.mesh.scale.setScalar(.9);
   }
-  casingDebug.textContent='V41 | AURA pulses='+auraPulseCount+' | stainless ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V42 | AURA pulses='+auraPulseCount+' | stainless ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1400,7 +1400,7 @@ for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.pos
 for(const shard of casingShards){
  if(!shard.mesh.visible)continue;
  const p=Math.min(1,(t-shard.birth)/760);
- shard.mesh.position.set(shard.side*(2.55-p*.94),-.28+Math.sin(p*Math.PI)*.26,-5.4+p*5.05);
+ shard.mesh.position.set(shard.side*(1.9-p*1.55),-.18+Math.sin(p*Math.PI)*.32,-5.4+p*5.05);
  shard.mesh.rotation.x=p*Math.PI*13;
  shard.mesh.rotation.y=shard.side*p*Math.PI*7;
  shard.mesh.rotation.z=p*Math.PI*5;
@@ -1409,4 +1409,4 @@ for(const shard of casingShards){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=41"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=42"></script></body></html>
