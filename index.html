@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V46 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V47 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -874,6 +874,7 @@ const shardSteel=new THREE.MeshStandardMaterial({color:0xcbd5df,metalness:.94,ro
 const shardDark=new THREE.MeshStandardMaterial({color:0x778999,metalness:.92,roughness:.27,flatShading:true});
 const shardNeedleGeo=new THREE.ConeGeometry(.065,.95,5);
 const casingShards=[];
+const shardSmokeTrails=[]; // Declare before the bundle creation loop.
 for(let side of [-1,1]){
  const bundle=new THREE.Group();
  for(let i=0;i<7;i++){
@@ -897,7 +898,7 @@ for(let side of [-1,1]){
 // V44: pooled camera-local micro-sparks and smoke, no allocations during ejection.
 const casingFlybyFx=[];
 // Attached smoke trails share the same camera-local space as the stainless bundles.
-const shardSmokeTrails=[];
+
 
 const sparkGeo=new THREE.OctahedronGeometry(.045,0);
 const smokeGeo=new THREE.SphereGeometry(.14,5,4);
@@ -1281,9 +1282,9 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   // Retract the two largest physical CELL spikes immediately; regrow after flyby.
   const biggest=cellSpikes.slice().sort((a,b)=>(b.geometry?.parameters?.height||0)-(a.geometry?.parameters?.height||0)).slice(0,2);
   for(const spike of cellSpikes)spike.userData.casingRegrow=false;
-  for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+750;}
+  for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+760;}
   casingSpikeRegrowAt=t;
-  casingDebug.textContent='V46 | action ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V47 | action ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1335,9 +1336,9 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    const floatAmount=sp.swarmFloat||0;
    const extension=separated*(1.65+.55*Math.sin(sp.phase))+floatAmount*(.65+.55*Math.sin(t*.0015+sp.phase));
    o.position.set(base.x+dir.x*extension+Math.sin(sp.phase*2.7)*separated*.7+Math.sin(t*.001+sp.phase)*floatAmount*.35,base.y+dir.y*extension+Math.cos(sp.phase*1.9)*separated*.6+Math.cos(t*.0013+sp.phase)*floatAmount*.35,base.z+dir.z*extension+Math.cos(sp.phase*2.7)*separated*.7+Math.sin(t*.0011+sp.phase*2)*floatAmount*.35);
-   const regrow=sp.regrowStart?(t<sp.regrowStart?0:THREE.MathUtils.smoothstep(t-sp.regrowStart,0,580)):1;
+   const regrow=sp.regrowStart?(t<sp.regrowStart?0:Math.pow(Math.min(1,Math.max(0,(t-sp.regrowStart)/300)),2)):1;
    o.scale.set(1+separated*.06,(1+separated*.08)*regrow,1+separated*.06);
-   if(sp.regrowStart&&t-sp.regrowStart>650){sp.regrowStart=0;o.userData.casingRegrow=false;}
+   if(sp.regrowStart&&t-sp.regrowStart>320){sp.regrowStart=0;o.userData.casingRegrow=false;}
    cellTmpDir.set(dir.x,dir.y,dir.z);
    o.quaternion.setFromUnitVectors(player.up,cellTmpDir);
    o.rotateX(separated*.8*Math.sin(sp.phase));o.rotateZ(separated*.9*Math.cos(sp.phase));
@@ -1457,4 +1458,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=46"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=47"></script></body></html>
