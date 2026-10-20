@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V47 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V48 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -903,8 +903,8 @@ const casingFlybyFx=[];
 const sparkGeo=new THREE.OctahedronGeometry(.045,0);
 const smokeGeo=new THREE.SphereGeometry(.14,5,4);
 for(let side of [-1,1]){
- for(let j=0;j<6;j++){
-  const smoke=j>=4;
+ for(let j=0;j<13;j++){
+  const smoke=j>=10;
   const material=new THREE.MeshBasicMaterial({color:smoke?0x8b98a0:0xb8f7ff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});
   const mesh=new THREE.Mesh(smoke?smokeGeo:sparkGeo,material);
   mesh.visible=false;camera.add(mesh);
@@ -1273,7 +1273,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   for(const shard of casingShards){
    shard.birth=t;
    shard.mesh.visible=true;
-   shard.mesh.position.set(shard.side*1.9,-.18,-5.4);
+   shard.mesh.position.set(shard.side*.95,-.18,-5.4);
    shard.mesh.rotation.set(0,0,0);
    shard.mesh.scale.setScalar(.9);
   }
@@ -1282,9 +1282,9 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   // Retract the two largest physical CELL spikes immediately; regrow after flyby.
   const biggest=cellSpikes.slice().sort((a,b)=>(b.geometry?.parameters?.height||0)-(a.geometry?.parameters?.height||0)).slice(0,2);
   for(const spike of cellSpikes)spike.userData.casingRegrow=false;
-  for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+760;}
+  for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+390;}
   casingSpikeRegrowAt=t;
-  casingDebug.textContent='V47 | action ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V48 | action ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1431,8 +1431,8 @@ else if(u.phase==='recover'){u.tell.material.opacity=0;u.body.scale.lerp(new THR
 for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.position.x+=p.vx*dt;p.m.position.z+=p.vz*dt;p.m.rotation.y+=dt*7}const distance=p.m.position.distanceTo(player.position);if(distance<1.05&&t>=dashInvulnerableUntil&&!done){let damage=12;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(false,shielded);glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=.85;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false);scene.remove(p.m);projectiles.splice(i,1)}else if(t-p.born>3200||collides(p.m.position.x,p.m.position.z)){scene.remove(p.m);projectiles.splice(i,1)}}if(t-lastHit>7000&&shield<50){shield=Math.min(50,shield+dt*4);$('shield').textContent=Math.round(shield)}if(Math.hypot(player.position.x-38,player.position.z+25)<2.7){if(loot>=3&&relaysActive===3){finish(true)}else if(t%2200<35)notify('脱出には素材3個＋中継器3基の起動が必要')}}const camDist=8,cy=player.position.y+3.2-Math.sin(pitch)*2;const desiredCam=new THREE.Vector3(player.position.x+Math.sin(yaw)*camDist,cy,player.position.z+Math.cos(yaw)*camDist);if(!cameraReady){camera.position.copy(desiredCam);cameraReady=true}else{const follow=1-Math.exp(-7*Math.min((t-cameraFrameTime)/1000,.05));camera.position.lerp(desiredCam,follow)}cameraFrameTime=t;if(hitPulse>0){camera.position.x+=Math.sin(t*.14)*hitPulse*.23;camera.position.y+=Math.cos(t*.19)*hitPulse*.17;camera.position.z+=Math.sin(t*.23)*hitPulse*.12}if(watcherMode==='killRush'){camera.position.lerp(new THREE.Vector3(player.position.x+Math.sin(yaw)*2.4,player.position.y+1.65,player.position.z+Math.cos(yaw)*2.4),.35)}camera.lookAt(player.position.x,player.position.y+.5+Math.tan(Math.min(1.54,Math.max(-.7,pitch)))*13,player.position.z);// Camera-local flyby: side clearance stays fixed even during turns.
 for(const shard of casingShards){
  if(!shard.mesh.visible)continue;
- const p=Math.min(1,(t-shard.birth)/760);
- shard.mesh.position.set(shard.side*(1.9-p*1.55),-.18+Math.sin(p*Math.PI)*.32,-5.4+p*5.05);
+ const p=Math.min(1,(t-shard.birth)/360);
+ shard.mesh.position.set(shard.side*(.95-p*.73),-.18+Math.sin(p*Math.PI)*.23,-5.4+p*5.05);
  shard.mesh.rotation.x=p*Math.PI*13;
  shard.mesh.rotation.y=shard.side*p*Math.PI*7;
  shard.mesh.rotation.z=p*Math.PI*5;
@@ -1441,21 +1441,21 @@ for(const shard of casingShards){
 }
 for(const puff of shardSmokeTrails){
  if(!puff.mesh.visible)continue;
- const p=(t-puff.birth)/900;
+ const p=(t-puff.birth)/520;
  if(p>=1){puff.mesh.visible=false;continue}
- const lag=Math.max(0,p-puff.k*.09);
- puff.mesh.position.set(puff.side*(1.9-lag*1.55)+puff.side*.12*(puff.k-1),-.18+Math.sin(lag*Math.PI)*.3,-5.4+lag*5.05-.28*puff.k);
+ const lag=Math.max(0,p-puff.k*.12);
+ puff.mesh.position.set(puff.side*(.95-lag*.73)+puff.side*.08*(puff.k-1),-.18+Math.sin(lag*Math.PI)*.3,-5.4+lag*5.05-.28*puff.k);
  puff.mesh.scale.setScalar(.5+p*2.5);puff.mesh.material.opacity=.22*(1-p);
 }
 for(const fx of casingFlybyFx){
  if(!fx.mesh.visible)continue;
- const p=(t-fx.birth)/(fx.smoke?820:430);
+ const p=(t-fx.birth)/(fx.smoke?540:280);
  if(p>=1){fx.mesh.visible=false;continue}
- const drift=(fx.j%4-1.5)*.14;
- fx.mesh.position.set(fx.side*(1.8-p*1.35)+drift*p,-.22+Math.sin(p*Math.PI)*.25+(fx.smoke?p*.32:p*.14),-5.1+p*4.45);
- fx.mesh.scale.setScalar(fx.smoke?.65+p*2.2:1.5*(1-p));
- fx.mesh.material.opacity=fx.smoke?.18*(1-p):.85*(1-p);
+ const drift=(fx.j%5-2)*.095;
+ fx.mesh.position.set(fx.side*(.92-p*.68)+drift*p,-.22+Math.sin(p*Math.PI)*.32+(fx.smoke?p*.3:p*.18),-5.1+p*4.65);
+ fx.mesh.scale.setScalar(fx.smoke?.65+p*1.8:2.4*(1-p));
+ fx.mesh.material.opacity=fx.smoke?.20*(1-p):1*(1-p);
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=47"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=48"></script></body></html>
