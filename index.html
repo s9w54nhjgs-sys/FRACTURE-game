@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V43 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V44 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -889,6 +889,19 @@ for(let side of [-1,1]){
  camera.add(bundle);
  casingShards.push({mesh:bundle,side,birth:-10000});
 }
+// V44: pooled camera-local micro-sparks and smoke, no allocations during ejection.
+const casingFlybyFx=[];
+const sparkGeo=new THREE.OctahedronGeometry(.045,0);
+const smokeGeo=new THREE.SphereGeometry(.14,5,4);
+for(let side of [-1,1]){
+ for(let j=0;j<6;j++){
+  const smoke=j>=4;
+  const material=new THREE.MeshBasicMaterial({color:smoke?0x8b98a0:0xb8f7ff,transparent:true,opacity:0,depthWrite:false,side:THREE.DoubleSide});
+  const mesh=new THREE.Mesh(smoke?smokeGeo:sparkGeo,material);
+  mesh.visible=false;camera.add(mesh);
+  casingFlybyFx.push({mesh,side,j,smoke,birth:-10000});
+ }
+}
 let auraPulseCount=0;
 const lightweightCasingGeo=new THREE.CylinderGeometry(.10,.13,.46,5);
 const lightweightCasingMat=new THREE.MeshBasicMaterial({color:0xc4f7ff,transparent:true,opacity:1,depthWrite:false});
@@ -915,7 +928,7 @@ function emitCellCasingSparks(pos,t){
   const a=j*2.399;fx.vx=Math.cos(a)*(2.5+j*.45);fx.vy=2.5+j*.4;fx.vz=Math.sin(a)*(2.5+j*.45);
  }
 }
-const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V42 AURA + STEEL FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
+const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V44 EXPANSION FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
 let casingDebugCount=0;
 window.addEventListener('fracture-cell-equipped',()=>{equippedNeedsSync=true});
 function syncEquippedCell(){
@@ -926,7 +939,7 @@ function syncEquippedCell(){
  shell.visible=!built;core.visible=!built;spike.visible=!built;for(const p of petals)p.m.visible=!built;for(const f of rollFins)f.mesh.visible=!built;
  if(!built){equippedHeart=[];equippedParts=[];cellSpikes=[];return}
  equippedCellMesh=built.visual;equippedHeart=built.redParts||[];
- casingDebug.textContent='V42 AURA + STEEL FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
+ casingDebug.textContent='V44 EXPANSION FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
@@ -1242,10 +1255,8 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  cellBreakup+= (breakupTarget-cellBreakup)*(breakupTarget>cellBreakup?.38:.115);
  const assembly=cellBreakup;
  const extended=drive>.24;
- if(t-cellLastEject>2500){ // V41 temporary forced test; restore recipe chance after validation
-  cellLastEject=t;
+ if(extended&&!cellWasExtended){ // Eject once when CELL unfolds, not on a timer
   casingDebugCount++;
-  auraPulseCount++;
   for(const shard of casingShards){
    shard.birth=t;
    shard.mesh.visible=true;
@@ -1253,7 +1264,8 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    shard.mesh.rotation.set(0,0,0);
    shard.mesh.scale.setScalar(.9);
   }
-  casingDebug.textContent='V42 | AURA pulses='+auraPulseCount+' | stainless ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=true;}
+  casingDebug.textContent='V44 | expansion ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1408,6 +1420,15 @@ for(const shard of casingShards){
  shard.mesh.scale.setScalar(.9+p*.3);
  if(p>=1)shard.mesh.visible=false;
 }
+for(const fx of casingFlybyFx){
+ if(!fx.mesh.visible)continue;
+ const p=(t-fx.birth)/(fx.smoke?820:430);
+ if(p>=1){fx.mesh.visible=false;continue}
+ const drift=(fx.j%4-1.5)*.14;
+ fx.mesh.position.set(fx.side*(1.8-p*1.35)+drift*p,-.22+Math.sin(p*Math.PI)*.25+(fx.smoke?p*.32:p*.14),-5.1+p*4.45);
+ fx.mesh.scale.setScalar(fx.smoke?.65+p*2.2:1.5*(1-p));
+ fx.mesh.material.opacity=fx.smoke?.18*(1-p):.85*(1-p);
+}
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=43"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=44"></script></body></html>
