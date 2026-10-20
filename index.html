@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V51 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V52 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -849,7 +849,27 @@ function updateExploration(t,dt){
  document.getElementById('objectiveNav').textContent='SIGNAL '+relaysActive+'/3　'+arrow+' '+Math.round(Math.hypot(dx,dz))+'m　'+target.name;
  $('extract').textContent=next?'中継器を起動：'+relaysActive+'/3　｜　素材 '+loot+'/3':'脱出地点が開放！　素材 '+loot+'/3';
 }
-const player=new THREE.Group();const playerRig=new THREE.Group();player.add(playerRig);const shell=new THREE.Mesh(new THREE.OctahedronGeometry(.64,0),new THREE.MeshStandardMaterial({color:0x8abcc7,metalness:.65,roughness:.28,flatShading:true,emissive:0x184a55,emissiveIntensity:.35}));playerRig.add(shell);
+const player=new THREE.Group();const playerRig=new THREE.Group();player.add(playerRig);
+// V52: pooled shield fracture shell and metallic impact splinters.
+const shieldFracture=new THREE.Group();playerRig.add(shieldFracture);
+const fractureMat=new THREE.MeshBasicMaterial({color:0x72edff,transparent:true,opacity:0,wireframe:true,depthWrite:false});
+const fractureShell=new THREE.Mesh(new THREE.IcosahedronGeometry(1.02,1),fractureMat);
+shieldFracture.add(fractureShell);
+const fractureShards=[];
+const fractureShardGeo=new THREE.TetrahedronGeometry(.115,0);
+for(let i=0;i<14;i++){
+ const m=new THREE.Mesh(fractureShardGeo,new THREE.MeshBasicMaterial({color:i%3===0?0xd6e3eb:0x6bdcf1,transparent:true,opacity:0,depthWrite:false}));
+ const angle=i*2.39996,up=((i*7)%13)/13*2-1,r=Math.sqrt(Math.max(.01,1-up*up));
+ m.userData.fractureDirection=new THREE.Vector3(Math.cos(angle)*r,up,Math.sin(angle)*r);
+ m.visible=false;shieldFracture.add(m);fractureShards.push(m);
+}
+let fractureStarted=-10000,fractureBroken=false,fractureStrength=1;
+function triggerShieldFracture(broken=false,strength=1){
+ fractureStarted=performance.now();fractureBroken=broken;fractureStrength=Math.min(2,strength);
+ fractureShell.visible=true;
+ for(const m of fractureShards)m.visible=true;
+}
+const shell=new THREE.Mesh(new THREE.OctahedronGeometry(.64,0),new THREE.MeshStandardMaterial({color:0x8abcc7,metalness:.65,roughness:.28,flatShading:true,emissive:0x184a55,emissiveIntensity:.35}));playerRig.add(shell);
 const core=new THREE.Mesh(new THREE.OctahedronGeometry(.34),new THREE.MeshStandardMaterial({color:0xb6ffff,metalness:.2,roughness:.25,emissive:0x42a9bc,emissiveIntensity:.8}));playerRig.add(core);
 const petalMat=new THREE.MeshStandardMaterial({color:0x91c5ce,metalness:.78,roughness:.27,flatShading:true,side:THREE.DoubleSide});
 const petals=[];for(let i=0;i<4;i++){const a=i*Math.PI/2;const m=new THREE.Mesh(new THREE.TetrahedronGeometry(.72,0),petalMat);m.position.set(Math.cos(a)*.55,0,Math.sin(a)*.55);m.rotation.set(Math.sin(a)*.45,a,Math.cos(a)*.45);playerRig.add(m);petals.push({m,a})}
@@ -1175,7 +1195,7 @@ function updateSpecial(t,dt){if(done)return;
  }
 }
 function applySpecialDamage(amount,t){if(done)return;let damage=amount;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=Math.min(2.2,.55+amount/23);drawDamageGlass(amount>=20,false);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}
-let glassUntil=-10000,glassDuration=850;const damageGlass=document.getElementById('damageGlass'),glassCtx=damageGlass.getContext('2d');function drawDamageGlass(heavy,shielded){const w=window.innerWidth,h=window.innerHeight,dpr=Math.min(2,window.devicePixelRatio||1);damageGlass.width=Math.round(w*dpr);damageGlass.height=Math.round(h*dpr);glassCtx.setTransform(dpr,0,0,dpr,0,0);glassCtx.clearRect(0,0,w,h);const ctx=glassCtx,reach=Math.min(w,h)*(heavy?.49:.38);for(let side=0;side<4;side++){const len=side%2===0?w:h,segments=heavy?12:10;for(let i=0;i<segments;i++){const p0=i/segments*len,p1=(i+1)/segments*len,mid=(p0+p1)/2+(Math.random()-.5)*len/segments*.5,depth=reach*(.45+Math.random()*.6),tip=depth*(.68+Math.random()*.3);const xy=(along,inset)=>side===0?[along,inset]:side===1?[w-inset,along]:side===2?[along,h-inset]:[inset,along];const A=xy(p0,0),B=xy(p1,0),C=xy(mid,depth),D=xy(mid+(Math.random()-.5)*len/segments,tip*.36);for(const points of [[A,D,C],[D,B,C]]){ctx.beginPath();points.forEach((pt,j)=>j?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));ctx.closePath();const g=ctx.createLinearGradient(points[0][0],points[0][1],points[2][0],points[2][1]);g.addColorStop(0,'rgba(195,207,213,'+(.36+Math.random()*.18)+')');g.addColorStop(.5,'rgba(115,128,137,.17)');g.addColorStop(1,'rgba(225,233,237,.025)');ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(238,244,246,.72)';ctx.lineWidth=1.7;ctx.stroke();ctx.beginPath();ctx.moveTo(points[0][0]+2,points[0][1]+2);ctx.lineTo(points[2][0]+2,points[2][1]+2);ctx.strokeStyle='rgba(12,22,30,.48)';ctx.lineWidth=2.5;ctx.stroke()}ctx.beginPath();ctx.moveTo(C[0],C[1]);const split=xy(mid+(Math.random()-.5)*len/segments*.8,depth+Math.random()*reach*.17);ctx.lineTo(split[0],split[1]);ctx.strokeStyle='rgba(242,247,249,.6)';ctx.lineWidth=1.3;ctx.stroke()}}}let hitReactionAt=-10000,hitReactionPower=0;let chargeStart=0,charging=false,chargeLevel=0,attackPower=1;let iaiUntil=0,iaiX=0,iaiZ=0,iaiLastHit=0,iaiPower=1;let hp=100,shield=50,loot=0,kills=0,yaw=0,pitch=.02,last=performance.now(),lastHit=0,lastAttack=0,lastDash=0,dashUntil=0,dashCharges=2,dashRechargeAt=[],dashChain=0,dashChainUntil=0,dashBurstUntil=0,done=false,noticeTimer,hitStopUntil=0,lungeUntil=0,lungeX=0,lungeZ=0,cameraReady=false,cameraFrameTime=performance.now();
+let glassUntil=-10000,glassDuration=850;const damageGlass=document.getElementById('damageGlass'),glassCtx=damageGlass.getContext('2d');function drawDamageGlass(heavy,shielded){triggerShieldFracture(!shielded,heavy?1.5:1);const w=window.innerWidth,h=window.innerHeight,dpr=Math.min(2,window.devicePixelRatio||1);damageGlass.width=Math.round(w*dpr);damageGlass.height=Math.round(h*dpr);glassCtx.setTransform(dpr,0,0,dpr,0,0);glassCtx.clearRect(0,0,w,h);const ctx=glassCtx,reach=Math.min(w,h)*(heavy?.49:.38);for(let side=0;side<4;side++){const len=side%2===0?w:h,segments=heavy?12:10;for(let i=0;i<segments;i++){const p0=i/segments*len,p1=(i+1)/segments*len,mid=(p0+p1)/2+(Math.random()-.5)*len/segments*.5,depth=reach*(.45+Math.random()*.6),tip=depth*(.68+Math.random()*.3);const xy=(along,inset)=>side===0?[along,inset]:side===1?[w-inset,along]:side===2?[along,h-inset]:[inset,along];const A=xy(p0,0),B=xy(p1,0),C=xy(mid,depth),D=xy(mid+(Math.random()-.5)*len/segments,tip*.36);for(const points of [[A,D,C],[D,B,C]]){ctx.beginPath();points.forEach((pt,j)=>j?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));ctx.closePath();const g=ctx.createLinearGradient(points[0][0],points[0][1],points[2][0],points[2][1]);g.addColorStop(0,'rgba(195,207,213,'+(.36+Math.random()*.18)+')');g.addColorStop(.5,'rgba(115,128,137,.17)');g.addColorStop(1,'rgba(225,233,237,.025)');ctx.fillStyle=g;ctx.fill();ctx.strokeStyle='rgba(238,244,246,.72)';ctx.lineWidth=1.7;ctx.stroke();ctx.beginPath();ctx.moveTo(points[0][0]+2,points[0][1]+2);ctx.lineTo(points[2][0]+2,points[2][1]+2);ctx.strokeStyle='rgba(12,22,30,.48)';ctx.lineWidth=2.5;ctx.stroke()}ctx.beginPath();ctx.moveTo(C[0],C[1]);const split=xy(mid+(Math.random()-.5)*len/segments*.8,depth+Math.random()*reach*.17);ctx.lineTo(split[0],split[1]);ctx.strokeStyle='rgba(242,247,249,.6)';ctx.lineWidth=1.3;ctx.stroke()}}}let hitReactionAt=-10000,hitReactionPower=0;let chargeStart=0,charging=false,chargeLevel=0,attackPower=1;let iaiUntil=0,iaiX=0,iaiZ=0,iaiLastHit=0,iaiPower=1;let hp=100,shield=50,loot=0,kills=0,yaw=0,pitch=.02,last=performance.now(),lastHit=0,lastAttack=0,lastDash=0,dashUntil=0,dashCharges=2,dashRechargeAt=[],dashChain=0,dashChainUntil=0,dashBurstUntil=0,done=false,noticeTimer,hitStopUntil=0,lungeUntil=0,lungeX=0,lungeZ=0,cameraReady=false,cameraFrameTime=performance.now();
 const $=id=>document.getElementById(id);function notify(t){$('notice').textContent=t;$('notice').classList.add('show');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').classList.remove('show'),2600)}
 const input={x:0,y:0};let autoRun=false;const joy=$('joy'),knob=$('knob');$('autoRun').addEventListener('click',()=>{autoRun=!autoRun;$('autoRun').classList.toggle('active',autoRun)});let joyId=null;
 function setJoy(e){if(autoRun){autoRun=false;$('autoRun').classList.remove('active')}const r=joy.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),len=Math.max(1,Math.hypot(dx,dy)),k=Math.min(1,len/48);input.x=dx/len*k;input.y=dy/len*k;knob.style.transform='translate('+input.x*43+'px,'+input.y*43+'px)'}
@@ -1236,7 +1256,24 @@ function jumpNow(){if(done||jumpCount>=2)return;
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
 function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;return walls.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
-function update(t){requestAnimationFrame(update);if(window.fractureMenuOpen)return;if(equippedNeedsSync)syncEquippedCell();
+function update(t){requestAnimationFrame(update);
+ const fractureAge=t-fractureStarted;
+ if(fractureAge>=0&&fractureAge<680){
+  const p=fractureAge/680;
+  fractureShell.visible=true;
+  fractureShell.scale.setScalar(1+p*(fractureBroken?.75:.25));
+  fractureShell.rotation.y=p*1.2;
+  fractureMat.color.setHex(fractureBroken?0xff6776:0x72edff);
+  fractureMat.opacity=(fractureBroken?.75:.45)*Math.pow(1-p,1.6);
+  for(let i=0;i<fractureShards.length;i++){
+   const m=fractureShards[i],d=m.userData.fractureDirection;
+   m.visible=true;m.position.copy(d).multiplyScalar(.65+p*(fractureBroken?1.5:.65)*fractureStrength);
+   m.rotation.set(p*8+i,p*5+i*.3,p*7);
+   m.scale.setScalar(Math.max(.02,(1-p)*fractureStrength));
+   m.material.opacity=(1-p)*(fractureBroken?.85:.55);
+  }
+ }else if(fractureShell.visible){fractureShell.visible=false;for(const m of fractureShards)m.visible=false}
+if(window.fractureMenuOpen)return;if(equippedNeedsSync)syncEquippedCell();
  while(dashRechargeAt.length&&dashRechargeAt[0]<=t){dashRechargeAt.shift();dashCharges=Math.min(2,dashCharges+1);updateDashDisplay()}
 
  for(let i=shockwaves.length-1;i>=0;i--){const s=shockwaves[i],p=(t-s.born)/440;if(p>=1){scene.remove(s.m);s.m.material.dispose();shockwaves.splice(i,1)}else{const r=.4+s.radius*Math.pow(Math.max(0,p),.7);s.m.scale.setScalar(r);s.m.material.opacity=(1-p)*.88;s.m.position.y=.11+p*.12}}
@@ -1468,4 +1505,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=51"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=52"></script></body></html>
