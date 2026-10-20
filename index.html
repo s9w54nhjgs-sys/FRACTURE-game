@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V44 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V45 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -903,6 +903,7 @@ for(let side of [-1,1]){
  }
 }
 let auraPulseCount=0;
+let pendingCasingEject=false,weakAttackCombo=0,lastWeakComboAt=-10000;
 const lightweightCasingGeo=new THREE.CylinderGeometry(.10,.13,.46,5);
 const lightweightCasingMat=new THREE.MeshBasicMaterial({color:0xc4f7ff,transparent:true,opacity:1,depthWrite:false});
 function playCellCasingPing(){
@@ -928,7 +929,7 @@ function emitCellCasingSparks(pos,t){
   const a=j*2.399;fx.vx=Math.cos(a)*(2.5+j*.45);fx.vy=2.5+j*.4;fx.vz=Math.sin(a)*(2.5+j*.45);
  }
 }
-const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V44 EXPANSION FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
+const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V45 ACTION FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
 let casingDebugCount=0;
 window.addEventListener('fracture-cell-equipped',()=>{equippedNeedsSync=true});
 function syncEquippedCell(){
@@ -939,7 +940,7 @@ function syncEquippedCell(){
  shell.visible=!built;core.visible=!built;spike.visible=!built;for(const p of petals)p.m.visible=!built;for(const f of rollFins)f.mesh.visible=!built;
  if(!built){equippedHeart=[];equippedParts=[];cellSpikes=[];return}
  equippedCellMesh=built.visual;equippedHeart=built.redParts||[];
- casingDebug.textContent='V44 EXPANSION FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
+ casingDebug.textContent='V45 ACTION FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
@@ -1175,6 +1176,7 @@ function aerialSlash(power,now){
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
 function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;
+ if(power===1){weakAttackCombo=now-lastWeakComboAt>1700?1:weakAttackCombo+1;lastWeakComboAt=now;if(weakAttackCombo>=3){pendingCasingEject=true;weakAttackCombo=0}}
  if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
  if(now<dashUntil){
   iaiUntil=now+185;iaiLastHit=0;iaiPower=power;
@@ -1211,7 +1213,7 @@ function jumpNow(){if(done||jumpCount>=2)return;
  const neutral=Math.hypot(input.x+(keys.d?1:0)-(keys.a?1:0),input.y+(keys.s?1:0)-(keys.w?1:0))<.1&&!autoRun;
  if(jumpCount===1){if(neutral){moveVX=0;moveVZ=0}else{const mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0),m=Math.max(1,Math.hypot(mx,my));moveVX=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/m*6.2;moveVZ=(-Math.sin(yaw)*mx+Math.cos(yaw)*my)/m*6.2}}
  jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
- if(jumpCount===2){verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
+ if(jumpCount===2){pendingCasingEject=true;verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
 }
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
@@ -1255,7 +1257,8 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  cellBreakup+= (breakupTarget-cellBreakup)*(breakupTarget>cellBreakup?.38:.115);
  const assembly=cellBreakup;
  const extended=drive>.24;
- if(extended&&!cellWasExtended){ // Eject once when CELL unfolds, not on a timer
+ if(pendingCasingEject){ // Eject on second jump or every third accepted weak attack
+  pendingCasingEject=false;
   casingDebugCount++;
   for(const shard of casingShards){
    shard.birth=t;
@@ -1265,7 +1268,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    shard.mesh.scale.setScalar(.9);
   }
   for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=true;}
-  casingDebug.textContent='V44 | expansion ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V45 | action ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1431,4 +1434,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=44"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=45"></script></body></html>
