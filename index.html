@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V40 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V41 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -867,21 +867,28 @@ let equippedCellMesh=null,equippedHeart=[],equippedNeedsSync=true,equippedParts=
 // Temporary casing diagnostic: bright cyan sparks and a short metallic high-pitched ring.
 const cellCasingFx=[];
 const cellCasingFxGeo=new THREE.OctahedronGeometry(.075,0);
-// V40: prebuilt low-poly spiked casing, animated in player-local space.
-const casingShard=new THREE.Group();
-const shardMat=new THREE.MeshBasicMaterial({color:0x9ceeff,transparent:true,opacity:.92,depthWrite:false});
-const shardCore=new THREE.Mesh(new THREE.IcosahedronGeometry(.22,0),shardMat);
-casingShard.add(shardCore);
-const shardSpikeGeo=new THREE.ConeGeometry(.075,.42,4);
-for(let i=0;i<6;i++){
- const spikePart=new THREE.Mesh(shardSpikeGeo,shardMat);
- const angle=i*Math.PI*2/6;
- spikePart.position.set(Math.cos(angle)*.24,Math.sin(angle)*.24,0);
- spikePart.rotation.z=angle-Math.PI/2;
- casingShard.add(spikePart);
+// V41: prebuilt stainless-steel needle bundles fly past both edges of the camera.
+// No scene traversal, mesh cloning or world-matrix computation during ejection.
+const shardSteel=new THREE.MeshStandardMaterial({color:0xcbd5df,metalness:.94,roughness:.19,flatShading:true,side:THREE.DoubleSide});
+const shardDark=new THREE.MeshStandardMaterial({color:0x778999,metalness:.92,roughness:.27,flatShading:true});
+const shardNeedleGeo=new THREE.ConeGeometry(.065,.95,5);
+const casingShards=[];
+for(let side of [-1,1]){
+ const bundle=new THREE.Group();
+ for(let i=0;i<7;i++){
+  const needle=new THREE.Mesh(shardNeedleGeo,i%3===0?shardDark:shardSteel);
+  const angle=i*2.39996;
+  needle.position.set(Math.cos(angle)*(.075+i*.017),Math.sin(angle)*(.07+i*.012),(i-3)*.047);
+  needle.rotation.z=Math.sin(angle)*.46;
+  needle.rotation.x=Math.cos(angle)*.45;
+  needle.scale.set(.68+(i%3)*.14,1+(i%4)*.22,.68);
+  bundle.add(needle);
+ }
+ bundle.visible=false;
+ camera.add(bundle);
+ casingShards.push({mesh:bundle,side,birth:-10000});
 }
-casingShard.visible=false;playerRig.add(casingShard);
-let casingShardBirth=-10000;
+let auraPulseCount=0;
 const lightweightCasingGeo=new THREE.CylinderGeometry(.10,.13,.46,5);
 const lightweightCasingMat=new THREE.MeshBasicMaterial({color:0xc4f7ff,transparent:true,opacity:1,depthWrite:false});
 function playCellCasingPing(){
@@ -907,7 +914,7 @@ function emitCellCasingSparks(pos,t){
   const a=j*2.399;fx.vx=Math.cos(a)*(2.5+j*.45);fx.vy=2.5+j*.4;fx.vz=Math.sin(a)*(2.5+j*.45);
  }
 }
-const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='CASING TEST V40 (SPIKE SHARD): waiting for CELL';document.body.appendChild(casingDebug);
+const casingDebug=document.createElement('div');casingDebug.style.cssText='position:fixed;top:74px;left:8px;z-index:99999;background:#001b24e8;color:#8efffa;border:1px solid #2be6ff;padding:7px;font:12px monospace;pointer-events:none;white-space:pre-line;border-radius:6px';casingDebug.textContent='V41 AURA + STEEL FLYBY: waiting for CELL';document.body.appendChild(casingDebug);
 let casingDebugCount=0;
 window.addEventListener('fracture-cell-equipped',()=>{equippedNeedsSync=true});
 function syncEquippedCell(){
@@ -918,7 +925,7 @@ function syncEquippedCell(){
  shell.visible=!built;core.visible=!built;spike.visible=!built;for(const p of petals)p.m.visible=!built;for(const f of rollFins)f.mesh.visible=!built;
  if(!built){equippedHeart=[];equippedParts=[];cellSpikes=[];return}
  equippedCellMesh=built.visual;equippedHeart=built.redParts||[];
- casingDebug.textContent='CASING TEST V40 (SPIKE SHARD) | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
+ casingDebug.textContent='V41 AURA + STEEL FLYBY | equipped | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
  equippedCellMesh.scale.setScalar(.43);
  equippedCellMesh.rotation.set(0,0,0);
  playerRig.add(equippedCellMesh);
@@ -1234,22 +1241,18 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  cellBreakup+= (breakupTarget-cellBreakup)*(breakupTarget>cellBreakup?.38:.115);
  const assembly=cellBreakup;
  const extended=drive>.24;
- if(t-cellLastEject>2500){ // V40: only reuse the prebuilt spiked shard
+ if(t-cellLastEject>2500){ // V41 temporary forced test; restore recipe chance after validation
   cellLastEject=t;
   casingDebugCount++;
-  casingShardBirth=t;
-  casingShard.visible=true;
-  casingShard.position.set(1.8,.65,-1.25);
-  casingShard.rotation.set(0,0,0);
-  casingDebug.textContent='CASING TEST V40 (SPIKE SHARD) | ranged='+equippedCellMesh.userData.cellRangedAmount+' | trait='+equippedCellMesh.userData.cellRangedReload+' | emissions='+casingDebugCount;
- }
- if(casingShard.visible){
-  const progress=Math.min(1,(t-casingShardBirth)/950);
-  casingShard.position.set(1.8-progress*1.55,.65+Math.sin(progress*Math.PI)*.55,-1.25+progress*.9);
-  casingShard.rotation.y=progress*Math.PI*8;
-  casingShard.rotation.x=progress*Math.PI*3;
-  casingShard.scale.setScalar(Math.max(.05,1-progress*.85));
-  if(progress>=1)casingShard.visible=false;
+  auraPulseCount++;
+  for(const shard of casingShards){
+   shard.birth=t;
+   shard.mesh.visible=true;
+   shard.mesh.position.set(shard.side*2.55,-.28,-5.4);
+   shard.mesh.rotation.set(0,0,0);
+   shard.mesh.scale.setScalar(.9);
+  }
+  casingDebug.textContent='V41 | AURA pulses='+auraPulseCount+' | stainless ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1393,6 +1396,17 @@ else if(u.phase==='windup'){const duration=heavy?1050:ranged?750:650,p=Math.min(
 else if(u.phase==='strike'){const duration=heavy?360:ranged?300:250,p=Math.min(1,(t-u.windup)/duration);u.body.scale.set(ranged?1.75:1.15,ranged?.45:1.05,ranged?1.75:1.15);u.tell.material.opacity=(1-p)*.65;const step=(ranged?0:heavy?8:11)*dt;if(dt>0&&p<.7){const xx=u.aimX*step,zz=u.aimZ*step;if(!collides(e.position.x+xx,e.position.z))e.position.x+=xx,e.position.z+=zz}if(!ranged&&!u.hit&&d<(heavy?2.9:2.15)&&t>=dashInvulnerableUntil&&dt>0){u.hit=true;let damage=heavy?25:14;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(heavy,shielded);glassUntil=t;glassDuration=heavy?1700:1350;hitReactionAt=t;hitReactionPower=heavy?1.8:1;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}if(p>=1){u.phase='recover';u.windup=t;u.cooldown=t+(heavy?1900:ranged?1250:1150);u.body.material.emissive.setHex(0)}}
 else if(u.phase==='recover'){u.tell.material.opacity=0;u.body.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*8));if(t-u.windup>(heavy?650:ranged?420:430))u.phase='seek'}
 }
-for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.position.x+=p.vx*dt;p.m.position.z+=p.vz*dt;p.m.rotation.y+=dt*7}const distance=p.m.position.distanceTo(player.position);if(distance<1.05&&t>=dashInvulnerableUntil&&!done){let damage=12;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(false,shielded);glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=.85;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false);scene.remove(p.m);projectiles.splice(i,1)}else if(t-p.born>3200||collides(p.m.position.x,p.m.position.z)){scene.remove(p.m);projectiles.splice(i,1)}}if(t-lastHit>7000&&shield<50){shield=Math.min(50,shield+dt*4);$('shield').textContent=Math.round(shield)}if(Math.hypot(player.position.x-38,player.position.z+25)<2.7){if(loot>=3&&relaysActive===3){finish(true)}else if(t%2200<35)notify('脱出には素材3個＋中継器3基の起動が必要')}}const camDist=8,cy=player.position.y+3.2-Math.sin(pitch)*2;const desiredCam=new THREE.Vector3(player.position.x+Math.sin(yaw)*camDist,cy,player.position.z+Math.cos(yaw)*camDist);if(!cameraReady){camera.position.copy(desiredCam);cameraReady=true}else{const follow=1-Math.exp(-7*Math.min((t-cameraFrameTime)/1000,.05));camera.position.lerp(desiredCam,follow)}cameraFrameTime=t;if(hitPulse>0){camera.position.x+=Math.sin(t*.14)*hitPulse*.23;camera.position.y+=Math.cos(t*.19)*hitPulse*.17;camera.position.z+=Math.sin(t*.23)*hitPulse*.12}if(watcherMode==='killRush'){camera.position.lerp(new THREE.Vector3(player.position.x+Math.sin(yaw)*2.4,player.position.y+1.65,player.position.z+Math.cos(yaw)*2.4),.35)}camera.lookAt(player.position.x,player.position.y+.5+Math.tan(Math.min(1.54,Math.max(-.7,pitch)))*13,player.position.z);cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
+for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.position.x+=p.vx*dt;p.m.position.z+=p.vz*dt;p.m.rotation.y+=dt*7}const distance=p.m.position.distanceTo(player.position);if(distance<1.05&&t>=dashInvulnerableUntil&&!done){let damage=12;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(false,shielded);glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=.85;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false);scene.remove(p.m);projectiles.splice(i,1)}else if(t-p.born>3200||collides(p.m.position.x,p.m.position.z)){scene.remove(p.m);projectiles.splice(i,1)}}if(t-lastHit>7000&&shield<50){shield=Math.min(50,shield+dt*4);$('shield').textContent=Math.round(shield)}if(Math.hypot(player.position.x-38,player.position.z+25)<2.7){if(loot>=3&&relaysActive===3){finish(true)}else if(t%2200<35)notify('脱出には素材3個＋中継器3基の起動が必要')}}const camDist=8,cy=player.position.y+3.2-Math.sin(pitch)*2;const desiredCam=new THREE.Vector3(player.position.x+Math.sin(yaw)*camDist,cy,player.position.z+Math.cos(yaw)*camDist);if(!cameraReady){camera.position.copy(desiredCam);cameraReady=true}else{const follow=1-Math.exp(-7*Math.min((t-cameraFrameTime)/1000,.05));camera.position.lerp(desiredCam,follow)}cameraFrameTime=t;if(hitPulse>0){camera.position.x+=Math.sin(t*.14)*hitPulse*.23;camera.position.y+=Math.cos(t*.19)*hitPulse*.17;camera.position.z+=Math.sin(t*.23)*hitPulse*.12}if(watcherMode==='killRush'){camera.position.lerp(new THREE.Vector3(player.position.x+Math.sin(yaw)*2.4,player.position.y+1.65,player.position.z+Math.cos(yaw)*2.4),.35)}camera.lookAt(player.position.x,player.position.y+.5+Math.tan(Math.min(1.54,Math.max(-.7,pitch)))*13,player.position.z);// Camera-local flyby: side clearance stays fixed even during turns.
+for(const shard of casingShards){
+ if(!shard.mesh.visible)continue;
+ const p=Math.min(1,(t-shard.birth)/760);
+ shard.mesh.position.set(shard.side*(2.55-p*.94),-.28+Math.sin(p*Math.PI)*.26,-5.4+p*5.05);
+ shard.mesh.rotation.x=p*Math.PI*13;
+ shard.mesh.rotation.y=shard.side*p*Math.PI*7;
+ shard.mesh.rotation.z=p*Math.PI*5;
+ shard.mesh.scale.setScalar(.9+p*.3);
+ if(p>=1)shard.mesh.visible=false;
+}
+cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=40"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=41"></script></body></html>
