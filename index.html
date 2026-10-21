@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V55 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V56 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1201,7 +1201,7 @@ function updateSpecial(t,dt){if(done)return;
 }
  g.rotation.y=Math.atan2(-ax,-az);
  if(u.alert&&d<1.5&&t-u.last>1700&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(19,t)}
- }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-u.last>1000){u.last=t;applySpecialDamage(32,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=4+Math.random()*10;u.nextTurn=t+550+Math.random()*2100}
+ }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-(u.lastDamageAt||-10000)>1800&&t>=dashInvulnerableUntil){u.lastDamageAt=t;applySpecialDamage(16,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=4+Math.random()*10;u.nextTurn=t+550+Math.random()*2100}
  if(!u.flockMate||!specialEnemies.includes(u.flockMate)||t>u.flockUntil)u.flockMate=null;
  if(!u.flockMate)for(const other of specialEnemies){if(other!==u&&other.variant==='roamer'&&other.mode==='idle'&&Math.hypot(g.position.x-other.g.position.x,g.position.y-other.g.position.y,g.position.z-other.g.position.z)<1){u.flockMate=other;u.flockUntil=t+2400+Math.random()*2600;break}}
  if(u.flockMate){u.targetHeading=u.flockMate.heading+Math.sin(t*.003+u.seed)*.15;u.flightY=u.flockMate.flightY+Math.sin(u.seed)*.7}
@@ -1564,4 +1564,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=55"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=56"></script></body></html>
