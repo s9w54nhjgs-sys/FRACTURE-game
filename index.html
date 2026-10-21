@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V56 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V57 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1066,7 +1066,7 @@ const specialMat=(color)=>new THREE.MeshStandardMaterial({color,metalness:.48,ro
 function special(type,x,z){const g=new THREE.Group(),m=specialMat(type==='swarm'?0xa14c62:type==='pursuer'?0x76858b:0x404b59);
  const body=new THREE.Mesh(type==='aerial'?new THREE.ConeGeometry(.8,2.6,5):type==='pursuer'?new THREE.SphereGeometry(.83,13,9):new THREE.IcosahedronGeometry(.65,1),type==='pursuer'?new THREE.MeshStandardMaterial({color:0x080b0e,metalness:.34,roughness:.075,transparent:true,opacity:.97,emissive:0x030507,emissiveIntensity:.1}):m);
  if(type==='aerial')body.rotation.z=Math.PI;g.add(body);if(type==='swarm')for(let j=0;j<3;j++){const shard=new THREE.Mesh(new THREE.TetrahedronGeometry(.34,0),m);g.add(shard)}g.position.set(x,type==='aerial'?7:type==='pursuer'?.3:1.3,z);scene.add(g);
- const u={type,g,body,mode:'idle',alert:false,last:0,lockedX:0,lockedZ:0,hit:false,hp:type==='pursuer'?12:type==='aerial'?2:3,seed:Math.random()*6.28,raised:false,nest:null};specialEnemies.push(u);return u}
+ const u={type,g,body,mode:'idle',alert:false,last:0,lockedX:0,lockedZ:0,hit:false,hp:type==='pursuer'?12:type==='aerial'?2:2,seed:Math.random()*6.28,raised:false,nest:null};specialEnemies.push(u);return u}
 // SOUTH (-Z): eggs lie hidden beside approximately one third of suitable structures.
 const swarmEggs=[];
 const eggMat=new THREE.MeshStandardMaterial({color:0x514c47,roughness:.95,metalness:0,transparent:true,opacity:.94,emissive:0x130d12});
@@ -1091,15 +1091,30 @@ for(const site of eligibleEggSites.slice(0,eggLimit)){
  for(let j=0;j<18;j++){const a=j*2.39996,h=.2+(j%8)*.21;const points=[new THREE.Vector3(Math.cos(a)*.85,h,Math.sin(a)*.85),new THREE.Vector3(Math.cos(a+.9)*.55,h+.3,Math.sin(a+.9)*.55),new THREE.Vector3(Math.cos(a+1.8)*.8,h+.53,Math.sin(a+1.8)*.8)];g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(points),eggSilkMat))}
  g.position.set(x,0,z);scene.add(g);swarmEggs.push({g,egg,hatched:false,destroyed:false,lastBirth:0,children:0,alive:0,birthLevel:0,hp:9});
 }
+// Spawn hatchlings in navigable outdoor space; never inside building collision boxes.
+function spawnSwarmOutsideNest(e,ordinal){
+ const x=e.g.position.x,z=e.g.position.z;
+ const offset=ordinal*2.399963;
+ for(const radius of [2.1,3.5,5.5,8,11,15,20,27]){
+  for(let k=0;k<16;k++){
+   const angle=offset+k*Math.PI*2/16;
+   const sx=x+Math.cos(angle)*radius,sz=z+Math.sin(angle)*radius;
+   if(Math.abs(sx)>113||Math.abs(sz)>113)continue;
+   if(!walls.some(w=>Math.abs(sx-w.x)<w.w/2+1.6&&Math.abs(sz-w.z)<w.d/2+1.6)){
+    const u=special('swarm',sx,sz);u.alert=true;u.nest=e;return u;
+   }
+  }
+ }
+ // Fallback: permit movement through obstacles rather than trapping a hatchling.
+ const u=special('swarm',x,z);u.alert=true;u.nest=e;u.ignoreWalls=true;return u;
+}
 function burstSwarmEgg(e){
  if(e.destroyed)return;
  e.destroyed=true;scene.remove(e.g);
  const remaining=Math.max(0,MAX_SWARM_WORLD-specialEnemies.filter(u=>u.type==='swarm').length);
  const batch=Math.min(5,remaining);
  for(let j=0;j<batch;j++){
-  const a=j*Math.PI*2/5;
-  const u=special('swarm',e.g.position.x+Math.cos(a)*1.2,e.g.position.z+Math.sin(a)*1.2);
-  u.alert=true;u.nest=e;
+  spawnSwarmOutsideNest(e,e.children+j);
  }
  e.children+=batch;e.alive+=batch;
  impact(e.g.position.x,1,e.g.position.z);
@@ -1141,7 +1156,7 @@ function updateSpecial(t,dt){if(done)return;
  const interval=Math.max(480,8000*Math.pow(.76,e.birthLevel));
  if(e.alive<30&&swarmCount<MAX_SWARM_WORLD&&t-e.lastBirth>=interval){
  const batch=Math.min(30-e.alive,MAX_SWARM_WORLD-swarmCount,Math.max(1,Math.floor(Math.pow(1.35,e.birthLevel*.34))));
- for(let j=0;j<batch;j++){const a=(e.children+j)*2.399;const u=special('swarm',e.g.position.x+Math.cos(a)*1.7,e.g.position.z+Math.sin(a)*1.7);u.alert=true;u.nest=e}
+ for(let j=0;j<batch;j++){spawnSwarmOutsideNest(e,e.children+j)}
  e.children+=batch;e.alive+=batch;swarmCount+=batch;e.lastBirth=t;e.birthLevel=Math.min(24,e.birthLevel+1);
  }
  }
@@ -1151,7 +1166,7 @@ function updateSpecial(t,dt){if(done)return;
  u.body.scale.set(1+Math.sin(pulse)*.48,1+Math.sin(pulse*1.31)*.65,1+Math.cos(pulse*.83)*.57);for(let j=1;j<u.g.children.length;j++){const p=u.g.children[j];p.position.set(Math.cos(pulse*(.7+j*.2)+j)*.7,Math.sin(pulse*(.63+j*.11))*.68,Math.sin(pulse*(.9+j*.12)+j)*.7);p.scale.set(.55+Math.abs(Math.sin(pulse+j))*.9,.3+Math.abs(Math.cos(pulse*.8+j))*.9,.5+Math.abs(Math.sin(pulse*.6+j))*.8);p.rotation.set(pulse*.7+j,pulse*.37,pulse*.52)}
  u.body.rotation.set(Math.sin(pulse*.67)*.45,Math.sin(pulse*.47)*.6,Math.cos(pulse*.81)*.36);
  if(d<17)u.alert=true;if(!u.alert)continue;
- const speed=3.5+Math.min(1.2,alerted*.1);if(d>1.6){const nx=g.position.x+dx/d*speed*dt,nz=g.position.z+dz/d*speed*dt;if(!collides(nx,g.position.z))g.position.x=nx;if(!collides(g.position.x,nz))g.position.z=nz}
+ const speed=3.5+Math.min(1.2,alerted*.1);if(d>1.6){const nx=g.position.x+dx/d*speed*dt,nz=g.position.z+dz/d*speed*dt;if(u.ignoreWalls||!collides(nx,g.position.z))g.position.x=nx;if(u.ignoreWalls||!collides(g.position.x,nz))g.position.z=nz}
  if(d<1.8&&t-u.last>1450&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(1.25,t)}
  }else if(u.type==='pursuer'){
  // A shadow-loving inchworm: low 30cm crawl, periodically rises to its full silhouette.
@@ -1564,4 +1579,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=56"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=57"></script></body></html>
