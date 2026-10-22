@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V58 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V59 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -978,11 +978,11 @@ for(let side of [-1,1]){
   casingFlybyFx.push({mesh,side,j,smoke,birth:-10000});
  }
 }
-// Brief, subtle smoke released at the CELL body when dash casing ejects.
+// Short, visible mechanical exhaust burst on second dash casing ejection.
 const dashBodySmoke=[];
-const dashBodySmokeGeo=new THREE.SphereGeometry(.12,6,4);
-for(let i=0;i<6;i++){
- const puff=new THREE.Mesh(dashBodySmokeGeo,new THREE.MeshBasicMaterial({color:0x87949d,transparent:true,opacity:0,depthWrite:false}));
+const dashBodySmokeGeo=new THREE.IcosahedronGeometry(.24,1);
+for(let i=0;i<14;i++){
+ const puff=new THREE.Mesh(dashBodySmokeGeo,new THREE.MeshBasicMaterial({color:i%3===0?0xc6cdd0:0x82949c,transparent:true,opacity:0,depthWrite:false,depthTest:false}));
  puff.visible=false;playerRig.add(puff);dashBodySmoke.push({mesh:puff,birth:-10000,i});
 }
 let auraPulseCount=0;
@@ -1340,12 +1340,14 @@ function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;return wa
 function update(t){requestAnimationFrame(update);
  for(const puff of dashBodySmoke){
  if(!puff.mesh.visible)continue;
- const age=t-puff.birth,p=Math.max(0,age/340);
+ const p=Math.max(0,(t-puff.birth)/480);
  if(p>=1){puff.mesh.visible=false;continue}
- const side=puff.i%2?1:-1;
- puff.mesh.position.set(side*(.28+p*.32),.04+p*.3,(Math.floor(puff.i/2)-1)*.19+p*.15);
- puff.mesh.scale.setScalar(.32+p*.85);
- puff.mesh.material.opacity=.16*(1-p)*(1-p);
+ const side=puff.i%2?1:-1,ring=Math.floor(puff.i/2);
+ const angle=ring*2.399963+(side>0?.25:Math.PI);
+ const spread=.42+p*(.9+ring*.075);
+ puff.mesh.position.set(Math.cos(angle)*spread,.05+Math.sin(angle*1.7)*spread*.48+p*.25,Math.sin(angle)*spread*.62);
+ puff.mesh.scale.setScalar((.65+p*2.4)*(1-p*.38));
+ puff.mesh.material.opacity=.48*Math.pow(1-p,1.65);
  }
  const fractureAge=t-fractureStarted;
  if(fractureAge>=0&&fractureAge<680){
@@ -1422,7 +1424,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   for(const spike of cellSpikes)spike.userData.casingRegrow=false;
   for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+390;}
   casingSpikeRegrowAt=t;
-  casingDebug.textContent='V58 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V59 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1596,4 +1598,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=58"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=59"></script></body></html>
