@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V57 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V58 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -978,6 +978,13 @@ for(let side of [-1,1]){
   casingFlybyFx.push({mesh,side,j,smoke,birth:-10000});
  }
 }
+// Brief, subtle smoke released at the CELL body when dash casing ejects.
+const dashBodySmoke=[];
+const dashBodySmokeGeo=new THREE.SphereGeometry(.12,6,4);
+for(let i=0;i<6;i++){
+ const puff=new THREE.Mesh(dashBodySmokeGeo,new THREE.MeshBasicMaterial({color:0x87949d,transparent:true,opacity:0,depthWrite:false}));
+ puff.visible=false;playerRig.add(puff);dashBodySmoke.push({mesh:puff,birth:-10000,i});
+}
 let auraPulseCount=0;
 let pendingCasingEject=null,weakAttackCombo=0,lastWeakComboAt=-10000;
 let casingEffectMode='dash';
@@ -1312,7 +1319,7 @@ function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  if(neutral){mx=0;my=airborneSecond?0:-1}
  const m=Math.max(1,Math.hypot(mx,my));mx/=m;my/=m;
  dashX=Math.cos(yaw)*mx+Math.sin(yaw)*my;dashZ=-Math.sin(yaw)*mx+Math.cos(yaw)*my;
- if(airborneSecond){jumpNow();moveVX=dashX*6.2;moveVZ=dashZ*6.2;
+ if(airborneSecond){jumpNow();barrelStart=now;verticalDoubleJump=false;moveVX=dashX*6.2;moveVZ=dashZ*6.2;
   if(neutral){dashX=0;dashZ=0;moveVX=0;moveVZ=0}
  }
  if(charging)dashChargeBoostUntil=now+500;
@@ -1331,6 +1338,15 @@ $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
 function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;return walls.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
 function update(t){requestAnimationFrame(update);
+ for(const puff of dashBodySmoke){
+ if(!puff.mesh.visible)continue;
+ const age=t-puff.birth,p=Math.max(0,age/340);
+ if(p>=1){puff.mesh.visible=false;continue}
+ const side=puff.i%2?1:-1;
+ puff.mesh.position.set(side*(.28+p*.32),.04+p*.3,(Math.floor(puff.i/2)-1)*.19+p*.15);
+ puff.mesh.scale.setScalar(.32+p*.85);
+ puff.mesh.material.opacity=.16*(1-p)*(1-p);
+ }
  const fractureAge=t-fractureStarted;
  if(fractureAge>=0&&fractureAge<680){
   const p=fractureAge/680;
@@ -1400,12 +1416,13 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   }
   for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=casingEffectMode==='charge'||fx.j<3;fx.mesh.material.color.setHex(casingEffectMode==='charge'&&!fx.smoke?(fx.j%3===0?0xc84b30:0xffc8a0):fx.smoke?0x8b98a0:0xb8f7ff);}
   for(const puff of shardSmokeTrails){puff.birth=t;puff.mesh.visible=casingEffectMode==='charge'||puff.k===0;}
+  if(casingEffectMode==='dash')for(const puff of dashBodySmoke){puff.birth=t;puff.mesh.visible=true;}
   // Retract the two largest physical CELL spikes immediately; regrow after flyby.
   const biggest=cellSpikes.slice().sort((a,b)=>(b.geometry?.parameters?.height||0)-(a.geometry?.parameters?.height||0)).slice(0,2);
   for(const spike of cellSpikes)spike.userData.casingRegrow=false;
   for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+390;}
   casingSpikeRegrowAt=t;
-  casingDebug.textContent='V51 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V58 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1579,4 +1596,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=57"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=58"></script></body></html>
