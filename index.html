@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V59 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V60 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -985,6 +985,7 @@ for(let i=0;i<14;i++){
  const puff=new THREE.Mesh(dashBodySmokeGeo,new THREE.MeshBasicMaterial({color:i%3===0?0xc6cdd0:0x82949c,transparent:true,opacity:0,depthWrite:false,depthTest:false}));
  puff.visible=false;playerRig.add(puff);dashBodySmoke.push({mesh:puff,birth:-10000,i});
 }
+let chargeSpikeLatchAt=-10000,chargeSpikeReleaseAt=-10000;
 let auraPulseCount=0;
 let pendingCasingEject=null,weakAttackCombo=0,lastWeakComboAt=-10000;
 let casingEffectMode='dash';
@@ -1304,9 +1305,9 @@ function attack(power=1){const now=performance.now();if(done||now-lastAttack<210
  }
  lastAttack=now;attackPower=power;shell.material.emissive.setHex(power>1?0xffd29b:0x64ffff);setTimeout(()=>shell.material.emissive.setHex(0x184a55),160);let target=null,dist=power>1?6.3:5.2;for(const e of enemies){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz),ang=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(ang-yaw),Math.cos(ang-yaw));if(d<dist&&(d<2.3||Math.abs(diff)<1.1)){target=e;dist=d}}if(!target){for(const e of swarmEggs){if(e.destroyed)continue;const dx=e.g.position.x-player.position.x,dz=e.g.position.z-player.position.z,d=Math.hypot(dx,dz),ang=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(ang-yaw),Math.cos(ang-yaw));if(d<dist&&(d<2.3||Math.abs(diff)<1.1)){target=e.g;target.userData.egg=e;dist=d}}}if(!target){for(const u of specialEnemies){if(u.type==='aerial'&&u.g.position.y>3)continue;const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z,d=Math.hypot(dx,dz),ang=Math.atan2(-dx,-dz),diff=Math.atan2(Math.sin(ang-yaw),Math.cos(ang-yaw));if(d<dist&&(d<2.3||Math.abs(diff)<1.1)){target=u.g;target.userData.special=u;dist=d}}}if(target&&target.userData.egg){const e=target.userData.egg;e.hp-=power;impact(e.g.position.x,1,e.g.position.z);if(e.hp<=0){burstSwarmEgg(e)}else notify('NEST DAMAGED');return}if(target&&target.userData.special){if(power>1)hitStopUntil=now+95;const u=target.userData.special;u.hp-=power;impact(target.position.x,target.position.y,target.position.z);enemyDebris(target.position.x,target.position.y,target.position.z,power>1,target.position.x-player.position.x,target.position.z-player.position.z,0,false,u.type==='pursuer');if(u.hp<=0){enemyDebris(target.position.x,target.position.y,target.position.z,power>1,target.position.x-player.position.x,target.position.z-player.position.z,0,false,u.type==='pursuer');dissolveEnemy(u.g,target.position.x-player.position.x,target.position.z-player.position.z,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills;notify('HOSTILE ELIMINATED')}else{u.last=now;if(u.type==='swarm')u.alert=true;notify('TARGET HIT')}return}if(target){if(power>1)hitStopUntil=now+115;const dx=target.position.x-player.position.x,dz=target.position.z-player.position.z,d=Math.hypot(dx,dz);const fx=d>.1?dx/d:-Math.sin(yaw),fz=d>.1?dz/d:-Math.cos(yaw);hitStopUntil=now+(power>1?125:80);impact(target.position.x,target.position.y,target.position.z);if(power===1)enemyDebris(target.position.x,target.position.y,target.position.z,false,fx,fz);if(power>1){enemyDebris(target.position.x,target.position.y,target.position.z,true,fx,fz);for(let j=0;j<2;j++)impact(target.position.x+(Math.random()-.5),target.position.y,target.position.z+(Math.random()-.5))}target.userData.knockX=fx*(power>1?18:10);target.userData.knockZ=fz*(power>1?18:10);target.userData.stagger=now+(power>1?520:300);lungeX=fx;lungeZ=fz;lungeUntil=now+(power>1?240:180);target.userData.hp-=power;target.scale.setScalar(power>1?1.55:1.3);setTimeout(()=>target.scale.setScalar(1),160);if(target.userData.hp<=0){enemyDebris(target.position.x,target.position.y,target.position.z,true);if(target.userData.type==='decoy'){defeatDecoy(target,fx,fz)}else{dissolveEnemy(target,fx,fz);enemies.splice(enemies.indexOf(target),1);kills++;$('kills').textContent=kills;notify('HOSTILE ELIMINATED')}}else if(power>1)notify('CHARGED IMPACT')}else{lungeX=-Math.sin(yaw);lungeZ=-Math.cos(yaw);lungeUntil=now+120;notify('攻撃：敵が射程外')}}
 const attackButton=$('charge');$('attack').addEventListener('pointerdown',e=>{e.preventDefault();attack(1)});
-attackButton.addEventListener('pointerdown',e=>{e.preventDefault();if(done||charging)return;charging=true;chargeStart=performance.now();chargeLevel=0;attackButton.setPointerCapture(e.pointerId)});
-function releaseAttack(){if(!charging)return;charging=false;const held=performance.now()-chargeStart;chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='';attack(held>=650?3:1)}
-attackButton.addEventListener('pointerup',releaseAttack);attackButton.addEventListener('pointercancel',()=>{charging=false;chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='' });
+attackButton.addEventListener('pointerdown',e=>{e.preventDefault();if(done||charging)return;charging=true;chargeStart=performance.now();chargeSpikeLatchAt=chargeStart;chargeSpikeReleaseAt=-10000;chargeLevel=0;attackButton.setPointerCapture(e.pointerId)});
+function releaseAttack(){if(!charging)return;charging=false;chargeSpikeReleaseAt=performance.now();const held=performance.now()-chargeStart;chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='';attack(held>=650?3:1)}
+attackButton.addEventListener('pointerup',releaseAttack);attackButton.addEventListener('pointercancel',()=>{charging=false;chargeSpikeReleaseAt=performance.now();chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='' });
 function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  dashChain=now<dashChainUntil?Math.min(2,dashChain+1):1;dashChainUntil=now+850;
  dashCharges--;dashRechargeAt.push(now+2400);lastDash=now;
@@ -1424,7 +1425,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
   for(const spike of cellSpikes)spike.userData.casingRegrow=false;
   for(const spike of biggest){spike.userData.casingRegrow=true;spike.userData.cellSpike.regrowStart=t+390;}
   casingSpikeRegrowAt=t;
-  casingDebug.textContent='V59 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
+  casingDebug.textContent='V60 '+casingEffectMode+' | ejections='+casingDebugCount+' | ranged='+equippedCellMesh.userData.cellRangedAmount;
  }
  cellWasExtended=extended;
  for(const casing of cellCasings){
@@ -1474,10 +1475,16 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    const delay=.06+.24*(.5+.5*Math.sin(sp.phase*2.3));
    const separated=THREE.MathUtils.smoothstep(assembly,delay,.92);
    const floatAmount=sp.swarmFloat||0;
-   const extension=separated*(1.65+.55*Math.sin(sp.phase))+floatAmount*(.65+.55*Math.sin(t*.0015+sp.phase));
-   o.position.set(base.x+dir.x*extension+Math.sin(sp.phase*2.7)*separated*.7+Math.sin(t*.001+sp.phase)*floatAmount*.35,base.y+dir.y*extension+Math.cos(sp.phase*1.9)*separated*.6+Math.cos(t*.0013+sp.phase)*floatAmount*.35,base.z+dir.z*extension+Math.cos(sp.phase*2.7)*separated*.7+Math.sin(t*.0011+sp.phase*2)*floatAmount*.35);
+   const chargeAge=charging?Math.max(0,t-chargeSpikeLatchAt):Math.max(0,chargeSpikeReleaseAt-chargeSpikeLatchAt);
+   const chargeLatch=charging||t-chargeSpikeReleaseAt<300;
+   const latchPhase=chargeLatch?Math.min(1,chargeAge/190):0;
+   const sinkPhase=chargeLatch?THREE.MathUtils.smoothstep(chargeAge,180,1000):0;
+   const chargeRetract=chargeLatch?(1-Math.min(1,Math.max(0,t-chargeSpikeReleaseAt)/300)):0;
+   const spikeLatch=chargeRetract*(latchPhase*.5+sinkPhase*.5);
+   const extension=separated*(1.65+.55*Math.sin(sp.phase))*(1-spikeLatch*.94)+floatAmount*(.65+.55*Math.sin(t*.0015+sp.phase))*(1-spikeLatch*.8);
+   o.position.set(base.x+dir.x*(extension-spikeLatch*.32)+Math.sin(sp.phase*2.7)*separated*.7*(1-spikeLatch)+Math.sin(t*.001+sp.phase)*floatAmount*.35,base.y+dir.y*(extension-spikeLatch*.32)+Math.cos(sp.phase*1.9)*separated*.6*(1-spikeLatch)+Math.cos(t*.0013+sp.phase)*floatAmount*.35,base.z+dir.z*(extension-spikeLatch*.32)+Math.cos(sp.phase*2.7)*separated*.7*(1-spikeLatch)+Math.sin(t*.0011+sp.phase*2)*floatAmount*.35);
    const regrow=sp.regrowStart?(t<sp.regrowStart?0:Math.pow(Math.min(1,Math.max(0,(t-sp.regrowStart)/300)),2)):1;
-   o.scale.set(1+separated*.06,(1+separated*.08)*regrow,1+separated*.06);
+   o.scale.set(1+separated*.06,(1+separated*.08)*regrow*(1-spikeLatch*.72),1+separated*.06);
    if(sp.regrowStart&&t-sp.regrowStart>320){sp.regrowStart=0;o.userData.casingRegrow=false;}
    cellTmpDir.set(dir.x,dir.y,dir.z);
    o.quaternion.setFromUnitVectors(player.up,cellTmpDir);
@@ -1598,4 +1605,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=59"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=60"></script></body></html>
