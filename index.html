@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V65 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V66 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1191,11 +1191,29 @@ function updateSpecial(t,dt){if(done)return;
  if(d<1.8&&t-u.last>1450&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(1.25,t)}
  }else if(u.type==='pursuer'){
  // A shadow-loving inchworm: low 30cm crawl, periodically rises to its full silhouette.
- const shadowAt=(x,z)=>blackVessel.visible&&Math.abs(x-blackVessel.position.x)<1150&&Math.abs(z)<440||walls.some(w=>Math.abs(x-w.x)<w.w*.5+9&&Math.abs(z-w.z)<w.d*.5+9);
+ // Shadow network: detect across the entire connected component of building / vessel shadows.
+ // Keep the check planar and cheap for mobile; only overlap of actual shadow footprints links them.
+ const shadowZones=walls.map(w=>({x:w.x,z:w.z,rx:w.w*.5+9,rz:w.d*.5+9}));
+ if(blackVessel.visible)shadowZones.push({x:blackVessel.position.x,z:0,rx:1150,rz:440});
+ const inZone=(p,z)=>Math.abs(p.x-z.x)<=z.rx&&Math.abs(p.z-z.z)<=z.rz;
+ const stalkerZone=shadowZones.findIndex(z=>inZone(g.position,z));
+ const playerZone=shadowZones.findIndex(z=>inZone(player.position,z));
+ let connectedShadow=false;
+ if(stalkerZone>=0&&playerZone>=0){
+  const visited=new Set([stalkerZone]),queue=[stalkerZone];
+  for(let qi=0;qi<queue.length&&!connectedShadow;qi++){
+   const zone=shadowZones[queue[qi]];
+   if(inZone(player.position,zone)){connectedShadow=true;break}
+   for(let j=0;j<shadowZones.length;j++){
+    if(visited.has(j))continue;
+    const other=shadowZones[j];
+    if(Math.abs(zone.x-other.x)<=zone.rx+other.rx&&Math.abs(zone.z-other.z)<=zone.rz+other.rz){visited.add(j);queue.push(j)}
+   }
+  }
+ }
+ const shade=stalkerZone>=0;
  const shipShadow=blackVessel.visible&&Math.abs(g.position.x-blackVessel.position.x)<1150&&Math.abs(g.position.z)<440;
- const shade=shadowAt(g.position.x,g.position.z);
- const playerInShade=shadowAt(player.position.x,player.position.z);
- if(d<4||(shade&&playerInShade&&d<40))u.alert=true;
+ if(d<4||connectedShadow)u.alert=true;
  // Once provoked or spotted, the stalker remembers the player permanently until killed.
  if(u.alert)u.aggroUntil=Infinity;
  // Viscous inchworm: upright body collapses into a spreading puddle,
@@ -1621,4 +1639,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=65"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=66"></script></body></html>
