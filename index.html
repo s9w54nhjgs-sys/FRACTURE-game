@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V62 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V63 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1196,6 +1196,7 @@ function updateSpecial(t,dt){if(done)return;
  const shade=shadowAt(g.position.x,g.position.z);
  const playerInShade=shadowAt(player.position.x,player.position.z);
  if(d<4||(shade&&playerInShade&&d<40))u.alert=true;
+ if(u.alert)u.aggroUntil=t+16000;
  // Viscous inchworm: upright body collapses into a spreading puddle,
  // travels as oil, then reforms into an elongated column.
  const phase=(t*.00076+u.seed/6.28)%1;
@@ -1211,7 +1212,7 @@ function updateSpecial(t,dt){if(done)return;
  u.body.rotation.z=Math.sin(t*.0038+u.seed)*(.08+liquid*.13);
  u.body.material.opacity=.94+.04*Math.sin(t*.007+u.seed);
  u.body.material.roughness=.045+.05*Math.abs(Math.sin(t*.003+u.seed));
- const speed=6.2-2/3.6;
+ const speed=u.alert?5.8:4.4;
  let tx=player.position.x,tz=player.position.z;
  if(!u.alert){if(shipShadow){tx=blackVessel.position.x;tz=Math.max(12,g.position.z)}
  else if(!shade){const w=walls.reduce((a,b)=>Math.hypot(g.position.x-a.x,g.position.z-a.z)<Math.hypot(g.position.x-b.x,g.position.z-b.z)?a:b);tx=w.x;tz=Math.max(12,w.z)}
@@ -1220,13 +1221,14 @@ function updateSpecial(t,dt){if(done)return;
  let repelX=0,repelZ=0;
  for(const other of specialEnemies){if(other===u||other.type!=='pursuer')continue;
  const sx=g.position.x-other.g.position.x,sz=g.position.z-other.g.position.z,sd=Math.hypot(sx,sz);
- if(sd>0.01&&sd<80){const strength=(80-sd)/80;repelX+=sx/sd*strength*95;repelZ+=sz/sd*strength*95}
+ if(sd>0.01&&sd<9){const strength=(9-sd)/9;repelX+=sx/sd*strength*2.4;repelZ+=sz/sd*strength*2.4}
  }
  tx+=repelX;tz+=repelZ;
  const ax=tx-g.position.x,az=tz-g.position.z,ad=Math.hypot(ax,az)||1;
- const crawl=.08+liquid*1.55;const inch=.65+.35*Math.abs(Math.sin(t*.013+u.seed));
+ const crawl=u.alert?.65+liquid*.85:.08+liquid*1.55;const inch=.65+.35*Math.abs(Math.sin(t*.013+u.seed));
  if(ad>1.3){const step=speed*crawl*inch*dt,nx=g.position.x+ax/ad*step,nz=g.position.z+az/ad*step;
  if(!collides(nx,nz)){g.position.x=nx;g.position.z=nz}
+ else if(u.alert){if(!collides(nx,g.position.z))g.position.x=nx;if(!collides(g.position.x,nz))g.position.z=nz}
  else if(liquid>.55){ // Oil seeps sideways around the nearest wall while flattened.
   const leftX=-az/ad,leftZ=ax/ad,rightX=-leftX,rightZ=-leftZ;
   const lx=g.position.x+leftX*step,lz=g.position.z+leftZ*step;
@@ -1618,4 +1620,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=62"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=63"></script></body></html>
