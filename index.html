@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V67 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V68 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -97,12 +97,14 @@ for(const [mesh,count] of [[bronzeFlecks,580],[bronzeFlecksDark,260]]){
  mesh.instanceMatrix.needsUpdate=true;scene.add(mesh)
 }
 // No prototype grid: the metal panel seams now provide the ground's structure.
-const walls=[];function block(x,z,w,h,d,color=0x273f4a){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),(color===0x273f4a?concreteMat:darkConcrete));m.position.set(x,h/2,z);scene.add(m);walls.push({x,z,w,d});return m}
+const walls=[];const solidStructures=[];
+function registerSolid(x,z,w,d){if(w>1&&d>1)solidStructures.push({x,z,w,d})}
+function block(x,z,w,h,d,color=0x273f4a){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),(color===0x273f4a?concreteMat:darkConcrete));m.position.set(x,h/2,z);scene.add(m);walls.push({x,z,w,d});registerSolid(x,z,w,d);return m}
 for(const [x,z,w,h,d] of [[-38,31,9,11,10],[51,14,12,17,10],[-55,-54,14,24,12]])block(x,z,w,h,d)
 // PROTOCOL: layered brutalist architecture, all procedural and mobile-conscious
 const architecture=new THREE.Group();scene.add(architecture);
-function slab(x,y,z,w,h,d,mat=concreteMat){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);architecture.add(m);return m}
-function monument(x,z,s,rot=0){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;architecture.add(g);const add=(w,h,d,px,py,pz,mat=concreteMat)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(px,py,pz);g.add(m)};add(3*s,17*s,3*s,-6*s,8.5*s,0);add(3*s,17*s,3*s,6*s,8.5*s,0);add(16*s,2.6*s,5*s,0,16*s,0);add(10*s,1.2*s,7*s,0,13.2*s,0,darkConcrete);add(2*s,6*s,2*s,0,19*s,0);add(18*s,.6*s,9*s,0,.3*s,0,darkConcrete)}
+function slab(x,y,z,w,h,d,mat=concreteMat){const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(x,y,z);architecture.add(m);if(y-h/2<1.5&&h>2)registerSolid(x,z,w,d);return m}
+function monument(x,z,s,rot=0){const g=new THREE.Group();g.position.set(x,0,z);g.rotation.y=rot;architecture.add(g);const add=(w,h,d,px,py,pz,mat=concreteMat)=>{const m=new THREE.Mesh(new THREE.BoxGeometry(w,h,d),mat);m.position.set(px,py,pz);g.add(m);if(py-h/2<1.5&&h>2){const wx=x+Math.cos(rot)*px+Math.sin(rot)*pz,wz=z-Math.sin(rot)*px+Math.cos(rot)*pz;registerSolid(wx,wz,w+Math.abs(Math.sin(rot))*d,d+Math.abs(Math.sin(rot))*w)}};add(3*s,17*s,3*s,-6*s,8.5*s,0);add(3*s,17*s,3*s,6*s,8.5*s,0);add(16*s,2.6*s,5*s,0,16*s,0);add(10*s,1.2*s,7*s,0,13.2*s,0,darkConcrete);add(2*s,6*s,2*s,0,19*s,0);add(18*s,.6*s,9*s,0,.3*s,0,darkConcrete)}
 monument(-77,56,3.4,.3);
 function distantTower(x,z,h,w){slab(x,h/2,z,w,h,w*.75,darkConcrete);slab(x,h+1.1,z,w*1.4,2.2,w*1.05,concreteMat);slab(x,h*.7,z+w*.4,w*.35,h*.5,w*.3,concreteMat)}
 for(const [x,z,h,w] of [[-112,-92,122,17],[108,73,142,20],[-95,111,106,16]])distantTower(x,z,h,w)
@@ -114,6 +116,7 @@ const expansionShadow=new THREE.MeshStandardMaterial({color:0x202b33,metalness:.
 const expansionGeo=new THREE.BoxGeometry(1,1,1),expansionPieces=[];
 function expansionPart(x,y,z,w,h,d,mat){expansionPieces.push({x,y,z,w,h,d,mat})}
 function expansionFacility(x,z,w,h,d){
+ registerSolid(x,z,w,d);
  expansionPart(x,h/2,z,w,h,d,expansionConcrete);
  expansionPart(x,h*.77,z+d*.505,w*.87,h*.36,.55,expansionSteel);
  expansionPart(x,h+.65,z,w*1.14,1.3,d*1.13,expansionSteel);
@@ -148,7 +151,7 @@ const titanSteel=new THREE.MeshStandardMaterial({color:0x293740,metalness:.82,ro
 const titanBronze=new THREE.MeshStandardMaterial({color:0x785a41,metalness:.9,roughness:.36});
 const titanBlack=new THREE.MeshStandardMaterial({color:0x0e1921,roughness:.9});
 const titanPieces=[];
-function titanBox(x,y,z,w,h,d,mat){titanPieces.push([x,y,z,w,h,d,mat])}
+function titanBox(x,y,z,w,h,d,mat){titanPieces.push([x,y,z,w,h,d,mat]);if(y-h/2<1.5&&h>3)registerSolid(x,z,w,d)}
 for(const side of [-1,1]){
  const x=side*274;
  // Continuous boarding terminal: three gigantic open bays per side.
@@ -1291,8 +1294,8 @@ function updateSpecial(t,dt){if(done)return;
  const ax=tx-g.position.x,az=tz-g.position.z,ad=Math.hypot(ax,az)||1;
  const crawl=u.alert?.65+liquid*.85:.08+liquid*1.55;const inch=.65+.35*Math.abs(Math.sin(t*.013+u.seed));
  if(ad>1.3){const step=speed*crawl*inch*dt,nx=g.position.x+ax/ad*step,nz=g.position.z+az/ad*step;
- if(!collides(nx,nz)){g.position.x=nx;g.position.z=nz}
- else if(u.alert){if(!collides(nx,g.position.z))g.position.x=nx;if(!collides(g.position.x,nz))g.position.z=nz}
+ if(collisionSafeMove(g.position.x,g.position.z,nx,nz)){g.position.x=nx;g.position.z=nz}
+ else if(u.alert){if(collisionSafeMove(g.position.x,g.position.z,nx,g.position.z))g.position.x=nx;if(collisionSafeMove(g.position.x,g.position.z,g.position.x,nz))g.position.z=nz}
  else if(liquid>.55){ // Oil seeps sideways around the nearest wall while flattened.
   const leftX=-az/ad,leftZ=ax/ad,rightX=-leftX,rightZ=-leftZ;
   const lx=g.position.x+leftX*step,lz=g.position.z+leftZ*step;
@@ -1416,7 +1419,8 @@ function jumpNow(){if(done||jumpCount>=2)return;
 }
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpNow()});
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpNow()}});
-function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;return walls.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
+function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;return solidStructures.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
+function collisionSafeMove(x1,z1,x2,z2){const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.7));for(let k=1;k<=n;k++){const f=k/n;if(collides(x1+(x2-x1)*f,z1+(z2-z1)*f))return false}return true}
 function update(t){requestAnimationFrame(update);
  for(const puff of dashBodySmoke){
  if(!puff.mesh.visible)continue;
@@ -1630,7 +1634,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  }
  iaiLastHit=iaiUntil;
 }
-if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){if(t<dashBurstUntil&&Math.random()<dt*13&&sparks.length<240)impact(player.position.x,player.position.y,player.position.z);const dashSpeed=t<dashChargeBoostUntil?38:(dashChain===2?34:25);const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(!collides(player.position.x+dx,player.position.z))player.position.x+=dx;if(!collides(player.position.x,player.position.z+dz))player.position.z+=dz}
+if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){if(t<dashBurstUntil&&Math.random()<dt*13&&sparks.length<240)impact(player.position.x,player.position.y,player.position.z);const dashSpeed=t<dashChargeBoostUntil?38:(dashChain===2?34:25);const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(collisionSafeMove(player.position.x,player.position.z,player.position.x+dx,player.position.z))player.position.x+=dx;if(collisionSafeMove(player.position.x,player.position.z,player.position.x,player.position.z+dz))player.position.z+=dz}
  if(jumpCount>0){jumpVelocity-=22*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0){if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
  player.position.y=1.35+jumpHeight+Math.sin(t*.0025)*.08;
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
@@ -1684,4 +1688,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=67"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=68"></script></body></html>
