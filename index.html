@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V72 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V73 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1358,7 +1358,7 @@ function updateSpecial(t,dt){if(done)return;
  if(t-watcherKillAt>900){hp=0;$('hp').textContent='0';finish(false);$('resultText').textContent='三つの眼に見つめ返された。';watcherMode='finished'}
  }
 }
-function applySpecialDamage(amount,t){if(done||climbTween||climbFloor+jumpHeight>2.5)return;let damage=amount;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=Math.min(2.2,.55+amount/23);drawDamageGlass(amount>=20,damage<=0);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}
+function applySpecialDamage(amount,t){if(done||climbFloor+jumpHeight>2.5)return;let damage=amount;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=Math.min(2.2,.55+amount/23);drawDamageGlass(amount>=20,damage<=0);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}
 let glassUntil=-10000,glassDuration=850;const damageGlass=document.getElementById('damageGlass'),glassCtx=damageGlass.getContext('2d');function drawDamageGlass(heavy,shielded){if(!shielded)screenBlood=Math.min(1,screenBlood+.22);updateShieldCracks();triggerShieldFracture(!shielded,heavy?1.5:1);const w=window.innerWidth,h=window.innerHeight,dpr=Math.min(2,window.devicePixelRatio||1);damageGlass.width=Math.round(w*dpr);damageGlass.height=Math.round(h*dpr);glassCtx.setTransform(dpr,0,0,dpr,0,0);glassCtx.clearRect(0,0,w,h);const ctx=glassCtx,reach=Math.min(w,h)*(heavy?.49:.38);for(let side=0;side<4;side++){const len=side%2===0?w:h,segments=heavy?12:10;for(let i=0;i<segments;i++){const p0=i/segments*len,p1=(i+1)/segments*len,mid=(p0+p1)/2+(Math.random()-.5)*len/segments*.5,depth=reach*(.45+Math.random()*.6),tip=depth*(.68+Math.random()*.3);const xy=(along,inset)=>side===0?[along,inset]:side===1?[w-inset,along]:side===2?[along,h-inset]:[inset,along];const A=xy(p0,0),B=xy(p1,0),C=xy(mid,depth),D=xy(mid+(Math.random()-.5)*len/segments,tip*.36);for(const points of [[A,D,C],[D,B,C]]){ctx.beginPath();points.forEach((pt,j)=>j?ctx.lineTo(pt[0],pt[1]):ctx.moveTo(pt[0],pt[1]));ctx.closePath();const g=ctx.createLinearGradient(points[0][0],points[0][1],points[2][0],points[2][1]);g.addColorStop(0,'rgba(195,207,213,'+(.36+Math.random()*.18)+')');g.addColorStop(.5,'rgba(115,128,137,.17)');g.addColorStop(1,'rgba(225,233,237,.025)');ctx.fillStyle=g;ctx.fill();if(!shielded){ctx.fillStyle='rgba(113,8,25,.19)';ctx.fill();}ctx.strokeStyle=shielded?'rgba(157,241,255,.72)':'rgba(144,15,30,.83)';ctx.lineWidth=1.7;ctx.stroke();ctx.beginPath();ctx.moveTo(points[0][0]+2,points[0][1]+2);ctx.lineTo(points[2][0]+2,points[2][1]+2);ctx.strokeStyle='rgba(12,22,30,.48)';ctx.lineWidth=2.5;ctx.stroke()}ctx.beginPath();ctx.moveTo(C[0],C[1]);const split=xy(mid+(Math.random()-.5)*len/segments*.8,depth+Math.random()*reach*.17);ctx.lineTo(split[0],split[1]);ctx.strokeStyle=shielded?'rgba(180,245,255,.6)':'rgba(190,25,44,.78)';ctx.lineWidth=1.3;ctx.stroke()}}}let hitReactionAt=-10000,hitReactionPower=0;let chargeStart=0,charging=false,chargeLevel=0,attackPower=1;let iaiUntil=0,iaiX=0,iaiZ=0,iaiLastHit=0,iaiPower=1;let hp=100,shield=50,loot=0,kills=0,yaw=0,pitch=.02,last=performance.now(),lastHit=0,lastAttack=0,lastDash=0,dashUntil=0,dashCharges=2,dashRechargeAt=[],dashChain=0,dashChainUntil=0,dashBurstUntil=0,done=false,noticeTimer,hitStopUntil=0,lungeUntil=0,lungeX=0,lungeZ=0,cameraReady=false,cameraFrameTime=performance.now();
 const $=id=>document.getElementById(id);function notify(t){$('notice').textContent=t;$('notice').classList.add('show');clearTimeout(noticeTimer);noticeTimer=setTimeout(()=>$('notice').classList.remove('show'),2600)}
 const input={x:0,y:0};let autoRun=false;const joy=$('joy'),knob=$('knob');$('autoRun').addEventListener('click',()=>{autoRun=!autoRun;$('autoRun').classList.toggle('active',autoRun)});let joyId=null;
@@ -1421,22 +1421,14 @@ for(let i=0;i<12;i++){
  const edge=new THREE.Mesh(new THREE.BoxGeometry(7.1,.12,7.1),climbEdge);edge.position.set(x,h-.04,z);scene.add(edge);
  climbDecks.push({x,z,h,w:7,d:7});
 }
-let climbFloor=0,climbTween=null;
-function climbDeckUnder(x,z,atHeight){
+let climbFloor=0,climbPrevFeet=0;
+function climbDeckUnder(x,z,feet){
  let best=0;
- for(const p of climbDecks)if(Math.abs(x-p.x)<p.w/2-.2&&Math.abs(z-p.z)<p.d/2-.2&&p.h<=atHeight+.25&&p.h>best)best=p.h;
+ for(const p of climbDecks)if(Math.abs(x-p.x)<p.w/2-.2&&Math.abs(z-p.z)<p.d/2-.2&&p.h<=feet+.08&&p.h>best)best=p.h;
  return best;
 }
-function tryClimb(){
- if(climbTween)return true;
- const feet=climbFloor+jumpHeight;
- const options=climbDecks.filter(p=>p.h>feet+.6&&p.h<=feet+3.25&&Math.abs(player.position.x-p.x)<p.w/2+1.35&&Math.abs(player.position.z-p.z)<p.d/2+1.35).sort((a,b)=>a.h-b.h);
- if(!options.length)return false;
- const p=options[0];climbTween={start:performance.now(),from:feet,to:p.h,x:player.position.x,z:player.position.z,tx:THREE.MathUtils.clamp(player.position.x,p.x-p.w/2+1,p.x+p.w/2-1),tz:THREE.MathUtils.clamp(player.position.z,p.z-p.d/2+1,p.z+p.d/2-1)};
- jumpCount=0;jumpVelocity=0;jumpHeight=0;return true;
-}
 let moveVX=0,moveVZ=0,landedJumpCount=0;let jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
-function jumpNow(){if(done||jumpCount>=2)return;if(tryClimb())return;
+function jumpNow(){if(done||jumpCount>=2)return;
  const neutral=Math.hypot(input.x+(keys.d?1:0)-(keys.a?1:0),input.y+(keys.s?1:0)-(keys.w?1:0))<.1&&!autoRun;
  if(jumpCount===1){if(neutral){moveVX=0;moveVZ=0}else{const mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0),m=Math.max(1,Math.hypot(mx,my));moveVX=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/m*6.2;moveVZ=(-Math.sin(yaw)*mx+Math.cos(yaw)*my)/m*6.2}}
  jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
@@ -1676,26 +1668,19 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  iaiLastHit=iaiUntil;
 }
 if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){if(t<dashBurstUntil&&Math.random()<dt*13&&sparks.length<240)impact(player.position.x,player.position.y,player.position.z);const dashSpeed=t<dashChargeBoostUntil?38:(dashChain===2?34:25);const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(collisionSafeMove(player.position.x,player.position.z,player.position.x+dx,player.position.z))player.position.x+=dx;if(collisionSafeMove(player.position.x,player.position.z,player.position.x,player.position.z+dz))player.position.z+=dz}
- if(jumpCount>0&&!climbTween){jumpVelocity-=22*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0){if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
- // Ground and platforms share a single stable floor solver.
- if(climbTween){
-  const p=Math.min(1,(t-climbTween.start)/520),ease=p*p*(3-2*p);
-  player.position.x=THREE.MathUtils.lerp(climbTween.x,climbTween.tx,ease);
-  player.position.z=THREE.MathUtils.lerp(climbTween.z,climbTween.tz,ease);
-  climbFloor=THREE.MathUtils.lerp(climbTween.from,climbTween.to,ease);
-  jumpHeight=0;jumpVelocity=0;jumpCount=0;
-  if(p>=1){climbFloor=climbTween.to;climbTween=null}
- }else{
-  const deck=climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight);
-  const feet=climbFloor+jumpHeight;
-  if(jumpCount===0){
-   if(deck<climbFloor-.15){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor-deck}
-   else climbFloor=deck;
-  }else if(jumpVelocity<=0&&feet<=deck+.12){
-   climbFloor=deck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
-  }
-  if(jumpCount===0&&climbFloor<.01){climbFloor=0;jumpHeight=0}
+ if(jumpCount>0){jumpVelocity-=22*dt;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0&&climbFloor===0){if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
+ // No auto-mantle: ordinary jump, double jump and descending platform landings only.
+ const feet=climbFloor+jumpHeight;
+ const deck=climbDeckUnder(player.position.x,player.position.z,feet);
+ if(jumpCount===0){
+  if(deck<climbFloor-.15){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor-deck}
+  else climbFloor=deck;
+ }else if(jumpVelocity<=0&&deck>climbFloor+.08&&climbPrevFeet>=deck-.12&&feet<=deck+.12){
+  climbFloor=deck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
+ }else if(jumpVelocity<=0&&feet<=climbFloor){
+  climbFloor=deck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }
+ climbPrevFeet=climbFloor+jumpHeight;
  player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*.08;
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
  previousYaw=yaw;
@@ -1748,4 +1733,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=72"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=73"></script></body></html>
