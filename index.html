@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V78 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V79 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1421,10 +1421,28 @@ for(let i=0;i<12;i++){
  const edge=new THREE.Mesh(new THREE.BoxGeometry(7.1,.12,7.1),climbEdge);edge.position.set(x,h-.04,z);scene.add(edge);
  climbDecks.push({x,z,h,w:7,d:7});
 }
+// V79: walkable sloped steel bridges between the existing rooftop decks.
+const climbRamps=[];
+for(let i=0;i<11;i++){
+ const a=climbDecks[i],b=climbDecks[i+1],dx=b.x-a.x,dz=b.z-a.z;
+ const len=Math.hypot(dx,dz)+3.5,midX=(a.x+b.x)/2,midZ=(a.z+b.z)/2;
+ const bridge=new THREE.Mesh(new THREE.BoxGeometry(3.1,.24,len),climbSteel);
+ bridge.position.set(midX,(a.h+b.h)/2-.12,midZ);
+ bridge.rotation.y=Math.atan2(dx,dz);bridge.rotation.x=-Math.atan2(b.h-a.h,Math.hypot(dx,dz));
+ scene.add(bridge);
+ climbRamps.push({ax:a.x,az:a.z,ah:a.h,bx:b.x,bz:b.z,bh:b.h,width:2.15});
+}
 let climbFloor=0,climbPrevFeet=0;
 function climbDeckUnder(x,z,feet){
  let best=0;
  for(const p of climbDecks)if(Math.abs(x-p.x)<p.w/2-.2&&Math.abs(z-p.z)<p.d/2-.2&&p.h<=feet+.08&&p.h>best)best=p.h;
+ for(const p of climbRamps){
+  const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz;
+  const u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/l2));
+  const dist=Math.hypot(x-(p.ax+dx*u),z-(p.az+dz*u));
+  const h=p.ah+(p.bh-p.ah)*u;
+  if(dist<p.width&&h<=feet+.35&&h>best)best=h;
+ }
  return best;
 }
 let moveVX=0,moveVZ=0,landedJumpCount=0;let jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
@@ -1672,7 +1690,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  // V78: on leaving a raised deck, convert platform elevation to airborne height
  // before integrating gravity. This preserves world-space height across the edge.
  if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.15){jumpHeight+=climbFloor;climbFloor=0;}
- const highFall=jumpVelocity<0&&(climbFloor+jumpHeight)>5;const gravity=highFall?14:22;jumpVelocity=Math.max(highFall?-14:-24,jumpVelocity-gravity*dt);jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0&&climbFloor===0){if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
+ const highFall=jumpVelocity<0&&(climbFloor+jumpHeight)>5;const gravity=highFall?14:25;jumpVelocity=Math.max(highFall?-14:-34,jumpVelocity-gravity*dt);jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0&&climbFloor===0){if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
  // No auto-mantle: ordinary jump, double jump and descending platform landings only.
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
@@ -1738,4 +1756,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=78"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=79"></script></body></html>
