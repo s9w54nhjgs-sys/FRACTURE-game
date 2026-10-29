@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V91 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V92 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1422,7 +1422,7 @@ function addClimbDeck(x,z,h,w=11,d=11){
 }
 function addClimbRamp(a,b,width=5.2){
  const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)+3.5;
- const bridge=new THREE.Mesh(new THREE.BoxGeometry(width*1.7,.24,len),climbSteel);
+ const bridge=new THREE.Mesh(new THREE.BoxGeometry(width*1.9,.24,len),climbSteel);
  bridge.position.set((a.x+b.x)/2,(a.h+b.h)/2-.12,(a.z+b.z)/2);
  bridge.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(dx,b.h-a.h,dz).normalize());
  scene.add(bridge);
@@ -1437,15 +1437,15 @@ addClimbRamp(first,top,7.2);
 {
  const dx=top.x-first.x,dz=top.z-first.z,dh=top.h-first.h;
  const length=Math.hypot(dx,dz,dh);
- const ruin=new THREE.Mesh(new THREE.BoxGeometry(16,7,length),new THREE.MeshStandardMaterial({color:0x34434c,metalness:.58,roughness:.68}));
- ruin.position.set((first.x+top.x)/2,(first.h+top.h)/2-3.5,(first.z+top.z)/2);
+ const ruin=new THREE.Mesh(new THREE.BoxGeometry(16,3,length),new THREE.MeshStandardMaterial({color:0x34434c,metalness:.58,roughness:.68}));
+ ruin.position.set((first.x+top.x)/2,(first.h+top.h)/2-3.0,(first.z+top.z)/2);
  ruin.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(dx,dh,dz).normalize());
  scene.add(ruin);
  const panels=new THREE.InstancedMesh(new THREE.BoxGeometry(1.8,.09,2.7),new THREE.MeshStandardMaterial({color:0x52626b,metalness:.8,roughness:.42}),28);
  const dummy=new THREE.Object3D();
  for(let i=0;i<28;i++){
   const u=(i+.5)/28;
-  dummy.position.set(first.x+dx*u,dh*u+.15,first.z+dz*u);
+  dummy.position.set(first.x+dx*u,dh*u-.17,first.z+dz*u);
   dummy.quaternion.copy(ruin.quaternion);
   dummy.scale.set(i%5===0?1.5:1,1,1);dummy.updateMatrix();panels.setMatrixAt(i,dummy.matrix);
  }
@@ -1462,8 +1462,13 @@ const roofDistrict=[
 ];
 for(const p of roofDistrict)addClimbDeck(p.x,p.z,roofH,p.w,p.d);
 // Narrower bridges between roof blocks preserve the sensation of moving across buildings.
+// V92: roofs form a single broad explorable district, not skinny skywalks.
 const roofSequence=[climbDecks[0],...climbDecks.slice(1)];
-for(let i=0;i<roofSequence.length-1;i++)addClimbRamp(roofSequence[i],roofSequence[i+1],3.5);
+for(let i=0;i<roofSequence.length-1;i++)addClimbRamp(roofSequence[i],roofSequence[i+1],7.2);
+for(const p of roofDistrict){
+ const tower=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,roofH,p.d-1),new THREE.MeshStandardMaterial({color:0x37444c,metalness:.45,roughness:.82}));
+ tower.position.set(p.x,roofH/2-.4,p.z);scene.add(tower);
+}
 const roofDark=new THREE.MeshStandardMaterial({color:0x17252c,metalness:.85,roughness:.3});
 const roofGlow=new THREE.MeshBasicMaterial({color:0x40b4c8});
 const roofStone=new THREE.MeshStandardMaterial({color:0x38424b,metalness:.55,roughness:.66});
@@ -1518,13 +1523,15 @@ function resolveFallDamage(ground,t){
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
 function climbDeckUnder(x,z,feet){
  let best=0;
- for(const p of climbDecks)if(Math.abs(x-p.x)<p.w/2+.05&&Math.abs(z-p.z)<p.d/2+.05&&p.h<=feet+.7&&p.h>best)best=p.h;
+ for(const p of climbDecks){
+  if(Math.abs(x-p.x)<=p.w/2&&Math.abs(z-p.z)<=p.d/2&&p.h<=feet+.8&&p.h>best)best=p.h;
+ }
  for(const p of climbRamps){
   const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz;
   const u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/l2));
   const dist=Math.hypot(x-(p.ax+dx*u),z-(p.az+dz*u));
   const h=p.ah+(p.bh-p.ah)*u;
-  if(dist<p.width&&h<=feet+1.1&&h>best)best=h;
+  if(dist<=p.width&&h<=feet+1.15&&h>best)best=h;
  }
  return best;
 }
@@ -1802,8 +1809,8 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  if(jumpCount===0){
   if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
-  else if(deck>climbFloor+.001&&deck-climbFloor<.55)climbFloor=deck;
-  else if(deck>=climbFloor-.15)climbFloor=deck;
+  else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
+  else if(deck>=climbFloor-.85)climbFloor=deck;
  }else if(jumpVelocity<=0&&deck>climbFloor+.08&&climbPrevFeet>=deck-.12&&feet<=deck+.12){
   resolveFallDamage(deck,t);climbFloor=deck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }else if(jumpVelocity<=0&&feet<=climbFloor+.01){
@@ -1863,4 +1870,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=91"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=92"></script></body></html>
