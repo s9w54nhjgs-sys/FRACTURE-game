@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V88 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V89 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1421,6 +1421,45 @@ for(let i=0;i<12;i++){
  const edge=new THREE.Mesh(new THREE.BoxGeometry(7.1,.12,7.1),climbEdge);edge.position.set(x,h-.04,z);scene.add(edge);
  climbDecks.push({x,z,h,w:7,d:7});
 }
+// V89: rooftop archaeology — spines, torn plating and traces of an old impact.
+// Instanced meshes keep draw calls low on iPhone; all props are visual-only so traversal stays clear.
+{
+ const spikeMat=new THREE.MeshStandardMaterial({color:0x28383f,metalness:.91,roughness:.28,emissive:0x08212a,emissiveIntensity:.22});
+ const scarMat=new THREE.MeshBasicMaterial({color:0x4ab9c6,transparent:true,opacity:.67,depthWrite:false});
+ const rubbleMat=new THREE.MeshStandardMaterial({color:0x48515b,metalness:.76,roughness:.57});
+ const spikes=new THREE.InstancedMesh(new THREE.ConeGeometry(.23,1,4),spikeMat,12*9);
+ const rubble=new THREE.InstancedMesh(new THREE.BoxGeometry(1,.12,.35),rubbleMat,12*5);
+ const scars=new THREE.InstancedMesh(new THREE.BoxGeometry(1,.018,.065),scarMat,12*4);
+ const dummy=new THREE.Object3D();let si=0,ri=0,ci=0;
+ for(let i=0;i<climbDecks.length;i++){
+  const p=climbDecks[i],phase=i*2.399963;
+  // Growths cling to the perimeter; the center and bridge approaches remain walkable.
+  for(let j=0;j<9;j++){
+   const a=j*Math.PI*2/9+phase,rad=2.65+(j%3)*.16;
+   const height=.65+(j%4)*.37;
+   dummy.position.set(p.x+Math.cos(a)*rad,p.h+height*.47,p.z+Math.sin(a)*rad);
+   dummy.rotation.set(Math.sin(a)*.35,phase+j*.45,Math.cos(a)*.3);
+   dummy.scale.set(.75+(j%3)*.35,height, .75+(j%2)*.3);
+   dummy.updateMatrix();spikes.setMatrixAt(si++,dummy.matrix);
+  }
+  for(let j=0;j<5;j++){
+   const a=phase+j*1.2566,rad=2.45+(j%2)*.3;
+   dummy.position.set(p.x+Math.cos(a)*rad,p.h+.065,p.z+Math.sin(a)*rad);
+   dummy.rotation.set(0,a+.6,((i+j)%3-1)*.16);
+   dummy.scale.set(.7+j*.16,1,.8+j*.18);
+   dummy.updateMatrix();rubble.setMatrixAt(ri++,dummy.matrix);
+  }
+  // Four interrupted cyan fracture marks: evidence of a violent previous event.
+  for(let j=0;j<4;j++){
+   const a=phase+j*1.57,rad=.9+j*.28;
+   dummy.position.set(p.x+Math.cos(a)*rad,p.h+.025,p.z+Math.sin(a)*rad);
+   dummy.rotation.set(0,a+.65,0);dummy.scale.set(.75+j*.16,1,1);
+   dummy.updateMatrix();scars.setMatrixAt(ci++,dummy.matrix);
+  }
+ }
+ spikes.instanceMatrix.needsUpdate=true;rubble.instanceMatrix.needsUpdate=true;scars.instanceMatrix.needsUpdate=true;
+ scene.add(spikes,rubble,scars);
+}
 // V79: walkable sloped steel bridges between the existing rooftop decks.
 const climbRamps=[];
 for(let i=0;i<11;i++){
@@ -1804,4 +1843,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=88"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=89"></script></body></html>
