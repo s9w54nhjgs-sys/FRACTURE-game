@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V85 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V86 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1432,6 +1432,15 @@ for(let i=0;i<11;i++){
  scene.add(bridge);
  climbRamps.push({ax:a.x,az:a.z,ah:a.h,bx:b.x,bz:b.z,bh:b.h,width:2.15});
 }
+// V86: ground-level approach ramp to the first raised deck.
+{
+ const b=climbDecks[0],a={x:b.x-7,z:b.z+7,h:0};
+ const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz)+3;
+ const m=new THREE.Mesh(new THREE.BoxGeometry(3.5,.24,len),climbSteel);
+ m.position.set((a.x+b.x)/2,(a.h+b.h)/2-.12,(a.z+b.z)/2);
+ m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(dx,b.h-a.h,dz).normalize());
+ scene.add(m);climbRamps.push({ax:a.x,az:a.z,ah:0,bx:b.x,bz:b.z,bh:b.h,width:1.75});
+}
 let climbFloor=0,climbPrevFeet=0;let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
 function climbDeckUnder(x,z,feet){
  let best=0;
@@ -1441,7 +1450,7 @@ function climbDeckUnder(x,z,feet){
   const u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/l2));
   const dist=Math.hypot(x-(p.ax+dx*u),z-(p.az+dz*u));
   const h=p.ah+(p.bh-p.ah)*u;
-  if(dist<p.width&&h<=feet+.35&&h>best)best=h;
+  if(dist<p.width&&h<=feet+.6&&h>best)best=h;
  }
  return best;
 }
@@ -1706,8 +1715,8 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
   const speed=Math.hypot(moveVX,moveVZ),life=Math.max(0,(landingSkidUntil-t)/1900);
   if(speed<3){landingSkidUntil=0;}
   else {
-   const count=Math.min(9,Math.max(2,Math.floor(speed*.20*life)));
-   for(let k=0;k<count&&sparks.length<210;k++){
+   const count=Math.min(3,Math.max(1,Math.floor(speed*.09*life)));
+   for(let k=0;k<count&&sparks.length<90;k++){
     const side=(Math.random()-.5)*1.8,mag=speed||1;
     const sx=player.position.x+moveVZ/mag*side,sz=player.position.z-moveVX/mag*side;
     const m=new THREE.Mesh(sparkGeometry,sparkMaterial);m.position.set(sx,.14+climbFloor,sz);scene.add(m);
@@ -1780,4 +1789,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=85"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=86"></script></body></html>
