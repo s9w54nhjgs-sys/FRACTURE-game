@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V94 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V95 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1494,6 +1494,32 @@ for(const p of roofDistrict){
  const tower=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,roofH,p.d-1),new THREE.MeshStandardMaterial({color:0x37444c,metalness:.45,roughness:.82}));
  tower.position.set(p.x,roofH/2-.4,p.z);scene.add(tower);
 }
+// V95: climbable satellite buildings, each with a distinct broken facade approach.
+{
+ const satellites=[
+  {x:114,z:-53,h:24,w:17,d:18,side:1},
+  {x:107,z:-16,h:19,w:19,d:17,side:-1},
+  {x:45,z:-102,h:27,w:18,d:18,side:1},
+  {x:18,z:-73,h:16,w:17,d:19,side:-1}
+ ];
+ const wallMat=new THREE.MeshStandardMaterial({color:0x303f48,metalness:.52,roughness:.74});
+ const scarMat=new THREE.MeshStandardMaterial({color:0x141e25,metalness:.62,roughness:.48,side:THREE.DoubleSide});
+ for(const p of satellites){
+  addClimbDeck(p.x,p.z,p.h,p.w,p.d);
+  const building=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,p.h-.6,p.d-1),wallMat);
+  building.position.set(p.x,(p.h-.6)/2,p.z);scene.add(building);
+  const approach={x:p.x+p.side*(p.w/2+17),z:p.z+5,h:0};
+  addClimbRamp(approach,{x:p.x+p.side*3,z:p.z,h:p.h},4.5);
+  // Circular gouge marks a former passage of the enormous vessel.
+  // Three open crescent fragments deliberately leave the center missing.
+  const gouge=new THREE.Group();
+  for(let j=0;j<3;j++){
+   const arc=new THREE.Mesh(new THREE.TorusGeometry(5.2,.52,5,18,Math.PI*.42),scarMat);
+   arc.rotation.z=j*2.12+.2;gouge.add(arc);
+  }
+  gouge.position.set(p.x,p.h*.66,p.z+(p.d/2+.12));scene.add(gouge);
+ }
+}
 const roofDark=new THREE.MeshStandardMaterial({color:0x17252c,metalness:.85,roughness:.3});
 const roofGlow=new THREE.MeshBasicMaterial({color:0x40b4c8});
 const roofStone=new THREE.MeshStandardMaterial({color:0x38424b,metalness:.55,roughness:.66});
@@ -1895,4 +1921,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=94"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=95"></script></body></html>
