@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V117 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V118 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1993,6 +1993,72 @@ function resolveFallDamage(ground,t){
  fallPeak=ground;fallGlideUsed=false;
 }
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
+// V118: connect EXISTING rooftop collision footprints, not imagined buildings.
+// The new ruins are narrow skyway / monorail fragments with identical visual
+// and collision endpoints. Never cross an intervening taller roof or wall.
+{
+ const road=new THREE.MeshStandardMaterial({color:0x465762,metalness:.61,roughness:.73,side:THREE.DoubleSide});
+ const rail=new THREE.MeshStandardMaterial({color:0x253c49,metalness:.77,roughness:.42,side:THREE.DoubleSide});
+ const seam=new THREE.MeshBasicMaterial({color:0x69a6aa,side:THREE.DoubleSide});
+ const original=climbDecks.filter(p=>p.w>=7&&p.d>=7&&p.h>=10&&p.h<=145&&
+  Number.isFinite(p.x)&&Number.isFinite(p.z)&&Number.isFinite(p.h));
+ const edges=[];
+ function rim(p,q){
+  const dx=q.x-p.x,dz=q.z-p.z;
+  const t=Math.min((p.w/2-.65)/Math.max(.001,Math.abs(dx)),(p.d/2-.65)/Math.max(.001,Math.abs(dz)));
+  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
+ }
+ function obstructed(a,b){
+  for(const p of original){
+   if(p===a||p===b)continue;
+   // Sample the route centerline. Tall intervening roofs indicate an
+   // obstruction; do not tunnel through their vertical facades.
+   for(let k=1;k<=7;k++){
+    const u=k/8,x=a.x+(b.x-a.x)*u,z=a.z+(b.z-a.z)*u;
+    if(Math.abs(x-p.x)<p.w/2+1.2&&Math.abs(z-p.z)<p.d/2+1.2&&
+       p.h>a.h+(b.h-a.h)*u+1.8)return true;
+   }
+  }
+  return false;
+ }
+ // Deterministic nearest-neighbour links, limited to keep iPhone FPS stable.
+ const sorted=original.filter(p=>p.h>=18).sort((a,b)=>a.h-b.h);
+ const used=new Set();
+ for(const a of sorted){
+  if(edges.length>=24)break;
+  let best=null,score=1e9;
+  for(const b of original){
+   if(a===b||Math.abs(b.h-a.h)>7)continue;
+   const dist=Math.hypot(a.x-b.x,a.z-b.z);
+   if(dist<13||dist>46)continue;
+   const key=[original.indexOf(a),original.indexOf(b)].sort((x,y)=>x-y).join(':');
+   if(used.has(key)||obstructed(a,b))continue;
+   const p=rim(a,b),q=rim(b,a),span=Math.hypot(p.x-q.x,p.z-q.z);
+   if(span<4||span>36||Math.abs(p.h-q.h)/span>.5)continue;
+   const rank=span+Math.abs(p.h-q.h)*3;
+   if(rank<score){score=rank;best={b,p,q,key};}
+  }
+  if(!best)continue;
+  used.add(best.key);
+  edges.push(best);
+ }
+ for(let i=0;i<edges.length;i++){
+  const {p,q}=edges[i],w=i%3===0?6.5:5.5;
+  slopeMesh(p,q,w,.42,i%3===0?road:rail);
+  addClimbRamp(p,q,w/2,false);
+  // Sparse broken guide rails identify monorail remains without blocking
+  // the central walkable surface.
+  if(i%3!==0){
+   const dx=q.x-p.x,dz=q.z-p.z,len=Math.hypot(dx,dz);
+   const nx=-dz/len,nz=dx/len;
+   for(const side of [-1,1]){
+    const x=nx*side*(w/2-.35),z=nz*side*(w/2-.35);
+    slopeMesh({x:p.x+x,z:p.z+z,h:p.h+.12},
+              {x:q.x+x,z:q.z+z,h:q.h+.12},.16,.1,seam);
+   }
+  }
+ }
+}
 function climbDeckUnder(x,z,feet){
  let best=0;
  for(const p of climbDecks){
@@ -2371,4 +2437,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=117"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=118"></script></body></html>
