@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V109 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V110 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1792,21 +1792,28 @@ for(const p of roofDistrict){
   const a=Math.PI+(.15+(Math.PI-.3)*i/22);
   ringNodes.push(ringPoint(a));
  }
+ // V110: only the shallow underside is walkable. Steep sections are
+ // deliberately broken OPEN, never collision-clamped into a vertical ramp.
+ const safeSegments=new Set(),maxGrade=.75;
  for(let i=0;i<ringNodes.length-1;i++){
   const a=ringNodes[i],b=ringNodes[i+1];
-  // Small spans prevent the walking plane from cutting across the curved ring.
-  slopeMesh(a,b,8.5,.42,ringWalkMat);
-  addClimbRamp(a,b,4.25,false);
+  const run=Math.hypot(b.x-a.x,b.z-a.z),grade=Math.abs(b.h-a.h)/Math.max(run,.01);
+  if(grade>maxGrade)continue; // visible and physical gap at steep angles
+  safeSegments.add(i);
+  slopeMesh(a,b,10.5,.62,ringWalkMat);
+  addClimbRamp(a,b,5.25,false);
  }
- // Wide entry/exit landings make the ring usable with dash and glide.
- for(const i of [2,8,11,14,20]){
+ // Landings only on contiguous shallow arc sections, never on a steep lip.
+ for(const i of [8,10,12,14]){
+  if(!safeSegments.has(i-1)||!safeSegments.has(i))continue;
   const p=ringNodes[i];
-  addClimbDeck(p.x,p.z,p.h,9,9);
+  addClimbDeck(p.x,p.z,p.h,8,8);
  }
  // Link the ring to reachable pre-existing rooftop platforms.
  const candidates=climbDecks.filter(p=>p.h>=12&&p.h<=83&&p.w>=8&&p.d>=8);
  const linked=new Set();let connections=0;
- for(const index of [3,7,11,15,19]){
+ for(const index of [8,10,12,14]){
+  if(!safeSegments.has(index-1)||!safeSegments.has(index))continue;
   const a=ringNodes[index];let target=null,score=Infinity;
   for(const p of candidates){
    if(Math.abs(p.x-a.x)<4&&Math.abs(p.z-a.z)<4)continue;
@@ -1824,6 +1831,23 @@ for(const p of roofDistrict){
   slopeMesh(start,end,7,.55,ringWalkMat);
   addClimbRamp(start,end,3.5,false);
   connections++;
+ }
+}
+// V110: the dark lower ring shell was previously only decoration.
+// Install a slightly inset, solid underside support strip over the safe arc;
+// keep the steep end sections physically open for jump/glide exits.
+{
+ const ringSupportMat=new THREE.MeshStandardMaterial({color:0x26333c,metalness:.65,roughness:.67,side:THREE.DoubleSide});
+ const cx=5,cy=103,cz=-120,R=70,tilt=.28;
+ const pts=[];
+ for(let i=0;i<=18;i++){
+  const angle=Math.PI+(.83+(Math.PI-1.66)*i/18);
+  pts.push({x:cx+R*Math.cos(angle)*Math.cos(tilt),z:cz-R*Math.cos(angle)*Math.sin(tilt)-6.3,h:cy+R*Math.sin(angle)+5.05});
+ }
+ for(let i=0;i<pts.length-1;i++){
+  const a=pts[i],b=pts[i+1],grade=Math.abs(b.h-a.h)/Math.max(.01,Math.hypot(b.x-a.x,b.z-a.z));
+  if(grade>.75)continue;
+  slopeMesh(a,b,10.8,2.1,ringSupportMat);
  }
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
@@ -2281,4 +2305,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=109"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=110"></script></body></html>
