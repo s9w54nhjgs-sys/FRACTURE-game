@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V116 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V117 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1829,36 +1829,25 @@ for(const p of roofDistrict){
   connections++;
  }
 }
-// V111: removed the duplicate lower-ring visual strip. The single V110
-// arc mesh is now the sole visible walking surface and collision source.
-// Connect its shallow center to the existing overhead cross-structure
-// (the megaBeam at x=0, y=74, z=-65, top at 80).
+// V117: the ORIGINAL V111 ramp was still tunnelling into the underside
+// of the central bridge. Replace it, not merely add another higher route.
 {
- const bridgeMat=new THREE.MeshStandardMaterial({color:0x445964,metalness:.69,roughness:.56,side:THREE.DoubleSide});
- const supportMat=new THREE.MeshStandardMaterial({color:0x293941,metalness:.65,roughness:.7});
- const arc={x:5-70*Math.cos(.0)*0,z:-126.3,h:38.7};
- // The ring's exact bottom point is x=5, z=-126.3, h=38.7.
- // A diagonal suspended walkway rises through two intermediate platforms.
+ const mat=new THREE.MeshStandardMaterial({color:0x455a64,metalness:.68,roughness:.58,side:THREE.DoubleSide});
+ const arc={x:5,z:-126.3,h:38.7};
  const p1={x:4,z:-105,h:51};
- const p2={x:2,z:-84,h:66};
- const overhead={x:0,z:-67,h:80};
- for(const [from,to] of [[arc,p1],[p1,p2],[p2,overhead]]){
-  slopeMesh(from,to,9,.72,bridgeMat);
-  addClimbRamp(from,to,4.5,false);
+ const p2={x:16,z:-91,h:67};
+ const p3={x:28,z:-83,h:85}; // crest FIVE METRES above bridge roof
+ const top={x:28,z:-70,h:80}; // lands on bridge from above
+ for(const [u,v] of [[arc,p1],[p1,p2],[p2,p3],[p3,top]]){
+  slopeMesh(u,v,9,.48,mat);addClimbRamp(u,v,4.5,false);
  }
- for(const p of [p1,p2]){
-  // Recessed visual platform with its collision at the true deck height.
-  const m=new THREE.Mesh(new THREE.BoxGeometry(10,.6,10),supportMat);
-  m.position.set(p.x,p.h-.52,p.z);scene.add(m);
+ for(const p of [p1,p2,p3]){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(10,.48,10),mat);
+  m.position.set(p.x,p.h-.38,p.z);scene.add(m);
   climbDecks.push({x:p.x,z:p.z,h:p.h,w:10,d:10});
  }
- // The existing horizontal beam is 106m long and 24m deep; its roof is
- // at y=80. Register a matching walking surface without a duplicate mesh.
  climbDecks.push({x:0,z:-65,h:80,w:106,d:24});
- // Branch along the overhead bridge to the east side of the city.
- const east={x:40,z:-65,h:80};
- slopeMesh(overhead,east,8,.48,bridgeMat);
- addClimbRamp(overhead,east,4,false);
+ // Existing bridge deck provides the eastward crossing, without a duplicate mesh.
 }
 // V116: edge-aligned cantilever route. No ground-up towers, no
 // switchback into a building underside. Collision and visible deck share endpoints.
@@ -1889,8 +1878,8 @@ for(const p of roofDistrict){
  const ring={x:4,z:-105,h:51,w:10,d:10};
  const near1=shelf(24,-111,61,12,12);
  const near2=shelf(43,-105,72,12,12);
- const near3=shelf(59,-93,81,12,12);
- const nearLip=shelf(61,-81,85,9,9); // 5m above beam roof, OUTSIDE x=53
+ const near3=shelf(59,-93,85,12,12);
+ const nearLip=shelf(61,-81,87,9,9); // 5m above beam roof, OUTSIDE x=53
  join(ring,near1);join(near1,near2);join(near2,near3);join(near3,nearLip);
  // Beam top is 80, right edge x=53; short descending ramp lands on top
  // instead of hitting the vertical front face.
@@ -2382,4 +2371,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=116"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=117"></script></body></html>
