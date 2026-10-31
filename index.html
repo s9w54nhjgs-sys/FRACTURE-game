@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V115 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V116 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1860,61 +1860,68 @@ for(const p of roofDistrict){
  slopeMesh(overhead,east,8,.48,bridgeMat);
  addClimbRamp(overhead,east,4,false);
 }
-// V115: no newly grown ground-to-roof towers. Cantilevered ledges attach
-// to existing architecture and the halo; all skyways terminate at OUTER lips.
+// V116: edge-aligned cantilever route. No ground-up towers, no
+// switchback into a building underside. Collision and visible deck share endpoints.
 {
- const deckMat=new THREE.MeshStandardMaterial({color:0x40535d,metalness:.68,roughness:.63,side:THREE.DoubleSide});
- const braceMat=new THREE.MeshStandardMaterial({color:0x26343d,metalness:.63,roughness:.7});
- function ledge(x,z,h,w=11,d=11){
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,.48,d),deckMat);
-  mesh.position.set(x,h-.37,z);scene.add(mesh);
+ const skin=new THREE.MeshStandardMaterial({color:0x435864,metalness:.7,roughness:.59,side:THREE.DoubleSide});
+ const strut=new THREE.MeshStandardMaterial({color:0x25343e,metalness:.68,roughness:.69,side:THREE.DoubleSide});
+ function shelf(x,z,h,w=12,d=11){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,.48,d),skin);
+  m.position.set(x,h-.38,z);scene.add(m);
   climbDecks.push({x,z,h,w,d});
   return {x,z,h,w,d};
  }
- function edge(p,to){
-  const dx=to.x-p.x,dz=to.z-p.z;
-  const scale=Math.min((p.w/2-.7)/Math.max(.001,Math.abs(dx)),
-                       (p.d/2-.7)/Math.max(.001,Math.abs(dz)));
-  return {x:p.x+dx*scale,z:p.z+dz*scale,h:p.h};
+ function rim(p,q){
+  const dx=q.x-p.x,dz=q.z-p.z;
+  const t=Math.min((p.w/2-.9)/Math.max(.001,Math.abs(dx)),(p.d/2-.9)/Math.max(.001,Math.abs(dz)));
+  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
  }
- function link(p,q,width=7){
-  const a=edge(p,q),b=edge(q,p);
-  // Do not put a thick ramp body inside the target facade.
-  slopeMesh({x:a.x,z:a.z,h:a.h-.06},{x:b.x,z:b.z,h:b.h-.06},width,.34,deckMat);
-  addClimbRamp(a,b,width/2,false);
+ function join(p,q,w=7){
+  const x=rim(p,q),y=rim(q,p);
+  slopeMesh({x:x.x,z:x.z,h:x.h-.06},{x:y.x,z:y.z,h:y.h-.06},w,.36,skin);
+  addClimbRamp(x,y,w/2,false);
  }
- function brace(p,anchorX,anchorZ,anchorY){
-  // Small diagonal strut from the ledge to an existing building's side.
-  const a={x:p.x,z:p.z,h:p.h-1},b={x:anchorX,z:anchorZ,h:anchorY};
-  slopeMesh(a,b,1.2,.7,braceMat);
+ function bracket(p,x,z,y){
+  slopeMesh({x:p.x,z:p.z,h:p.h-1.2},{x,z,h:y},1.3,.6,strut);
  }
- // Start from existing ring approach; avoid the central bridge's lower ribs.
- const ringSide={x:4,z:-105,h:51,w:10,d:10};
- const r1=ledge(24,-110,59,12,12);
- const r2=ledge(43,-104,67,12,12);
- const r3=ledge(58,-89,76,12,12);
- link(ringSide,r1);link(r1,r2);link(r2,r3);
- brace(r1,28,-99,44);brace(r2,45,-96,51);brace(r3,53,-87,62);
- // The front face of the first beam is z=-77 and its top is y=80.
- // Connect from outside the right end (x>53), with a shallow landing
- // that ends at the near-right rooftop CORNER, not under the bridge.
- const centralLip={x:53.8,z:-76.3,h:80,w:2,d:2};
- link(r3,centralLip,7);
+ // Ring to near beam: move the approach UP by 5m, with a gradual
+ // lead-in. The final short span drops gently onto the real roof at 80m.
+ const ring={x:4,z:-105,h:51,w:10,d:10};
+ const near1=shelf(24,-111,61,12,12);
+ const near2=shelf(43,-105,72,12,12);
+ const near3=shelf(59,-93,81,12,12);
+ const nearLip=shelf(61,-81,85,9,9); // 5m above beam roof, OUTSIDE x=53
+ join(ring,near1);join(near1,near2);join(near2,near3);join(near3,nearLip);
+ // Beam top is 80, right edge x=53; short descending ramp lands on top
+ // instead of hitting the vertical front face.
+ const beamEntry={x:50.5,z:-75,h:80,w:5,d:5};
+ join(nearLip,beamEntry,8);
  climbDecks.push({x:0,z:-65,h:80,w:106,d:24});
- // Right-side existing-building traversal: suspended ledges, not towers.
- const e1=ledge(67,-94,88,12,12);
- const e2=ledge(80,-110,99,12,12);
- const e3=ledge(91,-125,110,12,12);
- const e4=ledge(108,-137,122,12,12);
- link(r3,e1);link(e1,e2);link(e2,e3);link(e3,e4);
- brace(e1,70,-86,73);brace(e2,76,-105,84);
- brace(e3,89,-117,94);brace(e4,106,-128,106);
- // Far existing beam is x=67..115,z=-175..-127, roof y=135.5.
- // Approach from OUTSIDE its east side; land directly on its eastern rim.
- const outer=ledge(126,-144,132,12,12);
- link(e4,outer,8);
- const farLip={x:115.4,z:-143,h:135.5,w:2,d:2};
- link(outer,farLip,8);
+ bracket(near1,29,-100,49);bracket(near2,48,-96,59);
+ // LEFT BYPASS: travel outside the left facades, through their gaps,
+ // and keep moving toward negative Z without any fold-back.
+ const leftStart={x:-30,z:-109,h:70,w:12,d:12};
+ const left1=shelf(-51,-117,81,12,12);
+ const left2=shelf(-72,-134,94,12,12);
+ const left3=shelf(-91,-154,108,12,12);
+ const left4=shelf(-84,-181,120,12,12);
+ const left5=shelf(-57,-197,130,12,12);
+ const left6=shelf(-28,-204,137,12,12);
+ const left7=shelf(6,-207,140,12,12);
+ const left8=shelf(39,-196,140,12,12);
+ // The existing ring district reaches leftStart via an exterior spur.
+ const spur=shelf(-13,-111,62,12,12);
+ join(ring,spur);join(spur,leftStart);
+ for(const [p,q] of [[leftStart,left1],[left1,left2],[left2,left3],
+  [left3,left4],[left4,left5],[left5,left6],[left6,left7],[left7,left8]])join(p,q,7);
+ bracket(left2,-74,-119,77);bracket(left3,-103,-155,87);
+ bracket(left4,-105,-170,104);bracket(left5,-64,-183,115);
+ // Far bridge: z=-175 is the near outer edge, roof top 135.5.
+ // Descend from the elevated side approach onto the roof rim.
+ const farApproach=shelf(61,-191,140,12,12);
+ join(left8,farApproach,8);
+ const farLip={x:75,z:-173.5,h:135.5,w:8,d:7};
+ join(farApproach,farLip,8);
  climbDecks.push({x:91,z:-151,h:135.5,w:48,d:48});
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
@@ -2375,4 +2382,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=115"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=116"></script></body></html>
