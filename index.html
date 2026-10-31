@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V108 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V109 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1775,6 +1775,57 @@ for(const p of roofDistrict){
   used.add(target.i);made++;
  }
 }
+// V109: walkable LOWER arc of the suspended vertical halo.
+// The ring is vertical, so short tangential platforms trace its lower rim;
+// collision uses the same segments, not an approximate flat floor.
+{
+ const cx=5,cy=103,cz=-120,R=70,tilt=.28;
+ const ringWalkMat=new THREE.MeshStandardMaterial({color:0x536b77,metalness:.76,roughness:.43,side:THREE.DoubleSide});
+ const ringNodes=[];
+ function ringPoint(angle){
+  const localX=R*Math.cos(angle),localY=R*Math.sin(angle);
+  return {x:cx+localX*Math.cos(tilt),z:cz-localX*Math.sin(tilt)-6.3,
+   h:cy+localY+5.7,w:9,d:9};
+ }
+ // Avoid the missing ring sector; use only the lower, broad, accessible arc.
+ for(let i=0;i<=22;i++){
+  const a=Math.PI+(.15+(Math.PI-.3)*i/22);
+  ringNodes.push(ringPoint(a));
+ }
+ for(let i=0;i<ringNodes.length-1;i++){
+  const a=ringNodes[i],b=ringNodes[i+1];
+  // Small spans prevent the walking plane from cutting across the curved ring.
+  slopeMesh(a,b,8.5,.42,ringWalkMat);
+  addClimbRamp(a,b,4.25,false);
+ }
+ // Wide entry/exit landings make the ring usable with dash and glide.
+ for(const i of [2,8,11,14,20]){
+  const p=ringNodes[i];
+  addClimbDeck(p.x,p.z,p.h,9,9);
+ }
+ // Link the ring to reachable pre-existing rooftop platforms.
+ const candidates=climbDecks.filter(p=>p.h>=12&&p.h<=83&&p.w>=8&&p.d>=8);
+ const linked=new Set();let connections=0;
+ for(const index of [3,7,11,15,19]){
+  const a=ringNodes[index];let target=null,score=Infinity;
+  for(const p of candidates){
+   if(Math.abs(p.x-a.x)<4&&Math.abs(p.z-a.z)<4)continue;
+   const dist=Math.hypot(p.x-a.x,p.z-a.z),dh=Math.abs(p.h-a.h);
+   if(dist<10||dist>85||dh>12||linked.has(p))continue;
+   const v=dist+dh*2;
+   if(v<score){score=v;target=p;}
+  }
+  if(!target)continue;
+  linked.add(target);
+  const dx=target.x-a.x,dz=target.z-a.z,len=Math.hypot(dx,dz);
+  const ux=dx/len,uz=dz/len;
+  const end={x:target.x-ux*Math.min(target.w,target.d)*.3,z:target.z-uz*Math.min(target.w,target.d)*.3,h:target.h};
+  const start={x:a.x+ux*2,z:a.z+uz*2,h:a.h};
+  slopeMesh(start,end,7,.55,ringWalkMat);
+  addClimbRamp(start,end,3.5,false);
+  connections++;
+ }
+}
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
  const satellites=[
@@ -2230,4 +2281,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=108"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=109"></script></body></html>
