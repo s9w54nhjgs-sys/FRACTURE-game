@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V112 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V113 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1860,45 +1860,55 @@ for(const p of roofDistrict){
  slopeMesh(overhead,east,8,.48,bridgeMat);
  addClimbRamp(overhead,east,4,false);
 }
-// V112: edge-to-edge route across existing left-hand architecture to the
-// distant eastern elevated beam (x=91,y=132,z=-151, top=135.5).
-// Branches are laid out on outer rooftop lips, not through tower centers.
+// V113: approach the near-facing lip of the actual central bridge,
+// then climb OUTSIDE each tower to the distant beam. No bridge intersects
+// a building's vertical wall before reaching its rooftop edge.
 {
- const walkMat=new THREE.MeshStandardMaterial({color:0x4c606b,metalness:.65,roughness:.61,side:THREE.DoubleSide});
+ const mat=new THREE.MeshStandardMaterial({color:0x4c606b,metalness:.65,roughness:.61,side:THREE.DoubleSide});
  const roofMat=new THREE.MeshStandardMaterial({color:0x293a44,metalness:.54,roughness:.76});
  function station(x,z,h,w=19,d=19){
-  const core=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.8,d-1),roofMat);
-  core.position.set(x,(h-.8)/2,z);scene.add(core);
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.8,d-1),roofMat);
+  mesh.position.set(x,(h-.8)/2,z);scene.add(mesh);
   addClimbDeck(x,z,h,w,d);
   return {x,z,h,w,d};
  }
- function edgeBridge(a,b,width=8){
-  const dx=b.x-a.x,dz=b.z-a.z,dist=Math.hypot(dx,dz);
-  if(dist<.1)return;
-  const ux=dx/dist,uz=dz/dist;
-  // Inset into both roofs by only 1.5m; bridge remains outside the buildings.
-  const start={x:a.x+ux*1.5,z:a.z+uz*1.5,h:a.h-.08};
-  const end={x:b.x-ux*1.5,z:b.z-uz*1.5,h:b.h-.08};
-  slopeMesh(start,end,width,.7,walkMat);
-  addClimbRamp({x:start.x,z:start.z,h:a.h},{x:end.x,z:end.z,h:b.h},width/2,false);
+ function edgePoint(p,toward){
+  const dx=toward.x-p.x,dz=toward.z-p.z;
+  // Rectangular footprint intersection: exact side facing the next roof.
+  const t=Math.min((p.w/2-1.1)/Math.max(Math.abs(dx),.001),
+                   (p.d/2-1.1)/Math.max(Math.abs(dz),.001));
+  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
  }
- // Existing overhead west/central beam, visually left of the distant bridge.
- const start={x:36,z:-65,h:80,w:20,d:24};
- // Roof-to-roof transition with an obvious upward progression.
- const a=station(55,-85,90,20,20);
- const b=station(69,-106,105,21,20);
- const c=station(83,-127,120,20,20);
- // The far-right beam is already drawn by megaBeam(91,132,-151,48,7,48).
+ function lipBridge(a,b,width=8){
+  const start=edgePoint(a,b),end=edgePoint(b,a);
+  // Both endpoints are on the top lip, not in the tower body.
+  slopeMesh({x:start.x,z:start.z,h:start.h-.14},
+            {x:end.x,z:end.z,h:end.h-.14},width,.55,mat);
+  addClimbRamp(start,end,width/2,false);
+ }
+ // Beam actual footprint x=-53..53, z=-77..-53, top y=80.
+ // Approach from its front/right corner rather than the protruding
+ // underside ribs at z=-51.
+ const central={x:0,z:-65,h:80,w:106,d:24};
+ const a=station(66,-94,91,19,19);
+ const b=station(81,-119,106,19,19);
+ const c=station(97,-145,121,19,19);
+ // Existing distant cross-beam, with its actual upper surface.
  const distant={x:91,z:-151,h:135.5,w:48,d:48};
- edgeBridge(start,a,8);
- edgeBridge(a,b,8);
- edgeBridge(b,c,8);
- edgeBridge(c,distant,9);
- // Register the original bridge's actual top; don't draw a duplicate roof.
+ // Staging shelf outside the front face of the central beam:
+ // the entire incline stays outside the original vertical wall.
+ const entry={x:54,z:-79,h:80,w:9,d:9};
+ const shelf=new THREE.Mesh(new THREE.BoxGeometry(9,.55,9),mat);
+ shelf.position.set(entry.x,entry.h-.42,entry.z);scene.add(shelf);
+ addClimbDeck(entry.x,entry.z,entry.h,entry.w,entry.d);
+ lipBridge(central,entry,8);
+ lipBridge(entry,a,8);
+ lipBridge(a,b,8);
+ lipBridge(b,c,8);
+ lipBridge(c,distant,9);
  climbDecks.push({x:distant.x,z:distant.z,h:distant.h,w:distant.w,d:distant.d});
- // Continue along its roof toward the distant side.
  const far=station(125,-164,135.5,20,22);
- edgeBridge(distant,far,9);
+ lipBridge(distant,far,9);
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
@@ -2358,4 +2368,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=112"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=113"></script></body></html>
