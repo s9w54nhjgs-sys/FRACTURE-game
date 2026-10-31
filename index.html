@@ -1441,6 +1441,31 @@ function addClimbDeck(x,z,h,w=11,d=11){
  deck.position.set(x,h-.275,z);scene.add(deck);
  climbDecks.push({x,z,h,w,d});
 }
+// V96: register exterior roof surfaces of existing buildings as standable floors.
+// Visual geometry remains unchanged: collision is derived from the existing world-space boxes.
+{
+ const bounds=new THREE.Box3();
+ const candidates=[...architecture.children,...walls.map(()=>null)].filter(Boolean);
+ architecture.updateMatrixWorld(true);
+ let added=0;
+ architecture.traverse(obj=>{
+  if(!obj.isMesh||!obj.geometry||added>=90)return;
+  if(obj.geometry.type!=='BoxGeometry')return;
+  bounds.setFromObject(obj);
+  const w=bounds.max.x-bounds.min.x,d=bounds.max.z-bounds.min.z,h=bounds.max.y-bounds.min.y;
+  const roof=bounds.max.y;
+  // Only substantial horizontal roof slabs or building tops; no vertical facade collision.
+  if(w<5||d<5||roof<3||roof>95||w>85||d>85)return;
+  if(h>roof*1.5)return;
+  const x=(bounds.min.x+bounds.max.x)/2,z=(bounds.min.z+bounds.max.z)/2;
+  climbDecks.push({x,z,h:roof,w,d,legacy:true});
+  added++;
+ });
+ for(const b of walls){
+  const h=(()=>{const mesh=scene.children.find(m=>m.isMesh&&Math.abs(m.position.x-b.x)<.01&&Math.abs(m.position.z-b.z)<.01&&m.geometry?.parameters?.height>3);return mesh?.geometry?.parameters?.height||0})();
+  if(h>3)climbDecks.push({x:b.x,z:b.z,h,w:b.w,d:b.d,legacy:true});
+ }
+}
 // V93: slope visuals and collision share exactly the same endpoint coordinates.
 function slopeMesh(a,b,width,thickness,material){
  const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz),px=-dz/len*width/2,pz=dx/len*width/2;
