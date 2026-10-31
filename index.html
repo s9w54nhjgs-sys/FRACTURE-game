@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V118 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V119 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2059,6 +2059,63 @@ let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false
   }
  }
 }
+// V119: guaranteed long-distance eastern sky-spine from the solved 80m
+// bridge to the distant 135.5m bridge. Unlike V118 nearest-neighbour links,
+// this is a deliberately connected, steadily ascending traversable route.
+{
+ const deckMat=new THREE.MeshStandardMaterial({color:0x46545c,metalness:.68,roughness:.66,side:THREE.DoubleSide});
+ const guideMat=new THREE.MeshStandardMaterial({color:0x6e9ba3,metalness:.75,roughness:.43,side:THREE.DoubleSide});
+ function platform(x,z,h,w=13,d=13){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(w,.48,d),deckMat);
+  m.position.set(x,h-.36,z);scene.add(m);
+  climbDecks.push({x,z,h,w,d});
+  return {x,z,h,w,d};
+ }
+ function lip(p,q){
+  const dx=q.x-p.x,dz=q.z-p.z;
+  const t=Math.min((p.w/2-.8)/Math.max(.001,Math.abs(dx)),(p.d/2-.8)/Math.max(.001,Math.abs(dz)));
+  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
+ }
+ function span(a,b,width=8){
+  const p=lip(a,b),q=lip(b,a);
+  slopeMesh(p,q,width,.38,deckMat);
+  addClimbRamp(p,q,width/2,false);
+  // Sparse elevated edge fragments: monorail ruins, not solid collision walls.
+  const dx=q.x-p.x,dz=q.z-p.z,len=Math.hypot(dx,dz);
+  if(len>6){
+   const nx=-dz/len,nz=dx/len;
+   for(const side of [-1,1]){
+    const off=side*(width/2-.35);
+    slopeMesh({x:p.x+nx*off,z:p.z+nz*off,h:p.h+.18},
+              {x:q.x+nx*off,z:q.z+nz*off,h:q.h+.18},.12,.09,guideMat);
+   }
+  }
+ }
+ // Existing near bridge: x -53..53, z -77..-53, y=80.
+ // Existing far bridge: x 67..115, z -175..-127, y=135.5.
+ // The eastern arc stays OUTSIDE their vertical facades; no underfloor switchback.
+ const start={x:47,z:-64,h:80,w:12,d:12};
+ const nodes=[
+  platform(67,-65,85,13,13),
+  platform(85,-74,93,13,13),
+  platform(105,-86,102,13,13),
+  platform(125,-101,111,13,13),
+  platform(141,-121,121,13,13),
+  platform(140,-144,131,14,14),
+  platform(128,-164,140,14,14)
+ ];
+ let prev=start;for(const p of nodes){span(prev,p,8);prev=p;}
+ // Descend onto the far beam's EAST roof rim from outside x=115.
+ const end={x:112,z:-163,h:135.5,w:6,d:10};
+ span(prev,end,8);
+ // Rooftop branch spurs along the upper corridor to encourage exploration.
+ const b1=platform(112,-118,113,14,14);
+ span(nodes[3],b1,7);span(b1,nodes[4],7);
+ const b2=platform(117,-152,133,12,12);
+ span(nodes[5],b2,7);span(b2,nodes[6],7);
+ // Existing beam collision; no additional solid beam is spawned.
+ climbDecks.push({x:91,z:-151,h:135.5,w:48,d:48});
+}
 function climbDeckUnder(x,z,feet){
  let best=0;
  for(const p of climbDecks){
@@ -2437,4 +2494,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=118"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=119"></script></body></html>
