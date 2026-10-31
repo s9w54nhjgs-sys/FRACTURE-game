@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V107 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V108 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1744,6 +1744,37 @@ for(const p of roofDistrict){
   count++;
  }
 }
+// V108: visible, purposeful skywalks to existing architecture, rather than
+// relying on V107's very narrow 5m height tolerance.
+{
+ const existing=climbDecks.filter(p=>p.legacy&&p.w>=6&&p.d>=6&&p.w<60&&p.d<60&&p.h>=5);
+ const newRoofs=climbDecks.filter(p=>!p.legacy&&p.h>=7);
+ const bridgeMaterial=new THREE.MeshStandardMaterial({color:0x536875,metalness:.67,roughness:.55,side:THREE.DoubleSide});
+ const used=new Set();let made=0;
+ // Prefer nearest original roofs, but permit a modest height difference
+ // to create genuinely reachable diagonal connectors.
+ for(const source of newRoofs){
+  if(made>=18||!existing.length)break;
+  let target=null,score=Infinity;
+  for(let i=0;i<existing.length;i++){
+   if(used.has(i))continue;
+   const p=existing[i],distance=Math.hypot(p.x-source.x,p.z-source.z),height=Math.abs(p.h-source.h);
+   if(distance<13||distance>75||height>12)continue;
+   const v=distance+height*2;
+   if(v<score){score=v;target={p,i}}
+  }
+  if(!target)continue;
+  const p=target.p,dx=p.x-source.x,dz=p.z-source.z,len=Math.hypot(dx,dz);
+  const ux=dx/len,uz=dz/len;
+  const a={x:source.x+ux*Math.min(source.w,source.d)*.38,z:source.z+uz*Math.min(source.w,source.d)*.38,h:source.h};
+  const b={x:p.x-ux*Math.min(p.w,p.d)*.38,z:p.z-uz*Math.min(p.w,p.d)*.38,h:p.h};
+  // A wide, clearly visible broken-skyway surface, slightly sunk at both
+  // ends; collision retains the precise original roof heights.
+  slopeMesh({x:a.x,z:a.z,h:a.h-.12},{x:b.x,z:b.z,h:b.h-.12},7.2,.65,bridgeMaterial);
+  addClimbRamp(a,b,3.6,false);
+  used.add(target.i);made++;
+ }
+}
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
  const satellites=[
@@ -1840,6 +1871,13 @@ function climbDeckUnder(x,z,feet){
 }
 let moveVX=0,moveVZ=0,landedJumpCount=0;let jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
 function jumpNow(){if(done||jumpCount>=2)return;
+ // V108: before jumping after a glide landing, anchor to the actual roof
+ // instead of carrying a stale ground-level climbFloor into the new jump.
+ if(jumpCount===0){
+  const support=climbDeckUnder(player.position.x,player.position.z,Math.max(climbFloor+jumpHeight,climbPrevFeet)+1.5);
+  if(support>climbFloor-.5){climbFloor=Math.max(0,support);jumpHeight=0;climbPrevFeet=climbFloor;}
+  landingSkidUntil=0;
+ }
  const neutral=Math.hypot(input.x+(keys.d?1:0)-(keys.a?1:0),input.y+(keys.s?1:0)-(keys.w?1:0))<.1&&!autoRun;
  if(jumpCount===1){if(neutral){moveVX=0;moveVZ=0}else{const mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0),m=Math.max(1,Math.hypot(mx,my));moveVX=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/m*6.2;moveVZ=(-Math.sin(yaw)*mx+Math.cos(yaw)*my)/m*6.2}}
  if(jumpCount===0){fallPeak=climbFloor+jumpHeight;fallGlideUsed=false;}jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
@@ -2133,8 +2171,8 @@ if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5){
   if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
   else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
   else if(deck>=climbFloor-.85)climbFloor=deck;
- }else if(landingDeck>climbFloor+.08){
-  resolveFallDamage(landingDeck,t);climbFloor=landingDeck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
+ }else if(landingDeck>climbFloor+.08 || (jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&feet<=sweptDeck+.25&&climbPrevFeet>=sweptDeck-.5&&sweptDeck>=climbFloor-.2)){
+  resolveFallDamage(Math.max(landingDeck,sweptDeck),t);climbFloor=Math.max(landingDeck,sweptDeck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }else if(jumpVelocity<=0&&feet<=climbFloor+.01){
   // V76: preserve the actual support deck; never reset to world zero while standing on a platform.
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
@@ -2192,4 +2230,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=107"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=108"></script></body></html>
