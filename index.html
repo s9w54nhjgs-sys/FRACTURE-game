@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V110 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V111 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1803,12 +1803,8 @@ for(const p of roofDistrict){
   slopeMesh(a,b,10.5,.62,ringWalkMat);
   addClimbRamp(a,b,5.25,false);
  }
- // Landings only on contiguous shallow arc sections, never on a steep lip.
- for(const i of [8,10,12,14]){
-  if(!safeSegments.has(i-1)||!safeSegments.has(i))continue;
-  const p=ringNodes[i];
-  addClimbDeck(p.x,p.z,p.h,8,8);
- }
+ // V111: no overlapping flat decks on the curved surface: their
+ // competing heights caused abrupt upward snaps while traversing the ring.
  // Link the ring to reachable pre-existing rooftop platforms.
  const candidates=climbDecks.filter(p=>p.h>=12&&p.h<=83&&p.w>=8&&p.d>=8);
  const linked=new Set();let connections=0;
@@ -1833,22 +1829,36 @@ for(const p of roofDistrict){
   connections++;
  }
 }
-// V110: the dark lower ring shell was previously only decoration.
-// Install a slightly inset, solid underside support strip over the safe arc;
-// keep the steep end sections physically open for jump/glide exits.
+// V111: removed the duplicate lower-ring visual strip. The single V110
+// arc mesh is now the sole visible walking surface and collision source.
+// Connect its shallow center to the existing overhead cross-structure
+// (the megaBeam at x=0, y=74, z=-65, top at 80).
 {
- const ringSupportMat=new THREE.MeshStandardMaterial({color:0x26333c,metalness:.65,roughness:.67,side:THREE.DoubleSide});
- const cx=5,cy=103,cz=-120,R=70,tilt=.28;
- const pts=[];
- for(let i=0;i<=18;i++){
-  const angle=Math.PI+(.83+(Math.PI-1.66)*i/18);
-  pts.push({x:cx+R*Math.cos(angle)*Math.cos(tilt),z:cz-R*Math.cos(angle)*Math.sin(tilt)-6.3,h:cy+R*Math.sin(angle)+5.05});
+ const bridgeMat=new THREE.MeshStandardMaterial({color:0x445964,metalness:.69,roughness:.56,side:THREE.DoubleSide});
+ const supportMat=new THREE.MeshStandardMaterial({color:0x293941,metalness:.65,roughness:.7});
+ const arc={x:5-70*Math.cos(.0)*0,z:-126.3,h:38.7};
+ // The ring's exact bottom point is x=5, z=-126.3, h=38.7.
+ // A diagonal suspended walkway rises through two intermediate platforms.
+ const p1={x:4,z:-105,h:51};
+ const p2={x:2,z:-84,h:66};
+ const overhead={x:0,z:-67,h:80};
+ for(const [from,to] of [[arc,p1],[p1,p2],[p2,overhead]]){
+  slopeMesh(from,to,9,.72,bridgeMat);
+  addClimbRamp(from,to,4.5,false);
  }
- for(let i=0;i<pts.length-1;i++){
-  const a=pts[i],b=pts[i+1],grade=Math.abs(b.h-a.h)/Math.max(.01,Math.hypot(b.x-a.x,b.z-a.z));
-  if(grade>.75)continue;
-  slopeMesh(a,b,10.8,2.1,ringSupportMat);
+ for(const p of [p1,p2]){
+  // Recessed visual platform with its collision at the true deck height.
+  const m=new THREE.Mesh(new THREE.BoxGeometry(10,.6,10),supportMat);
+  m.position.set(p.x,p.h-.52,p.z);scene.add(m);
+  climbDecks.push({x:p.x,z:p.z,h:p.h,w:10,d:10});
  }
+ // The existing horizontal beam is 106m long and 24m deep; its roof is
+ // at y=80. Register a matching walking surface without a duplicate mesh.
+ climbDecks.push({x:0,z:-65,h:80,w:106,d:24});
+ // Branch along the overhead bridge to the east side of the city.
+ const east={x:40,z:-65,h:80};
+ slopeMesh(overhead,east,8,.48,bridgeMat);
+ addClimbRamp(overhead,east,4,false);
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
@@ -2305,4 +2315,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=110"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=111"></script></body></html>
