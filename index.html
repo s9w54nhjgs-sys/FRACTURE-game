@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V113 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V114 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1860,55 +1860,53 @@ for(const p of roofDistrict){
  slopeMesh(overhead,east,8,.48,bridgeMat);
  addClimbRamp(overhead,east,4,false);
 }
-// V113: approach the near-facing lip of the actual central bridge,
-// then climb OUTSIDE each tower to the distant beam. No bridge intersects
-// a building's vertical wall before reaching its rooftop edge.
+// V114: bridge-to-roof entry at the NEAR OUTER LIP, not the underside.
+// A clear western bypass reaches the distant bridge through exterior roofs.
 {
- const mat=new THREE.MeshStandardMaterial({color:0x4c606b,metalness:.65,roughness:.61,side:THREE.DoubleSide});
- const roofMat=new THREE.MeshStandardMaterial({color:0x293a44,metalness:.54,roughness:.76});
- function station(x,z,h,w=19,d=19){
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.8,d-1),roofMat);
+ const mat=new THREE.MeshStandardMaterial({color:0x526875,metalness:.65,roughness:.62,side:THREE.DoubleSide});
+ const wallMat=new THREE.MeshStandardMaterial({color:0x293a44,metalness:.54,roughness:.76});
+ function roof(x,z,h,w=18,d=18){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.8,d-1),wallMat);
   mesh.position.set(x,(h-.8)/2,z);scene.add(mesh);
   addClimbDeck(x,z,h,w,d);
   return {x,z,h,w,d};
  }
- function edgePoint(p,toward){
-  const dx=toward.x-p.x,dz=toward.z-p.z;
-  // Rectangular footprint intersection: exact side facing the next roof.
-  const t=Math.min((p.w/2-1.1)/Math.max(Math.abs(dx),.001),
-                   (p.d/2-1.1)/Math.max(Math.abs(dz),.001));
-  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
+ function lip(p,target){
+  const dx=target.x-p.x,dz=target.z-p.z;
+  const k=Math.min((p.w/2-1)/Math.max(Math.abs(dx),.001),(p.d/2-1)/Math.max(Math.abs(dz),.001));
+  return {x:p.x+dx*k,z:p.z+dz*k,h:p.h};
  }
- function lipBridge(a,b,width=8){
-  const start=edgePoint(a,b),end=edgePoint(b,a);
-  // Both endpoints are on the top lip, not in the tower body.
-  slopeMesh({x:start.x,z:start.z,h:start.h-.14},
-            {x:end.x,z:end.z,h:end.h-.14},width,.55,mat);
-  addClimbRamp(start,end,width/2,false);
+ function connect(a,b,w=8){
+  const p=lip(a,b),q=lip(b,a);
+  slopeMesh({x:p.x,z:p.z,h:p.h-.09},{x:q.x,z:q.z,h:q.h-.09},w,.52,mat);
+  addClimbRamp(p,q,w/2,false);
  }
- // Beam actual footprint x=-53..53, z=-77..-53, top y=80.
- // Approach from its front/right corner rather than the protruding
- // underside ribs at z=-51.
  const central={x:0,z:-65,h:80,w:106,d:24};
- const a=station(66,-94,91,19,19);
- const b=station(81,-119,106,19,19);
- const c=station(97,-145,121,19,19);
- // Existing distant cross-beam, with its actual upper surface.
+ // Front face of central bridge is z=-77. The new approach is entirely
+ // OUTSIDE that face until the last 1m, and lands on its TOP at y=80.
+ const front=roof(22,-87,80,12,12);
+ connect(front,central,9);
+ // Approach from the ring route via the outer side, away from hanging fins.
+ const outer=roof(8,-105,70,17,17);
+ connect(outer,front,9);
+ const side=roof(-13,-116,77,19,19);
+ connect(outer,side,8);
+ // West-side bypass: no building-wall penetration or interior switchback.
+ const west1=roof(-32,-137,89,19,19);
+ const west2=roof(-19,-159,102,20,20);
+ const west3=roof(4,-180,116,20,20);
+ const west4=roof(32,-189,128,20,20);
+ connect(side,west1,8);connect(west1,west2,8);
+ connect(west2,west3,8);connect(west3,west4,8);
+ // Far beam is a pre-existing box: x=67..115,z=-175..-127, top 135.5.
+ // Enter from its FRONT (z=-175) roof lip, without colliding with its wall.
  const distant={x:91,z:-151,h:135.5,w:48,d:48};
- // Staging shelf outside the front face of the central beam:
- // the entire incline stays outside the original vertical wall.
- const entry={x:54,z:-79,h:80,w:9,d:9};
- const shelf=new THREE.Mesh(new THREE.BoxGeometry(9,.55,9),mat);
- shelf.position.set(entry.x,entry.h-.42,entry.z);scene.add(shelf);
- addClimbDeck(entry.x,entry.z,entry.h,entry.w,entry.d);
- lipBridge(central,entry,8);
- lipBridge(entry,a,8);
- lipBridge(a,b,8);
- lipBridge(b,c,8);
- lipBridge(c,distant,9);
- climbDecks.push({x:distant.x,z:distant.z,h:distant.h,w:distant.w,d:distant.d});
- const far=station(125,-164,135.5,20,22);
- lipBridge(distant,far,9);
+ const nearBeam=roof(61,-190,135.5,17,17);
+ connect(west4,nearBeam,9);
+ connect(nearBeam,distant,9);
+ climbDecks.push({x:91,z:-151,h:135.5,w:48,d:48});
+ const far=roof(125,-164,135.5,20,22);
+ connect(distant,far,9);
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
@@ -2368,4 +2366,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=113"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=114"></script></body></html>
