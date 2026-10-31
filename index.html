@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V104 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V105 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -261,7 +261,7 @@ const dimCyan=new THREE.MeshBasicMaterial({color:0x6b9a9e});
 function megaBeam(x,y,z,w,h,d,angle=0,mat=voidMetal){const m=detailBox(x,y,z,w,h,d,mat);m.rotation.z=angle;return m}
 function floatingCore(x,y,z,r){const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
 // The sky is divided by an enormous vertical ring, with no building-like windows or roof.
-const halo=new THREE.Group();halo.position.set(5,93,-120);halo.rotation.y=.28;architecture.add(halo);
+const halo=new THREE.Group();halo.position.set(5,103,-120);halo.rotation.y=.28;architecture.add(halo);
 // V103: a real missing sector in the suspended halo, not a painted-on scar.
 const haloGapStart=.24,haloGapSize=.58,haloArc=Math.PI*2-haloGapSize;
 const haloBody=new THREE.Mesh(new THREE.TorusGeometry(70,5.5,7,58,haloArc),voidMetal);haloBody.rotation.z=haloGapStart+haloGapSize;halo.add(haloBody);
@@ -1599,8 +1599,13 @@ for(const p of roofDistrict){
  const thirdEnd={x:thirdStart.x+3,z:thirdStart.z-33,h:upper.h+18};
  const thirdCenter={x:thirdEnd.x,z:thirdEnd.z-10};
  const thirdMat=new THREE.MeshStandardMaterial({color:0x2c3a43,metalness:.59,roughness:.7});
- const thirdTower=new THREE.Mesh(new THREE.BoxGeometry(20,thirdEnd.h-.55,20),thirdMat);
- thirdTower.position.set(thirdCenter.x,(thirdEnd.h-.55)/2,thirdCenter.z);scene.add(thirdTower);
+ // Leave the arrival lip open: the ramp must not collide with the front wall.
+ const thirdRear=new THREE.Mesh(new THREE.BoxGeometry(20,thirdEnd.h-.55,17),thirdMat);
+ thirdRear.position.set(thirdCenter.x,(thirdEnd.h-.55)/2,thirdCenter.z-1.5);scene.add(thirdRear);
+ for(const side of [-1,1]){
+  const pier=new THREE.Mesh(new THREE.BoxGeometry(3,thirdEnd.h-.55,3),thirdMat);
+  pier.position.set(thirdCenter.x+side*8.5,(thirdEnd.h-.55)/2,thirdEnd.z-1.5);scene.add(pier);
+ }
  addClimbDeck(thirdCenter.x,thirdCenter.z,thirdEnd.h,20,20);
  fallenBuildingUnderside(thirdStart,thirdEnd,10,4);
  addClimbRamp(thirdStart,thirdEnd,5,false);
@@ -1613,6 +1618,48 @@ for(const p of roofDistrict){
  const relic=new THREE.Mesh(new THREE.OctahedronGeometry(2.2,0),
   new THREE.MeshStandardMaterial({color:0x132e37,metalness:.86,roughness:.24,emissive:0x0c4c59,emissiveIntensity:.3}));
  relic.position.set(thirdAnnex.x,thirdEnd.h+3.3,thirdAnnex.z);scene.add(relic);
+}
+// V105: three readable exploration layers. Cross-building paths connect
+// roof edges at matching heights, while the fallen facades remain the ascent routes.
+{
+ const bridgeMat=new THREE.MeshStandardMaterial({color:0x455660,metalness:.7,roughness:.57});
+ function roofLink(a,b,width=5.5){
+  // Link edge-to-edge, never through the building centers.
+  const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);
+  if(len<.01)return;
+  const ux=dx/len,uz=dz/len;
+  const insetA=Math.min(a.w||15,a.d||15)*.36;
+  const insetB=Math.min(b.w||15,b.d||15)*.36;
+  const from={x:a.x+ux*insetA,z:a.z+uz*insetA,h:a.h};
+  const to={x:b.x-ux*insetB,z:b.z-uz*insetB,h:b.h};
+  slopeMesh(from,to,width,.45,bridgeMat);
+  addClimbRamp(from,to,width/2,false);
+ }
+ // Ground layer: low industrial platforms beside the first fallen building.
+ const lowA={x:-38,z:-87,h:7,w:17,d:17},lowB={x:-52,z:-105,h:7,w:17,d:17};
+ const lowMat=new THREE.MeshStandardMaterial({color:0x303c45,metalness:.52,roughness:.75});
+ for(const p of [lowA,lowB]){
+  const m=new THREE.Mesh(new THREE.BoxGeometry(p.w,p.h-.5,p.d),lowMat);
+  m.position.set(p.x,(p.h-.5)/2,p.z);scene.add(m);addClimbDeck(p.x,p.z,p.h,p.w,p.d);
+ }
+ roofLink(lowA,lowB,6);
+ // Mid layer: connect the already-rendered 33.6m rooftops.
+ const mid=[{x:towerCenter.x,z:towerCenter.z,h:roofH,w:towerW,d:towerD},
+  ...roofDistrict.map(p=>({...p,h:roofH}))];
+ for(const [i,j] of [[0,1],[1,2],[2,3],[3,4],[4,5],[5,0]])roofLink(mid[i],mid[j],6.5);
+ // Upper layer: link the 51.6m and 69.6m districts without fold-back stairs.
+ const upperA={x:towerCenter.x+32,z:towerCenter.z-49,h:roofH+18,w:20,d:18};
+ const upperB={x:upperA.x+14,z:upperA.z-2,h:upperA.h,w:15,d:16};
+ roofLink(upperA,upperB,6.5);
+ const highestA={x:upperB.x+3,z:upperB.z-41,h:roofH+36,w:20,d:20};
+ const highestB={x:highestA.x+15,z:highestA.z-1,h:highestA.h,w:15,d:19};
+ roofLink(highestA,highestB,7);
+ // A lateral upper rooftop extension for exploration rather than another staircase.
+ const highSide={x:highestB.x+17,z:highestB.z-5,h:highestB.h,w:19,d:19};
+ const sideTower=new THREE.Mesh(new THREE.BoxGeometry(18,highSide.h-.55,18),lowMat);
+ sideTower.position.set(highSide.x,(highSide.h-.55)/2,highSide.z);scene.add(sideTower);
+ addClimbDeck(highSide.x,highSide.z,highSide.h,highSide.w,highSide.d);
+ roofLink(highestB,highSide,7);
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
@@ -2062,4 +2109,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=104"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=105"></script></body></html>
