@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V111 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V112 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1860,6 +1860,46 @@ for(const p of roofDistrict){
  slopeMesh(overhead,east,8,.48,bridgeMat);
  addClimbRamp(overhead,east,4,false);
 }
+// V112: edge-to-edge route across existing left-hand architecture to the
+// distant eastern elevated beam (x=91,y=132,z=-151, top=135.5).
+// Branches are laid out on outer rooftop lips, not through tower centers.
+{
+ const walkMat=new THREE.MeshStandardMaterial({color:0x4c606b,metalness:.65,roughness:.61,side:THREE.DoubleSide});
+ const roofMat=new THREE.MeshStandardMaterial({color:0x293a44,metalness:.54,roughness:.76});
+ function station(x,z,h,w=19,d=19){
+  const core=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.8,d-1),roofMat);
+  core.position.set(x,(h-.8)/2,z);scene.add(core);
+  addClimbDeck(x,z,h,w,d);
+  return {x,z,h,w,d};
+ }
+ function edgeBridge(a,b,width=8){
+  const dx=b.x-a.x,dz=b.z-a.z,dist=Math.hypot(dx,dz);
+  if(dist<.1)return;
+  const ux=dx/dist,uz=dz/dist;
+  // Inset into both roofs by only 1.5m; bridge remains outside the buildings.
+  const start={x:a.x+ux*1.5,z:a.z+uz*1.5,h:a.h-.08};
+  const end={x:b.x-ux*1.5,z:b.z-uz*1.5,h:b.h-.08};
+  slopeMesh(start,end,width,.7,walkMat);
+  addClimbRamp({x:start.x,z:start.z,h:a.h},{x:end.x,z:end.z,h:b.h},width/2,false);
+ }
+ // Existing overhead west/central beam, visually left of the distant bridge.
+ const start={x:36,z:-65,h:80,w:20,d:24};
+ // Roof-to-roof transition with an obvious upward progression.
+ const a=station(55,-85,90,20,20);
+ const b=station(69,-106,105,21,20);
+ const c=station(83,-127,120,20,20);
+ // The far-right beam is already drawn by megaBeam(91,132,-151,48,7,48).
+ const distant={x:91,z:-151,h:135.5,w:48,d:48};
+ edgeBridge(start,a,8);
+ edgeBridge(a,b,8);
+ edgeBridge(b,c,8);
+ edgeBridge(c,distant,9);
+ // Register the original bridge's actual top; don't draw a duplicate roof.
+ climbDecks.push({x:distant.x,z:distant.z,h:distant.h,w:distant.w,d:distant.d});
+ // Continue along its roof toward the distant side.
+ const far=station(125,-164,135.5,20,22);
+ edgeBridge(distant,far,9);
+}
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
  const satellites=[
@@ -2248,7 +2288,10 @@ for(const p of climbRamps){
  const h=p.ah+(p.bh-p.ah)*u;
  if(h>rampFloor&&h<=Math.max(feet,climbPrevFeet)+2.5)rampFloor=h;
 }
-if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5){
+// V112: prevent intersecting ring/skyway surfaces from snapping the
+// grounded player upward by several metres in one frame.
+if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5&&
+ (jumpCount>0 || rampFloor-climbFloor<=Math.max(.35,dt*7))){
  resolveFallDamage(rampFloor,t);
  climbFloor=rampFloor;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
 }
@@ -2315,4 +2358,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=111"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=112"></script></body></html>
