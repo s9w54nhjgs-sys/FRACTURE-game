@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V96 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V97 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1513,8 +1513,14 @@ const roofDistrict=[
 for(const p of roofDistrict)addClimbDeck(p.x,p.z,roofH,p.w,p.d);
 // Narrower bridges between roof blocks preserve the sensation of moving across buildings.
 // V92: roofs form a single broad explorable district, not skinny skywalks.
+// V97: no fold-back or zigzag sky ramps; adjoining rooftop footprints are directly walkable.
 const roofSequence=[climbDecks[0],...climbDecks.slice(1)];
-for(let i=0;i<roofSequence.length-1;i++)addClimbRamp(roofSequence[i],roofSequence[i+1],7.2);
+// Only bridge actual rooftop gaps, without drawing long ramps across buildings.
+for(let i=0;i<roofSequence.length-1;i++){
+ const a=roofSequence[i],b=roofSequence[i+1];
+ const gap=Math.hypot(b.x-a.x,b.z-a.z);
+ if(gap>Math.min(a.w,b.w)*.8&&gap<24)addClimbRamp(a,b,Math.min(6,Math.min(a.w,b.w)/2));
+}
 for(const p of roofDistrict){
  const tower=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,roofH,p.d-1),new THREE.MeshStandardMaterial({color:0x37444c,metalness:.45,roughness:.82}));
  tower.position.set(p.x,roofH/2-.4,p.z);scene.add(tower);
@@ -1863,7 +1869,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  if(jumpCount>0){
  // V78: on leaving a raised deck, convert platform elevation to airborne height
  // before integrating gravity. This preserves world-space height across the edge.
- if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.15){jumpHeight+=climbFloor;climbFloor=0;}
+ if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.85){jumpHeight+=climbFloor;climbFloor=0;}
  gliding=jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;jumpVelocity=Math.max(glideActive?-5:-34,jumpVelocity-gravity*dt);jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);if(jumpHeight===0&&climbFloor===0){resolveFallDamage(0,t);if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
  // No auto-mantle: ordinary jump, double jump and descending platform landings only.
  // V85: carry glide momentum into a grounded friction slide.
@@ -1885,12 +1891,17 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  }
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
+ // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
+ // Catch the downward crossing of the slope rather than requiring the current
+ // foot position to remain within a tiny 12cm landing window.
+ const sweptDeck=climbDeckUnder(player.position.x,player.position.z,Math.max(feet,climbPrevFeet)+1.2);
+ const landingDeck=jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&climbPrevFeet>=sweptDeck-.35&&feet<=sweptDeck+.2?sweptDeck:0;
  if(jumpCount===0){
   if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
   else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
   else if(deck>=climbFloor-.85)climbFloor=deck;
- }else if(jumpVelocity<=0&&deck>climbFloor+.08&&climbPrevFeet>=deck-.12&&feet<=deck+.12){
-  resolveFallDamage(deck,t);climbFloor=deck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
+ }else if(landingDeck>climbFloor+.08){
+  resolveFallDamage(landingDeck,t);climbFloor=landingDeck;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }else if(jumpVelocity<=0&&feet<=climbFloor+.01){
   // V76: preserve the actual support deck; never reset to world zero while standing on a platform.
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
@@ -1948,4 +1959,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=96"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=97"></script></body></html>
