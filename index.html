@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V97 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V98 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1514,13 +1514,8 @@ for(const p of roofDistrict)addClimbDeck(p.x,p.z,roofH,p.w,p.d);
 // Narrower bridges between roof blocks preserve the sensation of moving across buildings.
 // V92: roofs form a single broad explorable district, not skinny skywalks.
 // V97: no fold-back or zigzag sky ramps; adjoining rooftop footprints are directly walkable.
-const roofSequence=[climbDecks[0],...climbDecks.slice(1)];
-// Only bridge actual rooftop gaps, without drawing long ramps across buildings.
-for(let i=0;i<roofSequence.length-1;i++){
- const a=roofSequence[i],b=roofSequence[i+1];
- const gap=Math.hypot(b.x-a.x,b.z-a.z);
- if(gap>Math.min(a.w,b.w)*.8&&gap<24)addClimbRamp(a,b,Math.min(6,Math.min(a.w,b.w)/2));
-}
+// V98: remove legacy floating cross-building ramps entirely.
+// The rooftop slabs themselves overlap and are traversable.
 for(const p of roofDistrict){
  const tower=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,roofH,p.d-1),new THREE.MeshStandardMaterial({color:0x37444c,metalness:.45,roughness:.82}));
  tower.position.set(p.x,roofH/2-.4,p.z);scene.add(tower);
@@ -1895,7 +1890,21 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  // Catch the downward crossing of the slope rather than requiring the current
  // foot position to remain within a tiny 12cm landing window.
  const sweptDeck=climbDeckUnder(player.position.x,player.position.z,Math.max(feet,climbPrevFeet)+1.2);
- const landingDeck=jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&climbPrevFeet>=sweptDeck-.35&&feet<=sweptDeck+.2?sweptDeck:0;
+ const landingDeck=jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&climbPrevFeet>=sweptDeck-.55&&feet<=sweptDeck+.35?sweptDeck:0;
+// V98: continuous slope support on high-speed movement, including dash-jumps.
+// Never let the player's feet travel below the visible sloping facade.
+let rampFloor=0;
+for(const p of climbRamps){
+ const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz;
+ const u=Math.max(0,Math.min(1,((player.position.x-p.ax)*dx+(player.position.z-p.az)*dz)/l2));
+ if(Math.hypot(player.position.x-p.ax-dx*u,player.position.z-p.az-dz*u)>p.width-.12)continue;
+ const h=p.ah+(p.bh-p.ah)*u;
+ if(h>rampFloor&&h<=Math.max(feet,climbPrevFeet)+2.5)rampFloor=h;
+}
+if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5){
+ resolveFallDamage(rampFloor,t);
+ climbFloor=rampFloor;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
+}
  if(jumpCount===0){
   if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
   else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
@@ -1959,4 +1968,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=97"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=98"></script></body></html>
