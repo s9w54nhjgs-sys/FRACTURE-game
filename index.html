@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V120 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V121 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1993,156 +1993,34 @@ function resolveFallDamage(ground,t){
  fallPeak=ground;fallGlideUsed=false;
 }
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
-// V118: connect EXISTING rooftop collision footprints, not imagined buildings.
-// The new ruins are narrow skyway / monorail fragments with identical visual
-// and collision endpoints. Never cross an intervening taller roof or wall.
+// V121: single explicit spine, with no V118 auto-links or V119 hidden
+// detour. Geometry and walkable collision are built from the SAME segments.
 {
- const road=new THREE.MeshStandardMaterial({color:0x465762,metalness:.61,roughness:.73,side:THREE.DoubleSide});
- const rail=new THREE.MeshStandardMaterial({color:0x253c49,metalness:.77,roughness:.42,side:THREE.DoubleSide});
- const seam=new THREE.MeshBasicMaterial({color:0x69a6aa,side:THREE.DoubleSide});
- const original=climbDecks.filter(p=>p.w>=7&&p.d>=7&&p.h>=10&&p.h<=145&&
-  Number.isFinite(p.x)&&Number.isFinite(p.z)&&Number.isFinite(p.h));
- const edges=[];
- function rim(p,q){
-  const dx=q.x-p.x,dz=q.z-p.z;
-  const t=Math.min((p.w/2-.65)/Math.max(.001,Math.abs(dx)),(p.d/2-.65)/Math.max(.001,Math.abs(dz)));
-  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
- }
- function obstructed(a,b){
-  for(const p of original){
-   if(p===a||p===b)continue;
-   // Sample the route centerline. Tall intervening roofs indicate an
-   // obstruction; do not tunnel through their vertical facades.
-   for(let k=1;k<=7;k++){
-    const u=k/8,x=a.x+(b.x-a.x)*u,z=a.z+(b.z-a.z)*u;
-    if(Math.abs(x-p.x)<p.w/2+1.2&&Math.abs(z-p.z)<p.d/2+1.2&&
-       p.h>a.h+(b.h-a.h)*u+1.8)return true;
-   }
-  }
-  return false;
- }
- // Deterministic nearest-neighbour links, limited to keep iPhone FPS stable.
- const sorted=original.filter(p=>p.h>=18).sort((a,b)=>a.h-b.h);
- const used=new Set();
- for(const a of sorted){
-  if(edges.length>=24)break;
-  let best=null,score=1e9;
-  for(const b of original){
-   if(a===b||Math.abs(b.h-a.h)>7)continue;
-   const dist=Math.hypot(a.x-b.x,a.z-b.z);
-   if(dist<13||dist>46)continue;
-   const key=[original.indexOf(a),original.indexOf(b)].sort((x,y)=>x-y).join(':');
-   if(used.has(key)||obstructed(a,b))continue;
-   const p=rim(a,b),q=rim(b,a),span=Math.hypot(p.x-q.x,p.z-q.z);
-   if(span<4||span>36||Math.abs(p.h-q.h)/span>.5)continue;
-   const rank=span+Math.abs(p.h-q.h)*3;
-   if(rank<score){score=rank;best={b,p,q,key};}
-  }
-  if(!best)continue;
-  used.add(best.key);
-  edges.push(best);
- }
- for(let i=0;i<edges.length;i++){
-  const {p,q}=edges[i],w=i%3===0?6.5:5.5;
-  slopeMesh(p,q,w,.42,i%3===0?road:rail);
-  addClimbRamp(p,q,w/2,false);
-  // Sparse broken guide rails identify monorail remains without blocking
-  // the central walkable surface.
-  if(i%3!==0){
-   const dx=q.x-p.x,dz=q.z-p.z,len=Math.hypot(dx,dz);
-   const nx=-dz/len,nz=dx/len;
-   for(const side of [-1,1]){
-    const x=nx*side*(w/2-.35),z=nz*side*(w/2-.35);
-    slopeMesh({x:p.x+x,z:p.z+z,h:p.h+.12},
-              {x:q.x+x,z:q.z+z,h:q.h+.12},.16,.1,seam);
-   }
-  }
- }
-}
-// V120: visible route entrance on the SOLVED bridge roof (x=28,z=-70).
-// Prior V119 started at x=47 and immediately went east, easy to miss from
-// the west-side climb. These markers make the actual ascent discoverable.
-{
- const cyan=new THREE.MeshBasicMaterial({color:0x71e9ec,side:THREE.DoubleSide});
- const dark=new THREE.MeshStandardMaterial({color:0x344b56,metalness:.7,roughness:.55,side:THREE.DoubleSide});
- const pts=[
-  {x:28,z:-70,h:80},{x:40,z:-67,h:80},{x:52,z:-65,h:80},
-  {x:67,z:-65,h:85},{x:85,z:-74,h:93},
-  {x:105,z:-86,h:102},{x:125,z:-101,h:111}
+ const deckMat=new THREE.MeshStandardMaterial({color:0x526975,metalness:.56,roughness:.66,side:THREE.DoubleSide});
+ const glow=new THREE.MeshBasicMaterial({color:0x62d9df,side:THREE.DoubleSide});
+ const path=[
+  {x:28,z:-70,h:80},{x:43,z:-70,h:80},
+  {x:56,z:-72,h:84},{x:72,z:-77,h:90},
+  {x:87,z:-88,h:99},{x:104,z:-101,h:109},
+  {x:120,z:-118,h:119},{x:130,z:-138,h:130},
+  {x:128,z:-160,h:140},{x:111,z:-163,h:135.5}
  ];
- for(let i=0;i<pts.length;i++){
-  const p=pts[i];
-  // Low-profile glowing wayfinding bars are NOT collision objects.
-  const m=new THREE.Mesh(new THREE.BoxGeometry(4,.12,.65),cyan);
-  m.position.set(p.x,p.h+.13,p.z);scene.add(m);
-  if(i>0&&i<pts.length-1){
-   const a=pts[i-1],dx=p.x-a.x,dz=p.z-a.z,len=Math.hypot(dx,dz);
-   if(len>0){const arrow=new THREE.Mesh(new THREE.ConeGeometry(1.15,3,3),cyan);
-    arrow.rotation.x=Math.PI/2;arrow.rotation.z=-Math.atan2(dz,dx);
-    arrow.position.set(p.x,p.h+2.8,p.z);scene.add(arrow);}
+ for(let i=0;i<path.length-1;i++){
+  const p=path[i],q=path[i+1];
+  slopeMesh(p,q,10,.55,deckMat);
+  addClimbRamp(p,q,5,false);
+  // On the walkway itself, not under a bridge or behind a wall.
+  const n=3;
+  for(let j=0;j<n;j++){
+   const t=(j+.5)/n;
+   const x=p.x+(q.x-p.x)*t,z=p.z+(q.z-p.z)*t,h=p.h+(q.h-p.h)*t;
+   const marker=new THREE.Mesh(new THREE.BoxGeometry(1.4,.12,.8),glow);
+   marker.position.set(x,h+.17,z);scene.add(marker);
   }
  }
- // An unmistakable gateway on the first roof, facing the eastward route.
- const gate=new THREE.Mesh(new THREE.TorusGeometry(4.3,.27,6,24),cyan);
- gate.position.set(39,86,-67);scene.add(gate);
- const sign=new THREE.Mesh(new THREE.BoxGeometry(8,.38,1),dark);
- sign.position.set(39,80.25,-67);scene.add(sign);
-}
-// V119: guaranteed long-distance eastern sky-spine from the solved 80m
-// bridge to the distant 135.5m bridge. Unlike V118 nearest-neighbour links,
-// this is a deliberately connected, steadily ascending traversable route.
-{
- const deckMat=new THREE.MeshStandardMaterial({color:0x46545c,metalness:.68,roughness:.66,side:THREE.DoubleSide});
- const guideMat=new THREE.MeshStandardMaterial({color:0x6e9ba3,metalness:.75,roughness:.43,side:THREE.DoubleSide});
- function platform(x,z,h,w=13,d=13){
-  const m=new THREE.Mesh(new THREE.BoxGeometry(w,.48,d),deckMat);
-  m.position.set(x,h-.36,z);scene.add(m);
-  climbDecks.push({x,z,h,w,d});
-  return {x,z,h,w,d};
- }
- function lip(p,q){
-  const dx=q.x-p.x,dz=q.z-p.z;
-  const t=Math.min((p.w/2-.8)/Math.max(.001,Math.abs(dx)),(p.d/2-.8)/Math.max(.001,Math.abs(dz)));
-  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
- }
- function span(a,b,width=8){
-  const p=lip(a,b),q=lip(b,a);
-  slopeMesh(p,q,width,.38,deckMat);
-  addClimbRamp(p,q,width/2,false);
-  // Sparse elevated edge fragments: monorail ruins, not solid collision walls.
-  const dx=q.x-p.x,dz=q.z-p.z,len=Math.hypot(dx,dz);
-  if(len>6){
-   const nx=-dz/len,nz=dx/len;
-   for(const side of [-1,1]){
-    const off=side*(width/2-.35);
-    slopeMesh({x:p.x+nx*off,z:p.z+nz*off,h:p.h+.18},
-              {x:q.x+nx*off,z:q.z+nz*off,h:q.h+.18},.12,.09,guideMat);
-   }
-  }
- }
- // Existing near bridge: x -53..53, z -77..-53, y=80.
- // Existing far bridge: x 67..115, z -175..-127, y=135.5.
- // The eastern arc stays OUTSIDE their vertical facades; no underfloor switchback.
- const start={x:47,z:-64,h:80,w:12,d:12};
- const nodes=[
-  platform(67,-65,85,13,13),
-  platform(85,-74,93,13,13),
-  platform(105,-86,102,13,13),
-  platform(125,-101,111,13,13),
-  platform(141,-121,121,13,13),
-  platform(140,-144,131,14,14),
-  platform(128,-164,140,14,14)
- ];
- let prev=start;for(const p of nodes){span(prev,p,8);prev=p;}
- // Descend onto the far beam's EAST roof rim from outside x=115.
- const end={x:112,z:-163,h:135.5,w:6,d:10};
- span(prev,end,8);
- // Rooftop branch spurs along the upper corridor to encourage exploration.
- const b1=platform(112,-118,113,14,14);
- span(nodes[3],b1,7);span(b1,nodes[4],7);
- const b2=platform(117,-152,133,12,12);
- span(nodes[5],b2,7);span(b2,nodes[6],7);
- // Existing beam collision; no additional solid beam is spawned.
+ // A clearly visible upright navigation beacon on the solved bridge.
+ const beacon=new THREE.Mesh(new THREE.CylinderGeometry(.28,.4,9,6),glow);
+ beacon.position.set(30,84.5,-70);scene.add(beacon);
  climbDecks.push({x:91,z:-151,h:135.5,w:48,d:48});
 }
 function climbDeckUnder(x,z,feet){
@@ -2176,10 +2054,11 @@ function jumpNow(){if(done||jumpCount>=2)return;
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpHeld=true;jumpHeldAt=performance.now();jumpNow();});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('jump').addEventListener(ev,releaseJump);
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpHeld=true;jumpHeldAt=performance.now();jumpNow()}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
-function collides(x,z){if(Math.abs(x)<12&&Math.abs(z)<12)return false;if(Math.abs(x)>355||Math.abs(z)>355)return true;return solidStructures.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
+function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;if(climbFloor+jumpHeight>8)return false;if(Math.abs(x)<12&&Math.abs(z)<12)return false;return solidStructures.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
 function collisionSafeMove(x1,z1,x2,z2){
  // A character already overlapping an obstacle must be able to move OUT of it.
- const blockers=(x,z)=>Math.abs(x)<12&&Math.abs(z)<12?[]:solidStructures.filter(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1);
+ // Ground-only footprints must never become invisible walls at rooftop altitude.
+ const blockers=(x,z)=>climbFloor+jumpHeight>8||Math.abs(x)<12&&Math.abs(z)<12?[]:solidStructures.filter(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1);
  const initial=blockers(x1,z1);
  const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.7));
  for(let k=1;k<=n;k++){
@@ -2523,4 +2402,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=120"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=121"></script></body></html>
