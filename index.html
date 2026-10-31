@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V101 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V102 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1472,12 +1472,48 @@ const first={x:-16,z:-83,h:0},top={x:-16,z:-147,h:33.6};
 const towerCenter={x:top.x,z:top.z-10.3};
 const towerW=19,towerD=20.6;
 const towerMat=new THREE.MeshStandardMaterial({color:0x303c45,metalness:.55,roughness:.77});
-const mainTower=new THREE.Mesh(new THREE.BoxGeometry(towerW,top.h-.55,towerD),towerMat);
-mainTower.position.set(towerCenter.x,(top.h-.55)/2,towerCenter.z);scene.add(mainTower);
+// V102: impact damage at the roof lip, with an open central bite where the
+// fallen building rests. Keep the actual roof walkable all the way to the edge.
+const lipDepth=2.7,lipZ=top.z-lipDepth/2;
+const rearTower=new THREE.Mesh(new THREE.BoxGeometry(towerW,top.h-.55,towerD-lipDepth),towerMat);
+rearTower.position.set(towerCenter.x,(top.h-.55)/2,towerCenter.z-lipDepth/2);scene.add(rearTower);
+for(const side of [-1,1]){
+ const wingW=(towerW-15)/2;
+ const wing=new THREE.Mesh(new THREE.BoxGeometry(wingW,top.h-.55,lipDepth),towerMat);
+ wing.position.set(towerCenter.x+side*(7.5+wingW/2),(top.h-.55)/2,lipZ);
+ scene.add(wing);
+}
+// The destroyed center of the front wall is open underneath the arriving ramp.
+const brokenMat=new THREE.MeshStandardMaterial({color:0x66727b,metalness:.46,roughness:.82});
+for(const side of [-1,1]){
+ const chunk=new THREE.Mesh(new THREE.TetrahedronGeometry(1.4,0),brokenMat);
+ chunk.position.set(top.x+side*7.2,top.h-.7,top.z-.45);
+ chunk.rotation.set(.22,side*.35,.4);scene.add(chunk);
+}
 addClimbDeck(towerCenter.x,towerCenter.z,top.h,towerW,towerD);
 const fallenFacade=new THREE.MeshStandardMaterial({color:0x52636d,metalness:.58,roughness:.6,side:THREE.DoubleSide});
 slopeMesh(first,top,14.4,2.4,fallenFacade);
 addClimbRamp(first,top,7.2,false);
+// Exposed beams and window strips under the fallen building make the starting
+// floor read as a toppled skyscraper, rather than an anonymous smooth ramp.
+{
+ const dx=top.x-first.x,dz=top.z-first.z,dist=Math.hypot(dx,dz);
+ const crossX=-dz/dist,crossZ=dx/dist;
+ const facadeMat=new THREE.MeshStandardMaterial({color:0x26323a,metalness:.72,roughness:.55});
+ const windowMat=new THREE.MeshBasicMaterial({color:0x182831,side:THREE.DoubleSide});
+ for(let i=1;i<9;i++){
+  const u=i/9;
+  const cx=first.x+dx*u,cz=first.z+dz*u,h=top.h*u;
+  const beam=new THREE.Mesh(new THREE.BoxGeometry(13.8,.18,.28),facadeMat);
+  beam.position.set(cx,h-.24,cz);beam.rotation.y=Math.atan2(-dz,dx)-Math.PI/2;
+  scene.add(beam);
+  for(const side of [-1,1]){
+   const panel=new THREE.Mesh(new THREE.BoxGeometry(1.8,.035,2.2),windowMat);
+   panel.position.set(cx+crossX*side*4.5,h+.065,cz+crossZ*side*4.5);
+   panel.rotation.y=Math.atan2(dx,dz);scene.add(panel);
+  }
+ }
+}
 // Sparse transverse seams make the surface read as a damaged building facade.
 {
  const dx=top.x-first.x,dz=top.z-first.z,len=Math.hypot(dx,dz),px=-dz/len,pz=dx/len;
@@ -1507,6 +1543,23 @@ for(const p of roofDistrict)addClimbDeck(p.x,p.z,roofH,p.w,p.d);
 for(const p of roofDistrict){
  const tower=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,roofH,p.d-1),new THREE.MeshStandardMaterial({color:0x37444c,metalness:.45,roughness:.82}));
  tower.position.set(p.x,roofH/2-.4,p.z);scene.add(tower);
+}
+// V102: the route continues UP from the first rooftop district.
+// A second collapsed facade reaches the outer lip of a taller building.
+{
+ const lower={x:towerCenter.x+28,z:towerCenter.z-20,h:roofH};
+ const upper={x:lower.x+4,z:lower.z-30,h:roofH+18};
+ const upperCenter={x:upper.x,z:upper.z-9};
+ const upperW=20,upperD=18;
+ const upperTower=new THREE.Mesh(new THREE.BoxGeometry(upperW,upper.h-.55,upperD),
+  new THREE.MeshStandardMaterial({color:0x303d47,metalness:.58,roughness:.72}));
+ upperTower.position.set(upperCenter.x,(upper.h-.55)/2,upperCenter.z);scene.add(upperTower);
+ addClimbDeck(upperCenter.x,upperCenter.z,upper.h,upperW,upperD);
+ const highFacade=new THREE.MeshStandardMaterial({color:0x4b5d67,metalness:.6,roughness:.62,side:THREE.DoubleSide});
+ slopeMesh(lower,upper,9,1.6,highFacade);
+ addClimbRamp(lower,upper,4.5,false);
+ // A broad lookout roof beyond the second ascent.
+ addClimbDeck(upperCenter.x+14,upperCenter.z-2,upper.h,15,16);
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
@@ -1956,4 +2009,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=101"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=102"></script></body></html>
