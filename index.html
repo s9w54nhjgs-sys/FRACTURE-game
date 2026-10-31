@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V114 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V115 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1860,53 +1860,62 @@ for(const p of roofDistrict){
  slopeMesh(overhead,east,8,.48,bridgeMat);
  addClimbRamp(overhead,east,4,false);
 }
-// V114: bridge-to-roof entry at the NEAR OUTER LIP, not the underside.
-// A clear western bypass reaches the distant bridge through exterior roofs.
+// V115: no newly grown ground-to-roof towers. Cantilevered ledges attach
+// to existing architecture and the halo; all skyways terminate at OUTER lips.
 {
- const mat=new THREE.MeshStandardMaterial({color:0x526875,metalness:.65,roughness:.62,side:THREE.DoubleSide});
- const wallMat=new THREE.MeshStandardMaterial({color:0x293a44,metalness:.54,roughness:.76});
- function roof(x,z,h,w=18,d=18){
-  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.8,d-1),wallMat);
-  mesh.position.set(x,(h-.8)/2,z);scene.add(mesh);
-  addClimbDeck(x,z,h,w,d);
+ const deckMat=new THREE.MeshStandardMaterial({color:0x40535d,metalness:.68,roughness:.63,side:THREE.DoubleSide});
+ const braceMat=new THREE.MeshStandardMaterial({color:0x26343d,metalness:.63,roughness:.7});
+ function ledge(x,z,h,w=11,d=11){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(w,.48,d),deckMat);
+  mesh.position.set(x,h-.37,z);scene.add(mesh);
+  climbDecks.push({x,z,h,w,d});
   return {x,z,h,w,d};
  }
- function lip(p,target){
-  const dx=target.x-p.x,dz=target.z-p.z;
-  const k=Math.min((p.w/2-1)/Math.max(Math.abs(dx),.001),(p.d/2-1)/Math.max(Math.abs(dz),.001));
-  return {x:p.x+dx*k,z:p.z+dz*k,h:p.h};
+ function edge(p,to){
+  const dx=to.x-p.x,dz=to.z-p.z;
+  const scale=Math.min((p.w/2-.7)/Math.max(.001,Math.abs(dx)),
+                       (p.d/2-.7)/Math.max(.001,Math.abs(dz)));
+  return {x:p.x+dx*scale,z:p.z+dz*scale,h:p.h};
  }
- function connect(a,b,w=8){
-  const p=lip(a,b),q=lip(b,a);
-  slopeMesh({x:p.x,z:p.z,h:p.h-.09},{x:q.x,z:q.z,h:q.h-.09},w,.52,mat);
-  addClimbRamp(p,q,w/2,false);
+ function link(p,q,width=7){
+  const a=edge(p,q),b=edge(q,p);
+  // Do not put a thick ramp body inside the target facade.
+  slopeMesh({x:a.x,z:a.z,h:a.h-.06},{x:b.x,z:b.z,h:b.h-.06},width,.34,deckMat);
+  addClimbRamp(a,b,width/2,false);
  }
- const central={x:0,z:-65,h:80,w:106,d:24};
- // Front face of central bridge is z=-77. The new approach is entirely
- // OUTSIDE that face until the last 1m, and lands on its TOP at y=80.
- const front=roof(22,-87,80,12,12);
- connect(front,central,9);
- // Approach from the ring route via the outer side, away from hanging fins.
- const outer=roof(8,-105,70,17,17);
- connect(outer,front,9);
- const side=roof(-13,-116,77,19,19);
- connect(outer,side,8);
- // West-side bypass: no building-wall penetration or interior switchback.
- const west1=roof(-32,-137,89,19,19);
- const west2=roof(-19,-159,102,20,20);
- const west3=roof(4,-180,116,20,20);
- const west4=roof(32,-189,128,20,20);
- connect(side,west1,8);connect(west1,west2,8);
- connect(west2,west3,8);connect(west3,west4,8);
- // Far beam is a pre-existing box: x=67..115,z=-175..-127, top 135.5.
- // Enter from its FRONT (z=-175) roof lip, without colliding with its wall.
- const distant={x:91,z:-151,h:135.5,w:48,d:48};
- const nearBeam=roof(61,-190,135.5,17,17);
- connect(west4,nearBeam,9);
- connect(nearBeam,distant,9);
+ function brace(p,anchorX,anchorZ,anchorY){
+  // Small diagonal strut from the ledge to an existing building's side.
+  const a={x:p.x,z:p.z,h:p.h-1},b={x:anchorX,z:anchorZ,h:anchorY};
+  slopeMesh(a,b,1.2,.7,braceMat);
+ }
+ // Start from existing ring approach; avoid the central bridge's lower ribs.
+ const ringSide={x:4,z:-105,h:51,w:10,d:10};
+ const r1=ledge(24,-110,59,12,12);
+ const r2=ledge(43,-104,67,12,12);
+ const r3=ledge(58,-89,76,12,12);
+ link(ringSide,r1);link(r1,r2);link(r2,r3);
+ brace(r1,28,-99,44);brace(r2,45,-96,51);brace(r3,53,-87,62);
+ // The front face of the first beam is z=-77 and its top is y=80.
+ // Connect from outside the right end (x>53), with a shallow landing
+ // that ends at the near-right rooftop CORNER, not under the bridge.
+ const centralLip={x:53.8,z:-76.3,h:80,w:2,d:2};
+ link(r3,centralLip,7);
+ climbDecks.push({x:0,z:-65,h:80,w:106,d:24});
+ // Right-side existing-building traversal: suspended ledges, not towers.
+ const e1=ledge(67,-94,88,12,12);
+ const e2=ledge(80,-110,99,12,12);
+ const e3=ledge(91,-125,110,12,12);
+ const e4=ledge(108,-137,122,12,12);
+ link(r3,e1);link(e1,e2);link(e2,e3);link(e3,e4);
+ brace(e1,70,-86,73);brace(e2,76,-105,84);
+ brace(e3,89,-117,94);brace(e4,106,-128,106);
+ // Far existing beam is x=67..115,z=-175..-127, roof y=135.5.
+ // Approach from OUTSIDE its east side; land directly on its eastern rim.
+ const outer=ledge(126,-144,132,12,12);
+ link(e4,outer,8);
+ const farLip={x:115.4,z:-143,h:135.5,w:2,d:2};
+ link(outer,farLip,8);
  climbDecks.push({x:91,z:-151,h:135.5,w:48,d:48});
- const far=roof(125,-164,135.5,20,22);
- connect(distant,far,9);
 }
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
@@ -2366,4 +2375,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=114"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=115"></script></body></html>
