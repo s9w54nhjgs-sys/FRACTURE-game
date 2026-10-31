@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V102 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V103 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -262,10 +262,12 @@ function megaBeam(x,y,z,w,h,d,angle=0,mat=voidMetal){const m=detailBox(x,y,z,w,h
 function floatingCore(x,y,z,r){const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
 // The sky is divided by an enormous vertical ring, with no building-like windows or roof.
 const halo=new THREE.Group();halo.position.set(5,88,-120);halo.rotation.y=.28;architecture.add(halo);
-const haloBody=new THREE.Mesh(new THREE.TorusGeometry(70,5.5,7,64),voidMetal);halo.add(haloBody);
-const haloRecess=new THREE.Mesh(new THREE.TorusGeometry(70,1.1,5,64),edgeSilver);haloRecess.position.z=4.5;halo.add(haloRecess);
-const haloVoid=new THREE.Mesh(new THREE.TorusGeometry(62,.5,4,64),dimCyan);haloVoid.position.z=2;halo.add(haloVoid);
-for(let i=0;i<12;i++){const a=i*Math.PI/6;const m=new THREE.Mesh(new THREE.BoxGeometry(7,13,11),armoredSteel);m.position.set(Math.sin(a)*70,Math.cos(a)*70,0);m.rotation.z=-a;halo.add(m)}
+// V103: a real missing sector in the suspended halo, not a painted-on scar.
+const haloGapStart=.24,haloGapSize=.58,haloArc=Math.PI*2-haloGapSize;
+const haloBody=new THREE.Mesh(new THREE.TorusGeometry(70,5.5,7,58,haloArc),voidMetal);haloBody.rotation.z=haloGapStart+haloGapSize;halo.add(haloBody);
+const haloRecess=new THREE.Mesh(new THREE.TorusGeometry(70,1.1,5,58,haloArc),edgeSilver);haloRecess.position.z=4.5;haloRecess.rotation.z=haloGapStart+haloGapSize;halo.add(haloRecess);
+const haloVoid=new THREE.Mesh(new THREE.TorusGeometry(62,.5,4,58,haloArc),dimCyan);haloVoid.position.z=2;haloVoid.rotation.z=haloGapStart+haloGapSize;halo.add(haloVoid);
+for(let i=0;i<12;i++){const a=i*Math.PI/6,angle=Math.PI/2-a;const norm=(angle%(Math.PI*2)+Math.PI*2)%(Math.PI*2);if(norm>=haloGapStart&&norm<=haloGapStart+haloGapSize)continue;const m=new THREE.Mesh(new THREE.BoxGeometry(7,13,11),armoredSteel);m.position.set(Math.sin(a)*70,Math.cos(a)*70,0);m.rotation.z=-a;halo.add(m)}
 // A vast suspended cross-structure dominates the view over the initial gateway.
 megaBeam(0,74,-65,106,12,24,0,castConcrete);
 megaBeam(-52,46,-65,12,57,25,-.17,voidMetal);
@@ -1465,6 +1467,37 @@ function addClimbRamp(a,b,width=5.2,visual=true){
  if(visual)slopeMesh(a,b,width*2,.32,climbSteel);
  climbRamps.push({ax:a.x,az:a.z,ah:a.h,bx:b.x,bz:b.z,bh:b.h,width});
 }
+// V103: structural shell underneath a tilted walkable facade.
+// Its upper surface remains the same collision ramp, while the visible lower
+// volume reads as a broken skyscraper with exposed sides and dark window bands.
+function fallenBuildingUnderside(a,b,width,depth){
+ const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz),nx=-dz/len,nz=dx/len;
+ const concrete=new THREE.MeshStandardMaterial({color:0x35454e,metalness:.5,roughness:.78,side:THREE.DoubleSide});
+ const frame=new THREE.MeshStandardMaterial({color:0x192830,metalness:.75,roughness:.52});
+ const glass=new THREE.MeshBasicMaterial({color:0x14242d,side:THREE.DoubleSide});
+ // Solid structural core follows the exact incline, with the top BELOW the playable skin.
+ slopeMesh(a,b,width,depth,concrete);
+ // A thicker, narrower core underneath gives the building genuine depth.
+ const coreA={x:a.x,z:a.z,h:a.h-.7},coreB={x:b.x,z:b.z,h:b.h-.7};
+ slopeMesh(coreA,coreB,width*.85,depth+2.7,concrete);
+ for(let i=0;i<13;i++){
+  const u=(i+.5)/13,x=a.x+dx*u,z=a.z+dz*u,y=a.h+(b.h-a.h)*u;
+  for(const side of [-1,1]){
+   const px=x+nx*side*(width/2-.09),pz=z+nz*side*(width/2-.09);
+   const win=new THREE.Mesh(new THREE.BoxGeometry(.15,1.35,2.6),glass);
+   win.position.set(px,y-depth*.55,pz);
+   win.rotation.y=Math.atan2(nx,nz);scene.add(win);
+   const rib=new THREE.Mesh(new THREE.BoxGeometry(.24,depth+.35,.28),frame);
+   rib.position.set(px,y-depth/2,pz);scene.add(rib);
+  }
+ }
+ // Jagged detached fragments at the low broken end.
+ for(let j=0;j<5;j++){
+  const chip=new THREE.Mesh(new THREE.TetrahedronGeometry(.9+(j%3)*.38,0),concrete);
+  chip.position.set(a.x+nx*(j-2)*2,a.h-.5,a.z+nz*(j-2)*2);
+  chip.rotation.set(j*.41,j*.68,j*.22);scene.add(chip);
+ }
+}
 // One visibly collapsed skyscraper: its actual upper facade IS the walking surface.
 // V101: the fallen facade LEANS ON the near outer edge of a real tower.
 // The ramp terminates at the front roof lip; it never enters the building footprint.
@@ -1492,7 +1525,7 @@ for(const side of [-1,1]){
 }
 addClimbDeck(towerCenter.x,towerCenter.z,top.h,towerW,towerD);
 const fallenFacade=new THREE.MeshStandardMaterial({color:0x52636d,metalness:.58,roughness:.6,side:THREE.DoubleSide});
-slopeMesh(first,top,14.4,2.4,fallenFacade);
+fallenBuildingUnderside(first,top,14.4,4.8);
 addClimbRamp(first,top,7.2,false);
 // Exposed beams and window strips under the fallen building make the starting
 // floor read as a toppled skyscraper, rather than an anonymous smooth ramp.
@@ -1556,7 +1589,7 @@ for(const p of roofDistrict){
  upperTower.position.set(upperCenter.x,(upper.h-.55)/2,upperCenter.z);scene.add(upperTower);
  addClimbDeck(upperCenter.x,upperCenter.z,upper.h,upperW,upperD);
  const highFacade=new THREE.MeshStandardMaterial({color:0x4b5d67,metalness:.6,roughness:.62,side:THREE.DoubleSide});
- slopeMesh(lower,upper,9,1.6,highFacade);
+ fallenBuildingUnderside(lower,upper,9,3.5);
  addClimbRamp(lower,upper,4.5,false);
  // A broad lookout roof beyond the second ascent.
  addClimbDeck(upperCenter.x+14,upperCenter.z-2,upper.h,15,16);
@@ -2009,4 +2042,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=102"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=103"></script></body></html>
