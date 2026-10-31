@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V121 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V122 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1977,7 +1977,7 @@ for(let i=0;i<roofDistrict.length;i++){
   }
  }
 }
-let climbFloor=0,climbPrevFeet=0;let fallPeak=0,fallGlideUsed=false;
+var climbFloor=0,climbPrevFeet=0;let fallPeak=0,fallGlideUsed=false;
 function resolveFallDamage(ground,t){
  const distance=Math.max(0,fallPeak-ground);
  // 33.6m descent costs about 50 shield; short drops are safe.
@@ -2037,7 +2037,7 @@ function climbDeckUnder(x,z,feet){
  }
  return best;
 }
-let moveVX=0,moveVZ=0,landedJumpCount=0;let jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
+let moveVX=0,moveVZ=0,landedJumpCount=0;var jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
 function jumpNow(){if(done||jumpCount>=2)return;
  // V108: before jumping after a glide landing, anchor to the actual roof
  // instead of carrying a stale ground-level climbFloor into the new jump.
@@ -2402,4 +2402,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=121"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=122"></script></body></html>
