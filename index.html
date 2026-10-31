@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V105 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V106 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1661,6 +1661,59 @@ for(const p of roofDistrict){
  addClimbDeck(highSide.x,highSide.z,highSide.h,highSide.w,highSide.d);
  roofLink(highestB,highSide,7);
 }
+// V106: alternative rooftop network. The previous final ramp remains, but a
+// second exterior ascent bypasses the dark obstruction visible at its summit.
+// Every new connection has identical visual and collision endpoints.
+{
+ const material=new THREE.MeshStandardMaterial({color:0x46545d,metalness:.58,roughness:.72});
+ const deckMat=new THREE.MeshStandardMaterial({color:0x303c45,metalness:.55,roughness:.73});
+ const height0=33.6,height1=51.6,height2=69.6;
+ function buildingRoof(x,z,h,w=17,d=17){
+  const tower=new THREE.Mesh(new THREE.BoxGeometry(w-1,h-.55,d-1),deckMat);
+  tower.position.set(x,(h-.55)/2,z);scene.add(tower);
+  addClimbDeck(x,z,h,w,d);
+  return {x,z,h,w,d};
+ }
+ function walkway(a,b,width=7){
+  const dx=b.x-a.x,dz=b.z-a.z,len=Math.hypot(dx,dz);
+  if(len<.01)return;
+  const ux=dx/len,uz=dz/len;
+  const ra=Math.min(a.w||16,a.d||16)*.32;
+  const rb=Math.min(b.w||16,b.d||16)*.32;
+  const from={x:a.x+ux*ra,z:a.z+uz*ra,h:a.h};
+  const to={x:b.x-ux*rb,z:b.z-uz*rb,h:b.h};
+  slopeMesh(from,to,width,.5,material);
+  addClimbRamp(from,to,width/2,false);
+ }
+ // Mid-layer side branch runs around the first 33.6m roof cluster.
+ const mid0={x:12,z:-179,h:height0,w:17,d:20};
+ const mid1=buildingRoof(4,-193,height0,19,19);
+ const mid2=buildingRoof(-13,-197,height0,18,18);
+ walkway(mid0,mid1);walkway(mid1,mid2);
+ walkway(mid2,{x:-21,z:-177,h:height0,w:17,d:17});
+ // At 51.6m the second roof gains a lateral route.
+ const upperBase={x:16,z:-206,h:height1,w:15,d:16};
+ const upperSide=buildingRoof(37,-210,height1,18,19);
+ const upperSide2=buildingRoof(49,-230,height1,18,18);
+ walkway(upperBase,upperSide);walkway(upperSide,upperSide2);
+ // A clear exterior incline climbs from the OUTER edge of the side tower.
+ // Its destination is a new rooftop with no tall front wall at the landing.
+ const highSide=buildingRoof(49,-272,height2,20,20);
+ const start={x:49,z:-238,h:height1};
+ const end={x:49,z:-262,h:height2};
+ fallenBuildingUnderside(start,end,10,3.6);
+ addClimbRamp(start,end,5,false);
+ // Top-level network links this new approach to the existing upper district.
+ const highJoin=buildingRoof(30,-275,height2,18,20);
+ const highAnnex=buildingRoof(12,-278,height2,18,18);
+ walkway(highSide,highJoin,8);
+ walkway(highJoin,highAnnex,8);
+ walkway(highAnnex,{x:30,z:-249,h:height2,w:20,d:20},7);
+ // Give the highest level a clear open-air destination.
+ const relic=new THREE.Mesh(new THREE.IcosahedronGeometry(2.1,0),
+  new THREE.MeshStandardMaterial({color:0x19444c,metalness:.8,roughness:.24,emissive:0x0b3540,emissiveIntensity:.5}));
+ relic.position.set(highJoin.x,height2+3.5,highJoin.z);scene.add(relic);
+}
 // V95: climbable satellite buildings, each with a distinct broken facade approach.
 {
  const satellites=[
@@ -2109,4 +2162,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=105"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=106"></script></body></html>
