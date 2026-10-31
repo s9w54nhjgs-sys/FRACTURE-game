@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V122 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V123 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1993,35 +1993,62 @@ function resolveFallDamage(ground,t){
  fallPeak=ground;fallGlideUsed=false;
 }
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
-// V121: single explicit spine, with no V118 auto-links or V119 hidden
-// detour. Geometry and walkable collision are built from the SAME segments.
+// V123: route from the REAL registered roof footprints. Geometry and
+// collision use the same coordinates; no more guessed intermediate rooftops.
 {
- const deckMat=new THREE.MeshStandardMaterial({color:0x526975,metalness:.56,roughness:.66,side:THREE.DoubleSide});
- const glow=new THREE.MeshBasicMaterial({color:0x62d9df,side:THREE.DoubleSide});
- const path=[
-  {x:28,z:-70,h:80},{x:43,z:-70,h:80},
-  {x:56,z:-72,h:84},{x:72,z:-77,h:90},
-  {x:87,z:-88,h:99},{x:104,z:-101,h:109},
-  {x:120,z:-118,h:119},{x:130,z:-138,h:130},
-  {x:128,z:-160,h:140},{x:111,z:-163,h:135.5}
+ const surface=new THREE.MeshStandardMaterial({color:0x50616a,metalness:.63,roughness:.68,side:THREE.DoubleSide});
+ const trim=new THREE.MeshBasicMaterial({color:0x6bc8cd,side:THREE.DoubleSide});
+ const near={x:0,z:-65,h:80,w:106,d:24};
+ const far={x:91,z:-151,h:135.5,w:48,d:48};
+ const all=[near,...climbDecks.filter(p=>p.legacy&&p.w>=7&&p.d>=7&&p.h>=8),far];
+ // Explicit main route around the EASTERN exterior, anchored to actual
+ // bridge roof bounds. Elevated stations are visible structural pylons.
+ const stations=[
+  {x:60,z:-69,h:84,w:12,d:12},
+  {x:78,z:-78,h:94,w:13,d:13},
+  {x:96,z:-93,h:105,w:13,d:13},
+  {x:114,z:-111,h:117,w:13,d:13},
+  {x:132,z:-129,h:129,w:13,d:13},
+  {x:129,z:-151,h:140,w:13,d:13}
  ];
- for(let i=0;i<path.length-1;i++){
-  const p=path[i],q=path[i+1];
-  slopeMesh(p,q,10,.55,deckMat);
-  addClimbRamp(p,q,5,false);
-  // On the walkway itself, not under a bridge or behind a wall.
-  const n=3;
-  for(let j=0;j<n;j++){
-   const t=(j+.5)/n;
-   const x=p.x+(q.x-p.x)*t,z=p.z+(q.z-p.z)*t,h=p.h+(q.h-p.h)*t;
-   const marker=new THREE.Mesh(new THREE.BoxGeometry(1.4,.12,.8),glow);
-   marker.position.set(x,h+.17,z);scene.add(marker);
+ function lip(p,q){
+  const dx=q.x-p.x,dz=q.z-p.z;
+  const t=Math.min((p.w/2-.8)/Math.max(.001,Math.abs(dx)),(p.d/2-.8)/Math.max(.001,Math.abs(dz)));
+  return {x:p.x+dx*t,z:p.z+dz*t,h:p.h};
+ }
+ function join(p,q,width=9){
+  const a=lip(p,q),b=lip(q,p);
+  slopeMesh(a,b,width,.45,surface);addClimbRamp(a,b,width/2,false);
+ }
+ // Every visible intermediate platform is registered as a physical deck.
+ for(const p of stations){
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(p.w,.5,p.d),surface);
+  mesh.position.set(p.x,p.h-.37,p.z);scene.add(mesh);climbDecks.push(p);
+  const pole=new THREE.Mesh(new THREE.CylinderGeometry(.22,.35,5,6),trim);
+  pole.position.set(p.x,p.h+2.5,p.z);scene.add(pole);
+ }
+ const route=[near,...stations,far];
+ for(let i=0;i<route.length-1;i++)join(route[i],route[i+1],9);
+ // Actual roof branch connections: attach only when both endpoints are
+ // genuine registered existing surfaces and the gap is traversable.
+ let branches=0;
+ const roofs=all.filter(p=>p.legacy&&p.h>=20&&p.h<=100);
+ for(const p of roofs){
+  if(branches>=14)break;
+  let best=null,bestDist=Infinity;
+  for(const q of route){
+   const distance=Math.hypot(p.x-q.x,p.z-q.z);
+   if(distance<bestDist&&distance>12&&distance<38&&Math.abs(p.h-q.h)<8){
+    best=q;bestDist=distance;
+   }
+  }
+  if(best){
+   const x=lip(p,best),y=lip(best,p);
+   if(Math.hypot(x.x-y.x,x.z-y.z)>3){
+    join(p,best,6);branches++;
+   }
   }
  }
- // A clearly visible upright navigation beacon on the solved bridge.
- const beacon=new THREE.Mesh(new THREE.CylinderGeometry(.28,.4,9,6),glow);
- beacon.position.set(30,84.5,-70);scene.add(beacon);
- climbDecks.push({x:91,z:-151,h:135.5,w:48,d:48});
 }
 function climbDeckUnder(x,z,feet){
  let best=0;
@@ -2402,4 +2429,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=122"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=123"></script></body></html>
