@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V95 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V96 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1508,8 +1508,10 @@ for(const p of roofDistrict){
   addClimbDeck(p.x,p.z,p.h,p.w,p.d);
   const building=new THREE.Mesh(new THREE.BoxGeometry(p.w-1,p.h-.6,p.d-1),wallMat);
   building.position.set(p.x,(p.h-.6)/2,p.z);scene.add(building);
-  const approach={x:p.x+p.side*(p.w/2+17),z:p.z+5,h:0};
-  addClimbRamp(approach,{x:p.x+p.side*3,z:p.z,h:p.h},4.5);
+  // Single straight external facade ramp; it stops at the roof's outer lip.
+  const edgeX=p.x+p.side*(p.w/2-.35);
+  const approach={x:edgeX+p.side*36,z:p.z,h:0};
+  addClimbRamp(approach,{x:edgeX,z:p.z,h:p.h},4.5);
   // Circular gouge marks a former passage of the enormous vessel.
   // Three open crescent fragments deliberately leave the center missing.
   const gouge=new THREE.Group();
@@ -1560,8 +1562,8 @@ let climbFloor=0,climbPrevFeet=0;let fallPeak=0,fallGlideUsed=false;
 function resolveFallDamage(ground,t){
  const distance=Math.max(0,fallPeak-ground);
  // 33.6m descent costs about 50 shield; short drops are safe.
- const damage=Math.min(65,Math.max(0,(distance-4)/29.6*50));
- const actual=fallGlideUsed?0:damage;
+ const damage=Math.min(65,Math.max(0,(distance-4)/59.2*50));
+ const actual=(fallGlideUsed||jumpHeld&&gliding&&jumpCount>0&&jumpVelocity<=0)?0:damage;
  if(actual>=1&&!done){
   const absorbed=Math.min(shield,actual);shield-=absorbed;
   hp=Math.max(0,hp-(actual-absorbed));
@@ -1921,4 +1923,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=95"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=96"></script></body></html>
