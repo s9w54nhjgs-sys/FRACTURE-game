@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V99 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V100 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1410,51 +1410,8 @@ function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
 function updateDashDisplay(){const b=$('dash');b.textContent='DASH '+('◆'.repeat(dashCharges))+('◇'.repeat(2-dashCharges));b.style.opacity=dashCharges?1:.55;}
 updateDashDisplay();
 $('dash').addEventListener('pointerdown',e=>{e.preventDefault();startDash()});window.addEventListener('keydown',e=>{if(e.code==='ShiftLeft'&&!e.repeat)startDash()});
-// V94: reserve the fallen-skyscraper and rooftop district from older procedural architecture.
-// The screenshots showed legacy structures cutting straight through the new climb.
-{
- const reserved={minX:22,maxX:109,minZ:-88,maxZ:-8};
- architecture.updateMatrixWorld(true);
- const bb=new THREE.Box3();
- const removed=[];
- architecture.traverse(obj=>{
-  if(!obj.isMesh||!obj.geometry)return;
-  bb.setFromObject(obj);
-  if(bb.max.x>reserved.minX&&bb.min.x<reserved.maxX&&bb.max.z>reserved.minZ&&bb.min.z<reserved.maxZ){
-   removed.push(obj);
-  }
- });
- for(const obj of removed){obj.parent.remove(obj)}
- // Keep old ground-level blockers from preventing entry to the cleared area.
- for(let i=solidStructures.length-1;i>=0;i--){
-  const b=solidStructures[i];
-  if(b.x+b.w/2>reserved.minX&&b.x-b.w/2<reserved.maxX&&b.z+b.d/2>reserved.minZ&&b.z-b.d/2<reserved.maxZ)solidStructures.splice(i,1);
- }
-}
-// V99: legacy buildings were NOT all in 'architecture'. Remove only older
-// building-sized meshes obstructing the original spawn-side ascent corridor.
-// This runs before new ramps and rooftops are created, so they remain intact.
-{
- const corridor={x1:29,z1:-18,x2:64,z2:-67,halfWidth:15};
- const dx=corridor.x2-corridor.x1,dz=corridor.z2-corridor.z1,len2=dx*dx+dz*dz;
- const bounds=new THREE.Box3(),toRemove=[];
- scene.updateMatrixWorld(true);
- scene.traverse(obj=>{
-  if(!obj.isMesh||!obj.geometry||obj.parent===null)return;
-  if(obj.geometry.type!=='BoxGeometry')return;
-  bounds.setFromObject(obj);
-  const w=bounds.max.x-bounds.min.x,d=bounds.max.z-bounds.min.z,h=bounds.max.y-bounds.min.y;
-  if(w<2||d<2||h<3||w>95||d>95||bounds.max.y<3)return;
-  const cx=(bounds.min.x+bounds.max.x)/2,cz=(bounds.min.z+bounds.max.z)/2;
-  const u=Math.max(0,Math.min(1,((cx-corridor.x1)*dx+(cz-corridor.z1)*dz)/len2));
-  const dist=Math.hypot(cx-corridor.x1-u*dx,cz-corridor.z1-u*dz);
-  if(dist>corridor.halfWidth+Math.max(w,d)*.25)return;
-  // Do not touch any giant world/ship structure or the distant skyline.
-  if(bounds.min.x<10||bounds.max.x>110||bounds.min.z< -105||bounds.max.z>5)return;
-  toRemove.push(obj);
- });
- for(const obj of toRemove)obj.parent.remove(obj);
-}
+// V100: preserve the original city. The climb is relocated rather than deleting
+// unrelated procedural buildings from multiple scene groups.
 // Vertical parkour route: staggered climbable decks, each reached with JUMP near its rim.
 const climbDecks=[];
 const climbSteel=new THREE.MeshStandardMaterial({color:0x53616b,metalness:.78,roughness:.43});
@@ -1509,7 +1466,7 @@ function addClimbRamp(a,b,width=5.2,visual=true){
  climbRamps.push({ax:a.x,az:a.z,ah:a.h,bx:b.x,bz:b.z,bh:b.h,width});
 }
 // One visibly collapsed skyscraper: its actual upper facade IS the walking surface.
-const first={x:35,z:-25,h:0},top={x:64,z:-67,h:33.6};
+const first={x:-16,z:-83,h:0},top={x:-16,z:-147,h:33.6};
 addClimbDeck(top.x,top.z,top.h,19,19);
 const fallenFacade=new THREE.MeshStandardMaterial({color:0x52636d,metalness:.58,roughness:.6,side:THREE.DoubleSide});
 slopeMesh(first,top,14.4,2.4,fallenFacade);
@@ -1992,4 +1949,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=99"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=100"></script></body></html>
