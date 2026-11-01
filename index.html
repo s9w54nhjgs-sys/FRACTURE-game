@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V123 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V124 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2050,6 +2050,52 @@ let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false
   }
  }
 }
+// V124: interconnected EXISTING rooftops, rather than new floating towers.
+// Use the same measured world-space roof bounds already in climbDecks.
+{
+ const roofSkin=new THREE.MeshStandardMaterial({color:0x374951,metalness:.66,roughness:.7,side:THREE.DoubleSide});
+ const relicMat=new THREE.MeshStandardMaterial({color:0x1b343c,metalness:.8,roughness:.32,emissive:0x0b2930,emissiveIntensity:.35});
+ const roofs=climbDecks.filter(p=>p.legacy&&p.h>=12&&p.h<=95&&p.w>=8&&p.d>=8&&p.w<=65&&p.d<=65);
+ const seen=new Set();const candidates=[];
+ for(let i=0;i<roofs.length;i++)for(let j=i+1;j<roofs.length;j++){
+  const a=roofs[i],b=roofs[j];
+  if(Math.abs(a.h-b.h)>6)continue;
+  const dx=Math.abs(a.x-b.x),dz=Math.abs(a.z-b.z);
+  const gapX=Math.max(0,dx-(a.w+b.w)/2),gapZ=Math.max(0,dz-(a.d+b.d)/2);
+  const gap=Math.hypot(gapX,gapZ);
+  if(gap<3||gap>23||Math.hypot(dx,dz)>70)continue;
+  const key=[Math.round(a.x/5),Math.round(a.z/5),Math.round(b.x/5),Math.round(b.z/5)].join(':');
+  if(seen.has(key))continue;seen.add(key);
+  candidates.push({a,b,gap,score:gap+Math.abs(a.h-b.h)*1.8});
+ }
+ candidates.sort((a,b)=>a.score-b.score);
+ const degree=new Map();let made=0;
+ for(const {a,b} of candidates){
+  if(made>=18)break;
+  if((degree.get(a)||0)>=2||(degree.get(b)||0)>=2)continue;
+  const dx=b.x-a.x,dz=b.z-a.z;
+  const t1=Math.min((a.w/2-.9)/Math.max(.001,Math.abs(dx)),(a.d/2-.9)/Math.max(.001,Math.abs(dz)));
+  const t2=Math.min((b.w/2-.9)/Math.max(.001,Math.abs(dx)),(b.d/2-.9)/Math.max(.001,Math.abs(dz)));
+  const p={x:a.x+dx*t1,z:a.z+dz*t1,h:a.h};
+  const q={x:b.x-dx*t2,z:b.z-dz*t2,h:b.h};
+  if(Math.hypot(q.x-p.x,q.z-p.z)<2)continue;
+  slopeMesh(p,q,6.8,.4,roofSkin);addClimbRamp(p,q,3.4,false);
+  degree.set(a,(degree.get(a)||0)+1);degree.set(b,(degree.get(b)||0)+1);made++;
+ }
+ // Unexplained relics are placed ABOVE selected actual rooftops, clear
+ // of walkable entry edges. No collision blockers or particle-heavy effects.
+ let relics=0;
+ for(const p of roofs){
+  if(relics>=9)break;
+  if((degree.get(p)||0)===0||p.w<12||p.d<12)continue;
+  const relic=new THREE.Mesh(new THREE.OctahedronGeometry(1.5+(relics%3)*.4,0),relicMat);
+  relic.position.set(p.x,p.h+3.2,p.z);relic.rotation.set(.3,.4*relics,.2);
+  scene.add(relic);
+  const pedestal=new THREE.Mesh(new THREE.CylinderGeometry(.8,1.1,.6,6),roofSkin);
+  pedestal.position.set(p.x,p.h+.22,p.z);scene.add(pedestal);
+  relics++;
+ }
+}
 function climbDeckUnder(x,z,feet){
  let best=0;
  for(const p of climbDecks){
@@ -2429,4 +2475,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=123"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=124"></script></body></html>
