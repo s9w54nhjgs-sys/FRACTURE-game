@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V125 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V126 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1992,7 +1992,8 @@ function resolveFallDamage(ground,t){
  }
  fallPeak=ground;fallGlideUsed=false;
 }
-let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
+let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;
+let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;glideInterrupted=false;}window.addEventListener("blur",releaseJump);
 // V123: route from the REAL registered roof footprints. Geometry and
 // collision use the same coordinates; no more guessed intermediate rooftops.
 {
@@ -2127,30 +2128,85 @@ function jumpNow(){if(done||jumpCount>=2)return;
  }
  const neutral=Math.hypot(input.x+(keys.d?1:0)-(keys.a?1:0),input.y+(keys.s?1:0)-(keys.w?1:0))<.1&&!autoRun;
  if(jumpCount===1){if(neutral){moveVX=0;moveVZ=0}else{const mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0),m=Math.max(1,Math.hypot(mx,my));moveVX=(Math.cos(yaw)*mx+Math.sin(yaw)*my)/m*6.2;moveVZ=(-Math.sin(yaw)*mx+Math.cos(yaw)*my)/m*6.2}}
- if(jumpCount===0){fallPeak=climbFloor+jumpHeight;fallGlideUsed=false;}jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
+ if(jumpCount===0){fallPeak=climbFloor+jumpHeight;fallGlideUsed=false;glideInterrupted=false;}jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
  if(jumpCount===2){verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
 }
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpHeld=true;jumpHeldAt=performance.now();jumpNow();});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('jump').addEventListener(ev,releaseJump);
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpHeld=true;jumpHeldAt=performance.now();jumpNow()}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
-function collides(x,z){if(Math.abs(x)>355||Math.abs(z)>355)return true;if(climbFloor+jumpHeight>8)return false;if(Math.abs(x)<12&&Math.abs(z)<12)return false;return solidStructures.some(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1)}
+// V126: lightweight collision hulls measured from actual rendered boxes.
+// Broadphase spatial grid avoids testing every building every frame.
+const buildingHulls=[],buildingCells=new Map(),buildingCellSize=24;
+{
+ const bounds=new THREE.Box3();
+ architecture.updateMatrixWorld(true);
+ architecture.traverse(mesh=>{
+  if(!mesh.isMesh||mesh.geometry?.type!=='BoxGeometry')return;
+  // Ignore small facade ornaments, rails and airborne details.
+  bounds.setFromObject(mesh);
+  const w=bounds.max.x-bounds.min.x,d=bounds.max.z-bounds.min.z;
+  const h=bounds.max.y-bounds.min.y;
+  if(w<2.4||d<2.4||h<2.5||bounds.max.y<2)return;
+  if(w>160||d>160)return;
+  const box={minX:bounds.min.x,maxX:bounds.max.x,minZ:bounds.min.z,maxZ:bounds.max.z,
+   bottom:bounds.min.y,top:bounds.max.y};
+  const index=buildingHulls.push(box)-1;
+  const x0=Math.floor((box.minX-1)/buildingCellSize),x1=Math.floor((box.maxX+1)/buildingCellSize);
+  const z0=Math.floor((box.minZ-1)/buildingCellSize),z1=Math.floor((box.maxZ+1)/buildingCellSize);
+  for(let x=x0;x<=x1;x++)for(let z=z0;z<=z1;z++){
+   const key=x+','+z;if(!buildingCells.has(key))buildingCells.set(key,[]);
+   buildingCells.get(key).push(index);
+  }
+ });
+}
+function nearbyHulls(x,z){
+ const ix=Math.floor(x/buildingCellSize),iz=Math.floor(z/buildingCellSize),ids=new Set();
+ for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++){
+  for(const i of buildingCells.get((ix+dx)+','+(iz+dz))||[])ids.add(i);
+ }
+ return [...ids].map(i=>buildingHulls[i]);
+}
+function activeBlockers(x,z){
+ const feet=climbFloor+jumpHeight,head=feet+2.2;
+ const visible=nearbyHulls(x,z).filter(b=>feet<b.top-.25&&head>b.bottom+.2&&
+  x>b.minX-.65&&x<b.maxX+.65&&z>b.minZ-.65&&z<b.maxZ+.65);
+ // Legacy ground obstacles remain ground-only.
+ if(feet<2.5&&!(Math.abs(x)<12&&Math.abs(z)<12))
+  for(const b of solidStructures)if(Math.abs(x-b.x)<b.w/2+.65&&Math.abs(z-b.z)<b.d/2+.65)
+   visible.push({minX:b.x-b.w/2,maxX:b.x+b.w/2,minZ:b.z-b.d/2,maxZ:b.z+b.d/2,bottom:-2,top:2.5});
+ return visible;
+}
+function collides(x,z){return Math.abs(x)>355||Math.abs(z)>355||activeBlockers(x,z).length>0}
 function collisionSafeMove(x1,z1,x2,z2){
- // A character already overlapping an obstacle must be able to move OUT of it.
- // Ground-only footprints must never become invisible walls at rooftop altitude.
- const blockers=(x,z)=>climbFloor+jumpHeight>8||Math.abs(x)<12&&Math.abs(z)<12?[]:solidStructures.filter(b=>Math.abs(x-b.x)<b.w/2+1&&Math.abs(z-b.z)<b.d/2+1);
- const initial=blockers(x1,z1);
- const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.7));
+ const initial=new Set(activeBlockers(x1,z1));
+ const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.45));
  for(let k=1;k<=n;k++){
   const f=k/n,x=x1+(x2-x1)*f,z=z1+(z2-z1)*f;
   if(Math.abs(x)>355||Math.abs(z)>355)return false;
-  for(const b of blockers(x,z)){
-   if(!initial.includes(b))return false;
-   const oldDepth=Math.min(b.w/2+1-Math.abs(x1-b.x),b.d/2+1-Math.abs(z1-b.z));
-   const newDepth=Math.min(b.w/2+1-Math.abs(x-b.x),b.d/2+1-Math.abs(z-b.z));
-   if(newDepth>oldDepth+.001)return false;
+  for(const b of activeBlockers(x,z)){
+   if(!initial.has(b))return false;
+   const oldDepth=Math.min(x1-b.minX,z1-b.minZ,b.maxX-x1,b.maxZ-z1);
+   const newDepth=Math.min(x-b.minX,z-b.minZ,b.maxX-x,b.maxZ-z);
+   if(newDepth>oldDepth+.01)return false;
   }
  }
  return true;
+}
+function glideWallImpact(t,speed){
+ if(!glideFlightActive||t-lastGlideWallHit<450)return;
+ lastGlideWallHit=t;
+ // Scale with impact speed, using the same shield-first damage model as falling.
+ const damage=Math.min(65,Math.max(0,(speed-5)/27.2*50));
+ if(damage>=1&&!done){
+  const absorbed=Math.min(shield,damage);shield-=absorbed;
+  hp=Math.max(0,hp-(damage-absorbed));
+  $('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);
+  glassUntil=t;glassDuration=800;drawDamageGlass(damage>=22,damage>absorbed);
+  if(hp<=0)finish(false);
+ }
+ glideInterrupted=true;gliding=false;glideWasActive=false;
+ fallGlideUsed=false; // cancelling in midair restores ordinary fall damage
+ moveVX=0;moveVZ=0;
 }
 function update(t){requestAnimationFrame(update);
  for(const puff of dashBodySmoke){
@@ -2345,7 +2401,8 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  }
  if(s.spinX&&!s.slimy){s.m.rotation.x+=s.spinX*step;s.m.rotation.z+=s.spinZ*step}s.m.position.z+=s.vz*step;if(s.slimy){const fade=Math.max(.02,1-age);s.m.scale.x*=Math.pow(fade,.025);s.m.scale.z*=Math.pow(fade,.025)}else s.m.scale.setScalar(Math.max(.01,1-age))}}const dt=t<hitStopUntil?0:Math.min((t-last)/1000,.05);last=t;updateExploration(t,dt);if(!done){let mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0);if(autoRun&&Math.hypot(mx,my)<.1)my=-1;const mag=Math.hypot(mx,my);if(mag>.05){mx/=Math.max(1,mag);my/=Math.max(1,mag)}
  // V83: forward glide gains speed smoothly; air steering remains available.
- const glideFlight=jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
+ const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
+ glideFlightActive=glideFlight;
  const glideSpeed=glideFlight?32.2:6.2;
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
@@ -2354,8 +2411,10 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const blend=1-Math.exp(-response*dt);
  moveVX+=(desiredVX-moveVX)*blend;moveVZ+=(desiredVZ-moveVZ)*blend;
  if(dt>0){const nx=player.position.x+moveVX*dt,nz=player.position.z+moveVZ*dt;
- if(collisionSafeMove(player.position.x,player.position.z,nx,player.position.z))player.position.x=nx;else moveVX=0;
- if(collisionSafeMove(player.position.x,player.position.z,player.position.x,nz))player.position.z=nz;else moveVZ=0}
+ if(collisionSafeMove(player.position.x,player.position.z,nx,player.position.z))player.position.x=nx;
+ else {glideWallImpact(t,Math.hypot(moveVX,moveVZ));moveVX=0;}
+ if(collisionSafeMove(player.position.x,player.position.z,player.position.x,nz))player.position.z=nz;
+ else {glideWallImpact(t,Math.hypot(moveVX,moveVZ));moveVZ=0;}}
  player.rotation.y=yaw;if(mag>.05)shell.rotation.y+=dt*1.7;if(t<lungeUntil&&dt>0){const step=dt*5.5,nx=player.position.x+lungeX*step,nz=player.position.z+lungeZ*step;if(!collides(nx,player.position.z))player.position.x=nx;if(!collides(player.position.x,nz))player.position.z=nz}if(t<iaiUntil&&iaiLastHit!==iaiUntil){
  for(const e of [...enemies]){
   const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z;
@@ -2481,4 +2540,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=125"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=126"></script></body></html>
