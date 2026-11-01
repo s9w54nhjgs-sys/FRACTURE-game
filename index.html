@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V127 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V128 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2168,15 +2168,23 @@ function nearbyHulls(x,z){
  }
  return [...ids].map(i=>buildingHulls[i]);
 }
+// V128: stable collision identities, filtered by vertical clearance.
+// Broadphase boxes only represent substantial, visible building mass.
 function activeBlockers(x,z){
  const feet=climbFloor+jumpHeight,head=feet+2.2;
- const visible=nearbyHulls(x,z).filter(b=>feet<b.top-.25&&head>b.bottom+.2&&
-  x>b.minX-.65&&x<b.maxX+.65&&z>b.minZ-.65&&z<b.maxZ+.65);
- // Legacy ground obstacles remain ground-only.
+ const hits=nearbyHulls(x,z).filter(b=>
+  feet<b.top-.35&&head>b.bottom+.35&&
+  x>b.minX-.4&&x<b.maxX+.4&&z>b.minZ-.4&&z<b.maxZ+.4);
  if(feet<2.5&&!(Math.abs(x)<12&&Math.abs(z)<12))
-  for(const b of solidStructures)if(Math.abs(x-b.x)<b.w/2+.65&&Math.abs(z-b.z)<b.d/2+.65)
-   visible.push({minX:b.x-b.w/2,maxX:b.x+b.w/2,minZ:b.z-b.d/2,maxZ:b.z+b.d/2,bottom:-2,top:2.5});
- return visible;
+  for(const b of solidStructures){
+   if(Math.abs(x-b.x)<b.w/2+.4&&Math.abs(z-b.z)<b.d/2+.4)
+    hits.push(b);
+  }
+ return hits;
+}
+function hullDepth(b,x,z){
+ if(b.minX!==undefined)return Math.min(x-(b.minX-.4),z-(b.minZ-.4),(b.maxX+.4)-x,(b.maxZ+.4)-z);
+ return Math.min(b.w/2+.4-Math.abs(x-b.x),b.d/2+.4-Math.abs(z-b.z));
 }
 function collides(x,z){return Math.abs(x)>355||Math.abs(z)>355||activeBlockers(x,z).length>0}
 function collisionSafeMove(x1,z1,x2,z2){
@@ -2187,9 +2195,7 @@ function collisionSafeMove(x1,z1,x2,z2){
   if(Math.abs(x)>355||Math.abs(z)>355)return false;
   for(const b of activeBlockers(x,z)){
    if(!initial.has(b))return false;
-   const oldDepth=Math.min(x1-b.minX,z1-b.minZ,b.maxX-x1,b.maxZ-z1);
-   const newDepth=Math.min(x-b.minX,z-b.minZ,b.maxX-x,b.maxZ-z);
-   if(newDepth>oldDepth+.01)return false;
+   if(hullDepth(b,x,z)>hullDepth(b,x1,z1)+.02)return false;
   }
  }
  return true;
@@ -2413,10 +2419,19 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const blend=1-Math.exp(-response*dt);
  moveVX+=(desiredVX-moveVX)*blend;moveVZ+=(desiredVZ-moveVZ)*blend;
  if(dt>0){const nx=player.position.x+moveVX*dt,nz=player.position.z+moveVZ*dt;
- if(collisionSafeMove(player.position.x,player.position.z,nx,player.position.z))player.position.x=nx;
- else {glideWallImpact(t,Math.hypot(moveVX,moveVZ));moveVX=0;}
- if(collisionSafeMove(player.position.x,player.position.z,player.position.x,nz))player.position.z=nz;
- else {glideWallImpact(t,Math.hypot(moveVX,moveVZ));moveVZ=0;}}
+ // A glide hits a wall only if the COMPLETE forward sweep is blocked.
+ // On a diagonal, retain tangential movement instead of killing both axes.
+ const sx=player.position.x,sz=player.position.z;
+ const full=collisionSafeMove(sx,sz,nx,nz);
+ if(full){player.position.x=nx;player.position.z=nz;}
+ else {
+  const canX=collisionSafeMove(sx,sz,nx,sz);
+  const canZ=collisionSafeMove(sx,sz,sx,nz);
+  if(canX)player.position.x=nx;
+  if(canZ)player.position.z=nz;
+  if(!canX&&!canZ){glideWallImpact(t,Math.hypot(moveVX,moveVZ));moveVX=0;moveVZ=0;}
+  else {if(!canX)moveVX=0;if(!canZ)moveVZ=0;}
+ }}
  player.rotation.y=yaw;if(mag>.05)shell.rotation.y+=dt*1.7;if(t<lungeUntil&&dt>0){const step=dt*5.5,nx=player.position.x+lungeX*step,nz=player.position.z+lungeZ*step;if(!collides(nx,player.position.z))player.position.x=nx;if(!collides(player.position.x,nz))player.position.z=nz}if(t<iaiUntil&&iaiLastHit!==iaiUntil){
  for(const e of [...enemies]){
   const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z;
@@ -2542,4 +2557,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=127"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=128"></script></body></html>
