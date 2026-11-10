@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V132 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V133 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1995,7 +1995,7 @@ function resolveFallDamage(ground,t){
  fallPeak=ground;fallGlideUsed=false;
 }
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;
-let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;glideInterrupted=false;}window.addEventListener("blur",releaseJump);
+let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
 // V123: route from the REAL registered roof footprints. Geometry and
 // collision use the same coordinates; no more guessed intermediate rooftops.
 {
@@ -2232,6 +2232,21 @@ function collisionSafeMove(x1,z1,x2,z2){
  }
  return true;
 }
+// V133: reusable impact particles, no per-frame geometry allocation.
+const wallChipGeometry=new THREE.TetrahedronGeometry(.22,0);
+const wallChipMaterial=new THREE.MeshStandardMaterial({color:0x67727a,metalness:.22,roughness:.86});
+function glideCrashFX(x,y,z,speed){
+ impact(x,y,z,0xffd49a);
+ const count=Math.min(15,7+Math.floor(speed/4));
+ for(let i=0;i<count;i++){
+  const m=new THREE.Mesh(wallChipGeometry,wallChipMaterial);
+  m.position.set(x+(Math.random()-.5)*.65,y+(Math.random()-.5)*.7,z+(Math.random()-.5)*.65);
+  m.rotation.set(Math.random()*3,Math.random()*3,Math.random()*3);scene.add(m);
+  const angle=Math.random()*Math.PI*2,force=2+Math.random()*Math.min(10,speed*.38);
+  sparks.push({m,born:performance.now(),life:520+Math.random()*280,
+   vx:Math.cos(angle)*force,vy:2+Math.random()*6,vz:Math.sin(angle)*force,gravity:16});
+ }
+}
 function glideWallImpact(t,speed){
  if(!glideFlightActive||t-lastGlideWallHit<450)return;
  lastGlideWallHit=t;
@@ -2244,8 +2259,12 @@ function glideWallImpact(t,speed){
   glassUntil=t;glassDuration=800;drawDamageGlass(damage>=22,damage>absorbed);
   if(hp<=0)finish(false);
  }
- glideInterrupted=true;gliding=false;glideWasActive=false;
- fallGlideUsed=false; // cancelling in midair restores ordinary fall damage
+ // Lock glide for this entire airborne episode, even if the button is released.
+ glideInterrupted=true;gliding=false;glideWasActive=false;glideFlightActive=false;
+ jumpHeld=false;fallGlideUsed=false;
+ hitStopUntil=Math.max(hitStopUntil,t+95);
+ const vx=moveVX,vz=moveVZ,v=Math.hypot(vx,vz)||1;
+ glideCrashFX(player.position.x+vx/v*.9,climbFloor+jumpHeight+1.2,player.position.z+vz/v*.9,speed);
  moveVX=0;moveVZ=0;
 }
 function update(t){requestAnimationFrame(update);
@@ -2599,4 +2618,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=132"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=133"></script></body></html>
