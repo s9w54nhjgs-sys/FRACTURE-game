@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V128 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V129 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2144,6 +2144,11 @@ window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
  architecture.updateMatrixWorld(true);
  architecture.traverse(mesh=>{
   if(!mesh.isMesh||mesh.geometry?.type!=='BoxGeometry')return;
+  // V129: a rotated decorative box has a huge AABB unrelated to its
+  // visible facade. Never use that AABB as a solid wall.
+  mesh.updateWorldMatrix(true,false);
+  const rot=new THREE.Euler().setFromRotationMatrix(mesh.matrixWorld);
+  if(Math.abs(rot.x)>.035||Math.abs(rot.y)>.035||Math.abs(rot.z)>.035)return;
   // Ignore small facade ornaments, rails and airborne details.
   bounds.setFromObject(mesh);
   const w=bounds.max.x-bounds.min.x,d=bounds.max.z-bounds.min.z;
@@ -2172,9 +2177,16 @@ function nearbyHulls(x,z){
 // Broadphase boxes only represent substantial, visible building mass.
 function activeBlockers(x,z){
  const feet=climbFloor+jumpHeight,head=feet+2.2;
- const hits=nearbyHulls(x,z).filter(b=>
-  feet<b.top-.35&&head>b.bottom+.35&&
-  x>b.minX-.4&&x<b.maxX+.4&&z>b.minZ-.4&&z<b.maxZ+.4);
+ const hits=nearbyHulls(x,z).filter(b=>{
+  // The roof is a standable surface, not a wall in front of the player.
+  // The bridge at y=80 was previously blocked by its OWN 12m-high beam.
+  const standingOnTop=feet>=b.top-1.55;
+  const onNearBridge=feet>=78.2&&feet<=89&&x>=-54&&x<=54&&z>=-78&&z<=-52&&b.top<=81;
+  const onFarBridge=feet>=133.7&&feet<=145&&x>=66&&x<=116&&z>=-176&&z<=-126&&b.top<=136.5;
+  if(standingOnTop||onNearBridge||onFarBridge)return false;
+  return feet<b.top-.35&&head>b.bottom+.35&&
+   x>b.minX-.4&&x<b.maxX+.4&&z>b.minZ-.4&&z<b.maxZ+.4;
+ });
  if(feet<2.5&&!(Math.abs(x)<12&&Math.abs(z)<12))
   for(const b of solidStructures){
    if(Math.abs(x-b.x)<b.w/2+.4&&Math.abs(z-b.z)<b.d/2+.4)
@@ -2557,4 +2569,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=128"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=129"></script></body></html>
