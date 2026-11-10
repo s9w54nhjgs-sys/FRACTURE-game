@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V129 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V130 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2136,27 +2136,25 @@ function jumpNow(){if(done||jumpCount>=2)return;
 $('jump').addEventListener('pointerdown',e=>{e.preventDefault();jumpHeld=true;jumpHeldAt=performance.now();jumpNow();});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('jump').addEventListener(ev,releaseJump);
 window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();jumpHeld=true;jumpHeldAt=performance.now();jumpNow()}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
-// V126: lightweight collision hulls measured from actual rendered boxes.
-// Broadphase spatial grid avoids testing every building every frame.
-// Registry initialized before procedural world construction.
+// V130: collision proxies derive from the SAME meshes as the visible city.
+// The local inverse transform preserves tilted building faces; the spatial
+// grid still provides inexpensive broadphase on mobile.
 {
- const bounds=new THREE.Box3();
+ const bounds=new THREE.Box3(),worldPoint=new THREE.Vector3();
  architecture.updateMatrixWorld(true);
  architecture.traverse(mesh=>{
   if(!mesh.isMesh||mesh.geometry?.type!=='BoxGeometry')return;
-  // V129: a rotated decorative box has a huge AABB unrelated to its
-  // visible facade. Never use that AABB as a solid wall.
-  mesh.updateWorldMatrix(true,false);
-  const rot=new THREE.Euler().setFromRotationMatrix(mesh.matrixWorld);
-  if(Math.abs(rot.x)>.035||Math.abs(rot.y)>.035||Math.abs(rot.z)>.035)return;
-  // Ignore small facade ornaments, rails and airborne details.
+  const g=mesh.geometry.parameters;
+  if(!g||g.width<.5||g.height<.5||g.depth<.5)return;
   bounds.setFromObject(mesh);
   const w=bounds.max.x-bounds.min.x,d=bounds.max.z-bounds.min.z;
   const h=bounds.max.y-bounds.min.y;
-  if(w<2.4||d<2.4||h<2.5||bounds.max.y<2)return;
-  if(w>160||d>160)return;
+  if(w<2.4||d<2.4||h<2.5||bounds.max.y<2||w>160||d>160)return;
+  mesh.updateWorldMatrix(true,false);
+  const inverse=mesh.matrixWorld.clone().invert();
   const box={minX:bounds.min.x,maxX:bounds.max.x,minZ:bounds.min.z,maxZ:bounds.max.z,
-   bottom:bounds.min.y,top:bounds.max.y};
+   bottom:bounds.min.y,top:bounds.max.y,inverse,
+   halfX:g.width/2,halfY:g.height/2,halfZ:g.depth/2};
   const index=buildingHulls.push(box)-1;
   const x0=Math.floor((box.minX-1)/buildingCellSize),x1=Math.floor((box.maxX+1)/buildingCellSize);
   const z0=Math.floor((box.minZ-1)/buildingCellSize),z1=Math.floor((box.maxZ+1)/buildingCellSize);
@@ -2165,6 +2163,17 @@ window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
    buildingCells.get(key).push(index);
   }
  });
+}
+function hullLocal(b,x,y,z){
+ return new THREE.Vector3(x,y,z).applyMatrix4(b.inverse);
+}
+function hullContains(b,x,z,feet){
+ // Two body samples ensure both feet and torso follow the actual rendered wall.
+ for(const y of [feet+.35,feet+1.65]){
+  const p=hullLocal(b,x,y,z);
+  if(Math.abs(p.x)<=b.halfX+.35&&Math.abs(p.y)<=b.halfY+.1&&Math.abs(p.z)<=b.halfZ+.35)return true;
+ }
+ return false;
 }
 function nearbyHulls(x,z){
  const ix=Math.floor(x/buildingCellSize),iz=Math.floor(z/buildingCellSize),ids=new Set();
@@ -2176,26 +2185,30 @@ function nearbyHulls(x,z){
 // V128: stable collision identities, filtered by vertical clearance.
 // Broadphase boxes only represent substantial, visible building mass.
 function activeBlockers(x,z){
- const feet=climbFloor+jumpHeight,head=feet+2.2;
+ const feet=climbFloor+jumpHeight;
  const hits=nearbyHulls(x,z).filter(b=>{
-  // The roof is a standable surface, not a wall in front of the player.
-  // The bridge at y=80 was previously blocked by its OWN 12m-high beam.
-  const standingOnTop=feet>=b.top-1.55;
+  // Bridge deck exceptions remain: they were validated in V129.
   const onNearBridge=feet>=78.2&&feet<=89&&x>=-54&&x<=54&&z>=-78&&z<=-52&&b.top<=81;
   const onFarBridge=feet>=133.7&&feet<=145&&x>=66&&x<=116&&z>=-176&&z<=-126&&b.top<=136.5;
-  if(standingOnTop||onNearBridge||onFarBridge)return false;
-  return feet<b.top-.35&&head>b.bottom+.35&&
-   x>b.minX-.4&&x<b.maxX+.4&&z>b.minZ-.4&&z<b.maxZ+.4;
+  if(onNearBridge||onFarBridge)return false;
+  return feet<b.top-.2&&feet+2>b.bottom+.2&&hullContains(b,x,z,feet);
  });
  if(feet<2.5&&!(Math.abs(x)<12&&Math.abs(z)<12))
-  for(const b of solidStructures){
-   if(Math.abs(x-b.x)<b.w/2+.4&&Math.abs(z-b.z)<b.d/2+.4)
-    hits.push(b);
-  }
+  for(const b of solidStructures)
+   if(Math.abs(x-b.x)<b.w/2+.4&&Math.abs(z-b.z)<b.d/2+.4)hits.push(b);
  return hits;
 }
 function hullDepth(b,x,z){
- if(b.minX!==undefined)return Math.min(x-(b.minX-.4),z-(b.minZ-.4),(b.maxX+.4)-x,(b.maxZ+.4)-z);
+ if(b.inverse){
+  const feet=climbFloor+jumpHeight;
+  let depth=-Infinity;
+  for(const y of [feet+.35,feet+1.65]){
+   const p=hullLocal(b,x,y,z);
+   if(Math.abs(p.y)>b.halfY+.1)continue;
+   depth=Math.max(depth,Math.min(b.halfX+.35-Math.abs(p.x),b.halfZ+.35-Math.abs(p.z)));
+  }
+  return depth;
+ }
  return Math.min(b.w/2+.4-Math.abs(x-b.x),b.d/2+.4-Math.abs(z-b.z));
 }
 function collides(x,z){return Math.abs(x)>355||Math.abs(z)>355||activeBlockers(x,z).length>0}
@@ -2569,4 +2582,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=129"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=130"></script></body></html>
