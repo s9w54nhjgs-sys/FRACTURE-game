@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V130 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V131 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2143,18 +2143,25 @@ window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
  const bounds=new THREE.Box3(),worldPoint=new THREE.Vector3();
  architecture.updateMatrixWorld(true);
  architecture.traverse(mesh=>{
-  if(!mesh.isMesh||mesh.geometry?.type!=='BoxGeometry')return;
-  const g=mesh.geometry.parameters;
-  if(!g||g.width<.5||g.height<.5||g.depth<.5)return;
+  if(!mesh.isMesh||!mesh.geometry)return;
+  // V131: include narrow architectural projections, ledges, beams and
+  // non-box geometry; keep using the original visual mesh as source.
+  const g=mesh.geometry,params=g.parameters||{};
+  mesh.updateWorldMatrix(true,false);
   bounds.setFromObject(mesh);
   const w=bounds.max.x-bounds.min.x,d=bounds.max.z-bounds.min.z;
   const h=bounds.max.y-bounds.min.y;
-  if(w<2.4||d<2.4||h<2.5||bounds.max.y<2||w>160||d>160)return;
-  mesh.updateWorldMatrix(true,false);
+  if(Math.max(w,d,h)<.9||bounds.max.y<.2||w>160||d>160)return;
+  if(g.type!=='BoxGeometry'&&g.type!=='CylinderGeometry'&&g.type!=='ExtrudeGeometry')return;
+  // Skip extremely thin decorative stripes that should not behave as walls.
+  if(g.type==='BoxGeometry'&&Math.min(params.width,params.height,params.depth)<.12)return;
+  if(!g.boundingBox)g.computeBoundingBox();
+  const local=g.boundingBox;
   const inverse=mesh.matrixWorld.clone().invert();
   const box={minX:bounds.min.x,maxX:bounds.max.x,minZ:bounds.min.z,maxZ:bounds.max.z,
    bottom:bounds.min.y,top:bounds.max.y,inverse,
-   halfX:g.width/2,halfY:g.height/2,halfZ:g.depth/2};
+   centerX:(local.min.x+local.max.x)/2,centerY:(local.min.y+local.max.y)/2,centerZ:(local.min.z+local.max.z)/2,
+   halfX:(local.max.x-local.min.x)/2,halfY:(local.max.y-local.min.y)/2,halfZ:(local.max.z-local.min.z)/2};
   const index=buildingHulls.push(box)-1;
   const x0=Math.floor((box.minX-1)/buildingCellSize),x1=Math.floor((box.maxX+1)/buildingCellSize);
   const z0=Math.floor((box.minZ-1)/buildingCellSize),z1=Math.floor((box.maxZ+1)/buildingCellSize);
@@ -2171,7 +2178,7 @@ function hullContains(b,x,z,feet){
  // Two body samples ensure both feet and torso follow the actual rendered wall.
  for(const y of [feet+.35,feet+1.65]){
   const p=hullLocal(b,x,y,z);
-  if(Math.abs(p.x)<=b.halfX+.35&&Math.abs(p.y)<=b.halfY+.1&&Math.abs(p.z)<=b.halfZ+.35)return true;
+  if(Math.abs(p.x-b.centerX)<=b.halfX+.25&&Math.abs(p.y-b.centerY)<=b.halfY+.12&&Math.abs(p.z-b.centerZ)<=b.halfZ+.25)return true;
  }
  return false;
 }
@@ -2205,7 +2212,7 @@ function hullDepth(b,x,z){
   for(const y of [feet+.35,feet+1.65]){
    const p=hullLocal(b,x,y,z);
    if(Math.abs(p.y)>b.halfY+.1)continue;
-   depth=Math.max(depth,Math.min(b.halfX+.35-Math.abs(p.x),b.halfZ+.35-Math.abs(p.z)));
+   depth=Math.max(depth,Math.min(b.halfX+.25-Math.abs(p.x-b.centerX),b.halfZ+.25-Math.abs(p.z-b.centerZ)));
   }
   return depth;
  }
@@ -2582,4 +2589,4 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=130"></script></body></html>
+</script><script src="./rebirth.js?v=6"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=131"></script></body></html>
