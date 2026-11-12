@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V146 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V147 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2083,31 +2083,48 @@ const chunkCache=new Map(),chunkPending=[];
 const chunkDecor=new Map();
 // V146: deterministic, disposable terrain tiles outside the original 740m city.
 // Geometry is created only when a chunk is requested and disposed on eviction.
+// V147: persistent low-cost skyline proxy; chunk loading adds only details.
+// Identical seeded building footprints prevent visible geometry swaps.
 const streamedTerrain=new Map();
-const terrainTileGeo=new THREE.PlaneGeometry(CHUNK_SIZE,CHUNK_SIZE,1,1);
-const terrainTileMats=[
- new THREE.MeshStandardMaterial({color:0x3b4b50,metalness:.24,roughness:.96}),
- new THREE.MeshStandardMaterial({color:0x49524e,metalness:.12,roughness:.98}),
- new THREE.MeshStandardMaterial({color:0x4a4440,metalness:.35,roughness:.89})
-];
+const terrainTileGeo=new THREE.PlaneGeometry(CHUNK_SIZE,CHUNK_SIZE);
+const terrainTileMat=new THREE.MeshStandardMaterial({color:0x424d4d,metalness:.2,roughness:.95});
 const terrainLandmarkGeo=new THREE.BoxGeometry(1,1,1);
 const terrainLandmarkMat=new THREE.MeshStandardMaterial({color:0x33424a,metalness:.4,roughness:.85});
+const terrainDetailMat=new THREE.MeshStandardMaterial({color:0x59646a,metalness:.55,roughness:.75});
 function terrainHash(x,z,n){let v=(Math.imul(x+1024,73856093)^Math.imul(z+1024,19349663)^Math.imul(n+1,83492791))>>>0;v^=v>>>16;v=Math.imul(v,2246822519);return ((v^(v>>>13))>>>0)/4294967295;}
-function createStreamedTerrain(key){
- if(streamedTerrain.has(key))return;
- const [cx,cz]=key.split(',').map(Number),x=(cx+.5)*CHUNK_SIZE,z=(cz+.5)*CHUNK_SIZE;
- // Preserve the original central map completely, including its existing floor.
- if(Math.abs(x)<500&&Math.abs(z)<500)return;
- const group=new THREE.Group();
- const tile=new THREE.Mesh(terrainTileGeo,terrainTileMats[Math.floor(terrainHash(cx,cz,0)*3)]);
- tile.rotation.x=-Math.PI/2;tile.position.set(x,-.045,z);group.add(tile);
- // Sparse, distant industrial silhouettes; no collision/parkour content yet.
+function outerChunk(cx,cz){return !(Math.abs((cx+.5)*CHUNK_SIZE)<500&&Math.abs((cz+.5)*CHUNK_SIZE)<500);}
+function terrainBuildings(cx,cz){
+ const x=(cx+.5)*CHUNK_SIZE,z=(cz+.5)*CHUNK_SIZE,out=[];
  for(let i=0;i<5;i++){
   const px=x+(terrainHash(cx,cz,10+i*3)-.5)*195,pz=z+(terrainHash(cx,cz,11+i*3)-.5)*195;
-  const height=12+terrainHash(cx,cz,12+i*3)*36;
-  const mesh=new THREE.Mesh(terrainLandmarkGeo,terrainLandmarkMat);
-  mesh.position.set(px,height/2,pz);mesh.scale.set(8+terrainHash(cx,cz,30+i)*9,height,8+terrainHash(cx,cz,40+i)*9);
-  group.add(mesh);
+  out.push({x:px,z:pz,h:12+terrainHash(cx,cz,12+i*3)*36,w:8+terrainHash(cx,cz,30+i)*9,d:8+terrainHash(cx,cz,40+i)*9});
+ }
+ return out;
+}
+// One instanced silhouette atlas for all outer chunks: no per-chunk pop-in.
+const distantBuildings=[];
+for(let cx=-CHUNK_HALF;cx<CHUNK_HALF;cx++)for(let cz=-CHUNK_HALF;cz<CHUNK_HALF;cz++){
+ if(!outerChunk(cx,cz))continue;
+ distantBuildings.push(...terrainBuildings(cx,cz));
+}
+const distantSkyline=new THREE.InstancedMesh(terrainLandmarkGeo,terrainLandmarkMat,distantBuildings.length);
+const skylineDummy=new THREE.Object3D();
+distantBuildings.forEach((b,i)=>{skylineDummy.position.set(b.x,b.h/2,b.z);skylineDummy.scale.set(b.w,b.h,b.d);skylineDummy.updateMatrix();distantSkyline.setMatrixAt(i,skylineDummy.matrix);});
+distantSkyline.instanceMatrix.needsUpdate=true;distantSkyline.computeBoundingSphere();scene.add(distantSkyline);
+// A single uninterrupted distant ground plane avoids newly appearing tile edges.
+const distantFloor=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),terrainTileMat);
+distantFloor.rotation.x=-Math.PI/2;distantFloor.position.y=-.07;scene.add(distantFloor);
+function createStreamedTerrain(key){
+ if(streamedTerrain.has(key))return;
+ const [cx,cz]=key.split(',').map(Number);
+ if(!outerChunk(cx,cz))return;
+ const group=new THREE.Group();
+ // Structural silhouettes are already visible; add only small surface features.
+ for(const b of terrainBuildings(cx,cz)){
+  const cap=new THREE.Mesh(terrainLandmarkGeo,terrainDetailMat);
+  cap.position.set(b.x,b.h+.35,b.z);cap.scale.set(b.w*1.12,.7,b.d*1.12);group.add(cap);
+  const band=new THREE.Mesh(terrainLandmarkGeo,terrainDetailMat);
+  band.position.set(b.x,b.h*.58,b.z);band.scale.set(b.w*1.025,.55,b.d*1.025);group.add(band);
  }
  scene.add(group);streamedTerrain.set(key,group);
 }
@@ -2888,4 +2905,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=146"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=147"></script></body></html>
