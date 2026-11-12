@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V139 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V140 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -1370,19 +1370,52 @@ function setJoy(e){if(autoRun){autoRun=false;$('autoRun').classList.remove('acti
 joy.addEventListener('pointerdown',e=>{joyId=e.pointerId;joy.setPointerCapture(joyId);setJoy(e)});joy.addEventListener('pointermove',e=>{if(e.pointerId===joyId)setJoy(e)});function resetJoy(e){if(e.pointerId!==joyId)return;joyId=null;input.x=input.y=0;knob.style.transform=''}joy.addEventListener('pointerup',resetJoy);joy.addEventListener('pointercancel',resetJoy);
 let lookId=null,lookX=0,lookY=0;renderer.domElement.addEventListener('pointerdown',e=>{if(lookId===null){lookId=e.pointerId;lookX=e.clientX;lookY=e.clientY;renderer.domElement.setPointerCapture(lookId)}});renderer.domElement.addEventListener('pointermove',e=>{if(e.pointerId!==lookId)return;yaw-=(e.clientX-lookX)*.005;pitch=THREE.MathUtils.clamp(pitch-(e.clientY-lookY)*.006,-.7,1.56);lookX=e.clientX;lookY=e.clientY});renderer.domElement.addEventListener('pointerup',e=>{if(e.pointerId===lookId)lookId=null});renderer.domElement.addEventListener('pointercancel',e=>{if(e.pointerId===lookId)lookId=null});
 const keys={};window.addEventListener('keydown',e=>{keys[e.key.toLowerCase()]=true;if(e.code==='Space')attack()});window.addEventListener('keyup',e=>keys[e.key.toLowerCase()]=false);
-function cellDeathBurst(){
+// V140: the last life shatters; earlier lives phase out like a submarine warp.
+let finalCellDeath=false,deathMotionX=0,deathMotionZ=0,deathMotionY=0;
+const deathParticleGeo=new THREE.TetrahedronGeometry(.115,0);
+const deathParticleMaterials=[0x7dfbff,0xc5f7ff,0x5a9cf5,0xffdba2,0xffffff].map(color=>new THREE.MeshBasicMaterial({color,transparent:true,opacity:.95,depthWrite:false}));
+function cellDeathBurst(permadeath){
  const origin=player.position.clone();origin.y+=1.1;
- const geo=new THREE.TetrahedronGeometry(.11,0);
- const palette=[0x7dfbff,0xc5f7ff,0x5a9cf5,0xffdba2,0xffffff];
- for(let i=0;i<70;i++){
-  const m=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:palette[i%palette.length],transparent:true,opacity:.95,depthWrite:false}));
+ const vx=moveVX,vz=moveVZ;
+ const speed=Math.hypot(vx,vz);
+ const moving=glideFlightActive||gliding||performance.now()<dashUntil||speed>12;
+ const nx=moving&&speed>1?vx/speed:0,nz=moving&&speed>1?vz/speed:0;
+ const count=permadeath?76:38,born=performance.now();
+ for(let i=0;i<count;i++){
+  const m=new THREE.Mesh(deathParticleGeo,deathParticleMaterials[i%deathParticleMaterials.length].clone());
   m.position.copy(origin);scene.add(m);
-  const a=i*2.399963,vertical=1-2*(i+.5)/70,r=Math.sqrt(1-vertical*vertical),v=5+Math.random()*10;
-  sparks.push({m,born:performance.now(),life:1150+Math.random()*700,vx:Math.cos(a)*r*v,vy:vertical*v+4,vz:Math.sin(a)*r*v,gravity:4});
+  const angle=i*2.399963,vertical=1-2*(i+.5)/count,radial=Math.sqrt(Math.max(0,1-vertical*vertical));
+  const spread=permadeath?5+Math.random()*9:1.2+Math.random()*3;
+  // A moving CELL sheds momentum: fragments stream forward in the actual
+  // dash/glide vector, instead of always forming a stationary sphere.
+  const carry=moving?(permadeath?Math.min(23,speed*.72):Math.min(30,speed*.95)):0;
+  sparks.push({m,born,life:permadeath?1250+Math.random()*650:650+Math.random()*400,
+   vx:Math.cos(angle)*radial*spread+nx*carry,
+   vy:vertical*spread+(permadeath?3:7)+(moving?Math.min(5,Math.abs(jumpVelocity)*.4):0),
+   vz:Math.sin(angle)*radial*spread+nz*carry,gravity:permadeath?3.5:0.5});
  }
+ // A short concentrated flash for remaining lives; no fireworks or CELL LOG.
+ if(!permadeath)impact(origin.x,origin.y,origin.z,0x9cfaff);
  player.visible=false;
 }
-function finish(success){if(done)return;done=true;if(!success){cellDeathBurst();cellLogRevealAt=performance.now()+2000;deathCameraPosition.copy(camera.position);deathCameraQuaternion.copy(camera.quaternion);}const lived=Math.floor((performance.now()-cellStarted)/1000);$('cellRecord').textContent='CELL RECORD\n撃破数  '+kills+' KILLS\n総与ダメージ  '+Math.round(cellDamage)+' DMG\n移動距離  '+Math.round(cellDistance)+' m\n生存時間  '+Math.floor(lived/60)+'m '+String(lived%60).padStart(2,'0')+'s';if(success)window.fractureFinish?.(success,kills);$('resultTitle').textContent=success?'EXTRACTION SUCCESS':'MISSION FAILED';$('resultText').textContent=success?'素材 '+loot+' 個回収 / 敵 '+kills+' 体撃破':'生命力が尽きた。もう一度挑戦しよう。';if(success)$('result').classList.add('show')}
+function finish(success){
+ if(done)return;
+ done=true;
+ if(!success){
+  finalCellDeath=(window.fractureLivesRemaining?.()??2)<=1;
+  cellDeathBurst(finalCellDeath);
+  cellLogRevealAt=performance.now()+(finalCellDeath?2000:950);
+  deathCameraPosition.copy(camera.position);
+  deathCameraQuaternion.copy(camera.quaternion);
+ }
+ const lived=Math.floor((performance.now()-cellStarted)/1000);
+ $('cellRecord').textContent='CELL RECORD\\n撃破数  '+kills+' KILLS\\n総与ダメージ  '+Math.round(cellDamage)+' DMG\\n移動距離  '+Math.round(cellDistance)+' m\\n生存時間  '+Math.floor(lived/60)+'m '+String(lived%60).padStart(2,'0')+'s';
+ if(success)window.fractureFinish?.(true,kills);
+ $('resultTitle').textContent=success?'EXTRACTION SUCCESS':finalCellDeath?'CELL LOST':'CELL TRANSFER';
+ $('resultText').textContent=success?'素材 '+loot+' 個回収 / 敵 '+kills+' 体撃破':finalCellDeath?'残機消失。CELLの記録を確定した。':'光学転送完了。残機を1消費して再出撃可能。';
+ $('cellRecord').style.display=success||finalCellDeath?'block':'none';
+ if(success)$('result').classList.add('show');
+}
 let cellLogRevealAt=0;const deathCameraPosition=new THREE.Vector3(),deathCameraQuaternion=new THREE.Quaternion();let landingStrike=false,landingStrikePower=1;
 const shockwaves=[],shockGeo=new THREE.RingGeometry(.86,1,48),shockMat=new THREE.MeshBasicMaterial({color:0x8ffaff,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false});
 function shockRing(x,z,radius,t){const m=new THREE.Mesh(shockGeo,shockMat.clone());m.rotation.x=-Math.PI/2;m.position.set(x,.11,z);scene.add(m);shockwaves.push({m,born:t,radius});}
@@ -2681,8 +2714,8 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
  camera.position.copy(deathCameraPosition);camera.quaternion.copy(deathCameraQuaternion);
- if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent='CELL LOG';$('result').classList.add('show');window.fractureFinish?.(false,kills);}
+ if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');window.fractureFinish?.(false,kills);}
 }
 renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=139"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=139"></script></body></html>
+</script><script src="./rebirth.js?v=140"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=140"></script></body></html>
