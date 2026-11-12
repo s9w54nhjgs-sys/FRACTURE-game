@@ -48,6 +48,7 @@ document.getElementById('frTestTags').onclick=()=>{
 };
 document.getElementById('frReset').onclick=()=>{if(!confirm('試作データをすべて初期化しますか？'))return;data={generation:1,lives:2,ability:roll(),tags:0,draws:0,bonus:null,gachaHistory:[]};note='初期化しました';save();render()};
 window.fractureAwardDecoyTag=()=>{const gained=decoyTags+1;data.tags+=gained;note='デコイ撃破：相手の所持タグ '+decoyTags+' 個 ＋ 本人タグ 1 個 = '+gained+' 個獲得';save();render()};
+window.fractureReturnHome=()=>{document.getElementById('result')?.classList.remove('show');show();};
 window.fractureLivesRemaining=()=>data.lives;
 window.fractureFinish=(success,kills)=>{if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;note='永久死亡。キルタグ '+lost+' 個を失い、第 '+data.generation+' 世代に転生しました。'}else note='死亡。残機を1つ失いました。現在の個性は維持されます。'}save();render();};
 if(sessionStorage.getItem('frAutoDeploy')==='1'){sessionStorage.removeItem('frAutoDeploy');hide()}else show();
