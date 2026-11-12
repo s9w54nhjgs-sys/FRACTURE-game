@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V149 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V150 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2372,6 +2372,22 @@ function climbDeckUnder(x,z,feet){
  return best;
 }
 let moveVX=0,moveVZ=0,landedJumpCount=0;var jumpVelocity=0,jumpHeight=0,jumpCount=0,dashX=0,dashZ=0,dashInvulnerableUntil=0,dashChargeBoostUntil=0,bank=0,previousYaw=0,turnRate=0,barrelStart=-10000,barrelDuration=570,verticalDoubleJump=false;
+// V150 developer shortcut: bridge deck teleport, not part of normal gameplay.
+const devWarpButton=document.createElement('button');
+devWarpButton.textContent='TEST ⇧ BRIDGE';
+Object.assign(devWarpButton.style,{position:'fixed',right:'12px',top:'112px',zIndex:'25',padding:'10px 12px',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
+document.body.appendChild(devWarpButton);
+devWarpButton.addEventListener('click',()=>{
+ if(done)return;
+ const target={x:0,z:-65,h:80};
+ player.position.x=target.x;player.position.z=target.z;
+ climbFloor=target.h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=target.h;
+ fallPeak=target.h;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;
+ glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+ player.position.y=target.h+1.35;
+ camera.position.set(target.x,target.h+4,target.z+8);
+ notify('DEV WARP: 橋梁上へ移動');
+});
 function jumpNow(){if(done||jumpCount>=2)return;
  // V108: before jumping after a glide landing, anchor to the actual roof
  // instead of carrying a stale ground-level climbFloor into the new jump.
@@ -2937,4 +2953,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=149"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=150"></script></body></html>
