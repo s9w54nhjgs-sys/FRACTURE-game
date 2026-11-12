@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V147 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V148 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2112,8 +2112,20 @@ const skylineDummy=new THREE.Object3D();
 distantBuildings.forEach((b,i)=>{skylineDummy.position.set(b.x,b.h/2,b.z);skylineDummy.scale.set(b.w,b.h,b.d);skylineDummy.updateMatrix();distantSkyline.setMatrixAt(i,skylineDummy.matrix);});
 distantSkyline.instanceMatrix.needsUpdate=true;distantSkyline.computeBoundingSphere();scene.add(distantSkyline);
 // A single uninterrupted distant ground plane avoids newly appearing tile edges.
-const distantFloor=new THREE.Mesh(new THREE.PlaneGeometry(4000,4000),terrainTileMat);
-distantFloor.rotation.x=-Math.PI/2;distantFloor.position.y=-.07;scene.add(distantFloor);
+// V148: non-overlapping outer floor strips. The original 740m deck owns the center.
+// Avoid coplanar surfaces and depth-buffer flicker on mobile GPUs.
+const outerFloor=new THREE.Group();
+const centerWidth=740,outerSpan=4000,sideWidth=(outerSpan-centerWidth)/2;
+function addOuterFloor(w,d,x,z){
+ const mesh=new THREE.Mesh(new THREE.PlaneGeometry(w,d),terrainTileMat);
+ mesh.rotation.x=-Math.PI/2;mesh.position.set(x,-.075,z);
+ outerFloor.add(mesh);
+}
+addOuterFloor(sideWidth,outerSpan,-(centerWidth+sideWidth)/2,0);
+addOuterFloor(sideWidth,outerSpan,(centerWidth+sideWidth)/2,0);
+addOuterFloor(centerWidth,sideWidth,0,-(centerWidth+sideWidth)/2);
+addOuterFloor(centerWidth,sideWidth,0,(centerWidth+sideWidth)/2);
+scene.add(outerFloor);
 function createStreamedTerrain(key){
  if(streamedTerrain.has(key))return;
  const [cx,cz]=key.split(',').map(Number);
@@ -2905,4 +2917,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=147"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=148"></script></body></html>
