@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V148 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V149 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2107,6 +2107,25 @@ for(let cx=-CHUNK_HALF;cx<CHUNK_HALF;cx++)for(let cz=-CHUNK_HALF;cz<CHUNK_HALF;c
  if(!outerChunk(cx,cz))continue;
  distantBuildings.push(...terrainBuildings(cx,cz));
 }
+// Stable broadphase collision proxies use the exact same seed as the skyline.
+const terrainCollisionCells=new Map();
+for(const b of distantBuildings){
+ const key=chunkKey(b.x,b.z);
+ if(!terrainCollisionCells.has(key))terrainCollisionCells.set(key,[]);
+ terrainCollisionCells.get(key).push({x:b.x,z:b.z,w:b.w,d:b.d,top:b.h});
+}
+function streamedBuildingBlockers(x,z,feet){
+ const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE),hits=[];
+ for(let ox=-1;ox<=1;ox++)for(let oz=-1;oz<=1;oz++){
+  const key=(cx+ox)+','+(cz+oz);
+  // Activate collision only for nearby, ready chunks; render silhouettes persist.
+  if(!chunkCache.get(key)?.loaded)continue;
+  for(const b of terrainCollisionCells.get(key)||[]){
+   if(feet<b.top-.2&&feet+2>0&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
+  }
+ }
+ return hits;
+}
 const distantSkyline=new THREE.InstancedMesh(terrainLandmarkGeo,terrainLandmarkMat,distantBuildings.length);
 const skylineDummy=new THREE.Object3D();
 distantBuildings.forEach((b,i)=>{skylineDummy.position.set(b.x,b.h/2,b.z);skylineDummy.scale.set(b.w,b.h,b.d);skylineDummy.updateMatrix();distantSkyline.setMatrixAt(i,skylineDummy.matrix);});
@@ -2483,6 +2502,7 @@ function activeBlockers(x,z){
  if(feet<2.5&&!(Math.abs(x)<12&&Math.abs(z)<12))
   for(const b of solidStructures)
    if(Math.abs(x-b.x)<b.w/2+.4&&Math.abs(z-b.z)<b.d/2+.4)hits.push(b);
+ if(Math.abs(x)>1995||Math.abs(z)>1995)hits.push(...streamedBuildingBlockers(x,z,feet));
  return hits;
 }
 function hullDepth(b,x,z){
@@ -2498,13 +2518,13 @@ function hullDepth(b,x,z){
  }
  return Math.min(b.w/2+.4-Math.abs(x-b.x),b.d/2+.4-Math.abs(z-b.z));
 }
-function collides(x,z){return Math.abs(x)>355||Math.abs(z)>355||activeBlockers(x,z).length>0}
+function collides(x,z){return Math.abs(x)>1995||Math.abs(z)>1995||activeBlockers(x,z).length>0}
 function collisionSafeMove(x1,z1,x2,z2){
  const initial=new Set(activeBlockers(x1,z1));
  const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.45));
  for(let k=1;k<=n;k++){
   const f=k/n,x=x1+(x2-x1)*f,z=z1+(z2-z1)*f;
-  if(Math.abs(x)>355||Math.abs(z)>355)return false;
+  if(Math.abs(x)>1995||Math.abs(z)>1995)return false;
   for(const b of activeBlockers(x,z)){
    if(!initial.has(b))return false;
    if(hullDepth(b,x,z)>hullDepth(b,x1,z1)+.02)return false;
@@ -2917,4 +2937,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=148"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=149"></script></body></html>
