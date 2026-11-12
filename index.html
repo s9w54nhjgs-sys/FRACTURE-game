@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V142 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V143 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2072,6 +2072,28 @@ for(let i=0;i<roofDistrict.length;i++){
   }
  }
 }
+// V143: stream only non-collidable rooftop debris / small architectural dressing.
+// Structural meshes, bridge geometry, collision proxies and glowing landmarks stay loaded.
+const roofDetailStream=[];
+artifacts.updateMatrixWorld(true);
+for(const mesh of artifacts.children){
+ if(!mesh.isMesh||mesh.material===roofGlow||mesh.geometry?.type==='TorusGeometry')continue;
+ const pos=mesh.position.clone();
+ roofDetailStream.push({mesh,pos,shown:true});
+}
+let lastRoofDetailStream=-Infinity;
+function streamRoofDetails(t){
+ if(t-lastRoofDetailStream<250)return;
+ lastRoofDetailStream=t;
+ const p=camera.position;
+ for(const d of roofDetailStream){
+  const dx=p.x-d.pos.x,dz=p.z-d.pos.z,dy=Math.abs(p.y-d.pos.y);
+  const horizontal=dx*dx+dz*dz;
+  const radius=d.shown?135:115;
+  const show=horizontal<radius*radius&&dy<(d.shown?110:95);
+  if(d.shown!==show){d.shown=show;d.mesh.visible=show;}
+ }
+}
 var climbFloor=0,climbPrevFeet=0;let fallPeak=0,fallGlideUsed=false;
 function resolveFallDamage(ground,t){
  const distance=Math.max(0,fallPeak-ground);
@@ -2774,6 +2796,6 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
  camera.position.copy(deathCameraPosition);camera.quaternion.copy(deathCameraQuaternion);
  if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');window.fractureFinish?.(false,kills);}
 }
-streamGroundDetails(t);renderer.render(scene,camera)}
+streamGroundDetails(t);streamRoofDetails(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=140"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=142"></script></body></html>
+</script><script src="./rebirth.js?v=140"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=143"></script></body></html>
