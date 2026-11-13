@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V151 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V152 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2120,7 +2120,7 @@ function streamedBuildingBlockers(x,z,feet){
   const key=(cx+ox)+','+(cz+oz);
   // Activate collision only for nearby, ready chunks; render silhouettes persist.
   if(!chunkCache.get(key)?.loaded)continue;
-  for(const b of terrainCollisionCells.get(key)||[]){
+  for(const b of [...(terrainCollisionCells.get(key)||[]),...(streamedTerrain.get(key)?.colliders||[])]){
    if(feet<b.top-.2&&feet+2>0&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
   }
  }
@@ -2157,6 +2157,7 @@ function createStreamedTerrain(key){
  if(!outerChunk(cx,cz))return;
  const group=new THREE.Group(),platforms=[],ramps=[],colliders=[];
  const buildings=terrainBuildings(cx,cz);
+ const dockSlice=(cx===2&&cz===0);
  function box(x,y,z,w,h,d,mat=industrialRustMat){
   const m=new THREE.Mesh(terrainLandmarkGeo,mat);
   m.position.set(x,y,z);m.scale.set(w,h,d);group.add(m);return m;
@@ -2178,6 +2179,50 @@ function createStreamedTerrain(key){
   group.add(mesh);
   const p={ax:a.x,az:a.z,ah:a.h,bx:b.x,bz:b.z,bh:b.h,width:width/2,streamKey:key};
   climbRamps.push(p);ramps.push(p);
+ }
+ // V152 vertical slice: 190m submarine construction dock in the test sector.
+ if(dockSlice){
+  const dx=640,dz=133;
+  const dockConcrete=new THREE.MeshStandardMaterial({color:0x37454c,metalness:.35,roughness:.85});
+  const hullMat=new THREE.MeshStandardMaterial({color:0x1b3039,metalness:.82,roughness:.36});
+  const dockGold=new THREE.MeshStandardMaterial({color:0xc38c4f,metalness:.68,roughness:.48});
+  // Basin floor, elevated quay walls, gantry towers and an overhead crane.
+  box(dx,1,dz,190,2,76,dockConcrete);
+  for(const side of [-1,1]){
+   box(dx,9,dz+side*40,190,18,7,dockConcrete);
+   for(const px of [dx-83,dx,dx+83]){
+    box(px,30,dz+side*42,5,42,5,industrialDarkMat);
+    platform(px,dz+side*42,51,12,12);
+   }
+  }
+  box(dx,53,dz,180,4,6,dockGold);
+  box(dx,57,dz,7,6,64,industrialPipeMat);
+  // Submarine hull: single elongated low-poly cylinder + conical bow and stern.
+  const submarine=new THREE.Group();
+  const body=new THREE.Mesh(new THREE.CylinderGeometry(11,11,142,14,1),hullMat);
+  body.rotation.z=Math.PI/2;submarine.add(body);
+  for(const side of [-1,1]){
+   const nose=new THREE.Mesh(new THREE.ConeGeometry(11,23,14),hullMat);
+   nose.rotation.z=side*Math.PI/2;nose.position.x=side*82;submarine.add(nose);
+  }
+  const sail=new THREE.Mesh(terrainLandmarkGeo,hullMat);
+  sail.position.set(-14,12,0);sail.scale.set(22,16,8);submarine.add(sail);
+  const tower=new THREE.Mesh(industrialCylinderGeo,industrialDarkMat);
+  tower.position.set(-14,24,0);tower.scale.set(1.2,12,1.2);submarine.add(tower);
+  submarine.position.set(dx,13,dz);group.add(submarine);
+  // Drydock floor access and high-level traversal; no invisible floating steps.
+  for(const side of [-1,1]){
+   const z=dz+side*43;
+   for(let i=0;i<5;i++){
+    const h=2+i*10,x=dx-84+i*18;
+    platform(x,z,h,15,12);
+    if(i>0)ramp({x:x-18,z,h:h-10},{x,z,h},8);
+   }
+  }
+  platform(dx-14,dz,33,22,8);
+  platform(dx,dz,53,18,8);
+  // Dock side walls are solid only where they don't block the basin entry.
+  for(const side of [-1,1])colliders.push({x:dx,z:dz+side*40,w:190,d:7,top:18});
  }
  // Main roof collision follows the silhouette's unchanged deterministic dimensions.
  for(let i=0;i<buildings.length;i++){
@@ -2230,7 +2275,7 @@ function createStreamedTerrain(key){
    platform(a.x,a.z,h,8,8);platform(b.x,b.z,h,8,8);
   }
  }
- scene.add(group);streamedTerrain.set(key,{group,platforms,ramps});
+ scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders});
 }
 function evictStreamedTerrain(key){
  const entry=streamedTerrain.get(key);if(!entry)return;
@@ -2456,7 +2501,7 @@ let moveVX=0,moveVZ=0,landedJumpCount=0;var jumpVelocity=0,jumpHeight=0,jumpCoun
 // V150 developer shortcut: bridge deck teleport, not part of normal gameplay.
 const devWarpButton=document.createElement('button');
 devWarpButton.textContent='TEST ⇧ BRIDGE';
-Object.assign(devWarpButton.style,{position:'fixed',right:'12px',top:'112px',zIndex:'25',padding:'10px 12px',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
+Object.assign(devWarpButton.style,{position:'fixed',right:'12px',top:'112px',zIndex:'9999',padding:'10px 12px',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
 document.body.appendChild(devWarpButton);
 devWarpButton.addEventListener('click',()=>{
  if(done)return;
@@ -2472,7 +2517,7 @@ devWarpButton.addEventListener('click',()=>{
 // V151: quick industrial vertical-slice access for repeatable mobile QA.
 const industryWarpButton=document.createElement('button');
 industryWarpButton.textContent='TEST ⇧ INDUSTRY';
-Object.assign(industryWarpButton.style,{position:'fixed',right:'12px',top:'156px',zIndex:'25',padding:'10px 12px',background:'#35271fe8',color:'#ffd3a6',border:'1px solid #ba8d65',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
+Object.assign(industryWarpButton.style,{position:'fixed',right:'12px',top:'156px',zIndex:'9999',padding:'10px 12px',background:'#35271fe8',color:'#ffd3a6',border:'1px solid #ba8d65',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
 document.body.appendChild(industryWarpButton);
 industryWarpButton.addEventListener('click',()=>{
  if(done)return;
@@ -3054,4 +3099,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=151"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=152"></script></body></html>
