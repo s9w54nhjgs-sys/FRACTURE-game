@@ -1345,7 +1345,7 @@ function updateSpecial(t,dt){if(done)return;
 }
  g.rotation.y=Math.atan2(-ax,-az);
  if(u.alert&&d<1.5&&t-u.last>1700&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(9,t)}
- }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-(u.lastDamageAt||-10000)>1800&&t>=dashInvulnerableUntil){u.lastDamageAt=t;applySpecialDamage(16,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=4+Math.random()*10;u.nextTurn=t+550+Math.random()*2100}
+ }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-(u.lastDamageAt||-10000)>1800&&t>=dashInvulnerableUntil){u.lastDamageAt=t;applySpecialDamage(16,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=5+Math.random()*24;u.nextTurn=t+450+Math.random()*1650}
  if(!u.flockMate||!specialEnemies.includes(u.flockMate)||t>u.flockUntil)u.flockMate=null;
  if(!u.flockMate)for(const other of specialEnemies){if(other!==u&&other.variant==='roamer'&&other.mode==='idle'&&Math.hypot(g.position.x-other.g.position.x,g.position.y-other.g.position.y,g.position.z-other.g.position.z)<1){u.flockMate=other;u.flockUntil=t+2400+Math.random()*2600;break}}
  if(u.flockMate){u.targetHeading=u.flockMate.heading+Math.sin(t*.003+u.seed)*.15;u.flightY=u.flockMate.flightY+Math.sin(u.seed)*.7}
@@ -1355,7 +1355,7 @@ function updateSpecial(t,dt){if(done)return;
  u.heading+=THREE.MathUtils.clamp(turn,-dt*3.4,dt*3.4);
  const speed=u.flockMate?20:22+Math.sin(t*.003+u.seed)*4;
  g.position.x+=Math.sin(u.heading)*speed*dt;g.position.z+=Math.cos(u.heading)*speed*dt;
- const climb=THREE.MathUtils.clamp((u.flightY-g.position.y)*2,-8,8);
+ const climb=THREE.MathUtils.clamp((u.flightY+Math.sin(t*.004+u.seed)*4-g.position.y)*2.8,-15,15);
  g.position.y+=climb*dt;
  g.rotation.y=u.heading;g.rotation.x=Math.atan2(climb,speed);g.rotation.z=THREE.MathUtils.clamp(turn*1.2,-.65,.65);
  u.body.rotation.z=0;u.body.rotation.x=Math.PI/2;if(d<7)prepareAerial(u,t)}else if(u.mode==='gearLock'){g.rotation.set(0,0,0);aimAerial(u,t,Math.min(1,(t-u.last)/500));if(t-u.last>=500){u.mode='dive';u.last=t;u.startX=g.position.x;u.startY=g.position.y;u.startZ=g.position.z}}else if(u.mode==='dive'){diveAerial(u,t,dt)}else if(u.mode==='idle'){g.position.y=8;if(d<7)prepareAerial(u,t)}
@@ -2751,14 +2751,15 @@ for(let k=0;k<3;k++){
 function industrialRandom(a,b){return a+Math.random()*(b-a)}
 for(let f=0;f<15;f++){
  const gx=f%5,gz=Math.floor(f/5),cx=2+gx,cz=-1+gz;
- const x=(cx+.5)*250+industrialRandom(-68,68),z=(cz+.5)*250+industrialRandom(-68,68);
+ let x=(cx+.5)*250+industrialRandom(-68,68),z=(cz+.5)*250+industrialRandom(-68,68);
  const type=f%5===0?2:f%4===0?1:0;
+ if(type===1){const b=terrainBuildings(cx,cz)[f%5];x=b.x+b.w*.5+1;z=b.z;}
  const count=15+Math.floor(Math.random()*16);
  const flock={x,z,type,count,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0};
  industrialFlocks.push(flock);
  for(let j=0;j<count;j++){
   const theta=j*2.39996,dist=5+Math.sqrt(j)*3;
-  const y=type===2?65+industrialRandom(0,18):type===1?12+industrialRandom(0,16):18+industrialRandom(0,40);
+  const y=type===2?65+industrialRandom(0,18):type===1?7+industrialRandom(0,16):18+industrialRandom(0,40);
   industrialAerials.push({flock,type,seed:Math.random()*100,phase:Math.random()*6.28,
    x:x+Math.cos(theta)*dist,y,z:z+Math.sin(theta)*dist,
    homeX:x,homeZ:z,homeY:y,mode:type===1?'embedded':'roam',lockedX:0,lockedZ:0,
@@ -2854,7 +2855,7 @@ function updateIndustrialAerials(t){
   }
   const mesh=industrialAerialMeshes[d.type],i=counts[d.type]++;
   industrialDummy.position.set(d.x,d.y,d.z);
-  industrialDummy.rotation.set(d.mode==='dive'?Math.PI:Math.sin(age+ph)*.3,age*.6+ph,Math.sin(age*.7+seed)*.6);
+  industrialDummy.rotation.set(d.mode==='dive'?Math.PI:d.mode==='embedded'?Math.PI/2:Math.sin(age+ph)*.5,age*.6+ph,Math.sin(age*.7+seed)*.6);
   industrialDummy.scale.setScalar(d.mode==='spent'?.6:1);
   industrialDummy.updateMatrix();mesh.setMatrixAt(i,industrialDummy.matrix);
   closest=Math.min(closest,Math.hypot(px-d.x,py-d.y,pz-d.z));
