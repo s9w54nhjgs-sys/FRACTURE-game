@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V156 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V157 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2747,8 +2747,8 @@ const aerialMaterials=[
 ];
 for(const mat of aerialMaterials){mat.color.setHex(0xc8ba39);mat.emissive.setHex(0x373008);}
 const industrialAerialCap=450,industrialDummy=new THREE.Object3D();
-const industrialEyeGeo=new THREE.SphereGeometry(.24,6,5);
-const industrialEyeMat=new THREE.MeshBasicMaterial({color:0xff1422});
+const industrialEyeGeo=new THREE.SphereGeometry(.36,7,6);
+const industrialEyeMat=new THREE.MeshBasicMaterial({color:0xff1020,toneMapped:false,depthTest:false});
 const industrialEyes=[];
 for(let k=0;k<3;k++){const e=new THREE.InstancedMesh(industrialEyeGeo,industrialEyeMat,industrialAerialCap);e.instanceMatrix.setUsage(THREE.DynamicDrawUsage);e.frustumCulled=false;e.count=0;scene.add(e);industrialEyes.push(e);}
 const industrialEyeDummy=new THREE.Object3D(),industrialTipAxis=new THREE.Vector3(0,1,0),industrialTipDirection=new THREE.Vector3();
@@ -2761,16 +2761,16 @@ for(let f=0;f<15;f++){
  const gx=f%5,gz=Math.floor(f/5),cx=2+gx,cz=-1+gz;
  let x=(cx+.5)*250+industrialRandom(-68,68),z=(cz+.5)*250+industrialRandom(-68,68);
  const type=f===0?0:f===1?1:f===2?2:1;
- if(type===1){const b=terrainBuildings(cx,cz)[f%5];x=b.x+b.w*.5+1;z=b.z;}
+ if(type===1){x=(cx+.5)*250+45;z=(cz+.5)*250+30;}
  const count=15+Math.floor(Math.random()*16);
- const flock={id:f,x,z,type,count,active:f<3,emergeAt:90000,dead:false,mergeAt:0,merged:false,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0,heading:Math.random()*Math.PI*2,headingTarget:Math.random()*Math.PI*2,nextTurn:0,leadX:x,leadZ:z,leadY:type===2?78:34};
+ const flock={id:f,x,z,type,count,active:f<3,emergeAt:90000,releaseAt:0,dead:false,mergeAt:0,merged:false,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0,heading:Math.random()*Math.PI*2,headingTarget:Math.random()*Math.PI*2,nextTurn:0,leadX:x,leadZ:z,leadY:type===2?78:34};
  industrialFlocks.push(flock);
  for(let j=0;j<count;j++){
   const theta=j*2.39996,dist=5+Math.sqrt(j)*3;
-  const y=type===2?65+industrialRandom(0,18):type===1?7+industrialRandom(0,16):18+industrialRandom(0,40);
+  const y=type===2?65+industrialRandom(0,18):type===1?8+Math.floor(j/6)*2.8:18+industrialRandom(0,40);
   industrialAerials.push({flock,type,seed:Math.random()*100,phase:Math.random()*6.28,
-   x:x+Math.cos(theta)*dist,y,z:z+Math.sin(theta)*dist,
-   homeX:x,homeZ:z,homeY:y,mode:type===1?'embedded':'roam',slot:j,lockedX:0,lockedZ:0,
+   x:type===1?x+Math.cos(theta)*Math.min(9,dist*.4):x+Math.cos(theta)*dist,y,z:type===1?z+Math.sin(theta)*Math.min(9,dist*.4):z+Math.sin(theta)*dist,
+   homeX:type===1?x+Math.cos(theta)*Math.min(9,dist*.4):x,homeZ:type===1?z+Math.sin(theta)*Math.min(9,dist*.4):z,homeY:y,mode:type===1?'embedded':'roam',slot:j,lockedX:0,lockedZ:0,
    diveStart:0,fromX:0,fromY:0,fromZ:0,resetUsed:false});
  }
 }
@@ -2796,8 +2796,11 @@ function updateIndustrialAerials(t){
  const counts=[0,0,0],nearGroups=new Set(),age=t*.001;
  for(const f of industrialFlocks){
   if(!f.active&&t>=f.emergeAt&&!f.dead){
-   f.active=true;f.type=f.id%3===0?2:0;f.leadY=f.type===2?78:35;
-   for(const d of industrialAerials)if(d.flock===f){d.type=f.type;d.mode='roam';d.y=d.homeY=f.leadY+(d.slot%5)*2;}
+   f.active=true;f.type=f.id%3===0?2:0;f.releaseAt=t;
+   f.leadX=f.x;f.leadZ=f.z;f.leadY=16;
+   for(const d of industrialAerials)if(d.flock===f){
+    d.type=f.type;d.mode='release';d.releaseAt=t; // take off from the actual tank, no teleport
+   }
   }
   if(f.dead&&f.mergeAt&&t>=f.mergeAt&&!f.merged){
    const winner=industrialFlocks.find(g=>g.id===f.winnerId);
@@ -2818,6 +2821,7 @@ function updateIndustrialAerials(t){
   }
   if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500){
    f.alert=true;f.alarmAt=t;industrialAlarm(t);
+   if(f.type===1){f.active=true;f.type=0;f.releaseAt=t;for(const d of industrialAerials)if(d.flock===f){d.type=0;d.mode='release';d.releaseAt=t;}}
   }
   if(t>f.nextTurn){
    f.headingTarget+=industrialRandom(-1.1,1.1);
@@ -2840,6 +2844,7 @@ function updateIndustrialAerials(t){
   if(Math.hypot(a.leadX-b.leadX,a.leadZ-b.leadZ)<24&&Math.abs(a.leadY-b.leadY)<22){
    const winner=a.count>=b.count?a:b,loser=winner===a?b:a;
    loser.dead=true;loser.mergeAt=t+300000;loser.winnerId=winner.id;loser.alert=false;
+   for(const d of industrialAerials)if(d.flock===loser){d.mode='stuck';d.diveStart=t;d.lockedX=winner.leadX;d.lockedZ=winner.leadZ;}
    notify('FLOCK CLASH // REBOOT IN 05:00');
   }
  }
@@ -2847,6 +2852,14 @@ function updateIndustrialAerials(t){
   const f=d.flock;if(!nearGroups.has(f)||f.dead)continue;
   const ph=d.phase,seed=d.seed;
   let tx=d.x,ty=d.y,tz=d.z;
+  if(d.mode==='release'){
+   // Emerge from the tank as a single school, climb vertically before roaming.
+   const elapsed=(t-d.releaseAt)/1000;
+   tx=d.homeX+Math.sin(d.phase)*elapsed*2;
+   tz=d.homeZ+Math.cos(d.phase)*elapsed*2;
+   ty=d.homeY+Math.min(55,elapsed*13)+(d.slot%4)*.4;
+   if(elapsed>4.5)d.mode='roam';
+  }
   if(d.mode==='dive'){
    const p=Math.min(1,(t-d.diveStart)/530),ease=p*p*(3-2*p);
    d.x=d.fromX+(d.lockedX-d.fromX)*ease;
@@ -2860,6 +2873,8 @@ function updateIndustrialAerials(t){
    }
   }else if(d.mode==='stuck'||d.mode==='spent'){
    if(d.mode==='stuck'&&t-d.diveStart>20000)d.mode='spent';
+  }else if(d.mode==='release'){
+   // Release positions were calculated above.
   }else if(!f.active||(d.type===1&&!f.alert)){
    // Visible orange-metal spikes extend out from factory walls.
    tx=d.homeX+2.2;ty=d.homeY;tz=d.homeZ;
@@ -2882,7 +2897,7 @@ function updateIndustrialAerials(t){
    }
    if(d.mode!=='dive'){
     const dist=Math.hypot(tx-d.x,ty-d.y,tz-d.z),speed=d.type===2?12:29;
-    const step=Math.min(dist,speed*dt);
+    const step=Math.min(dist,(d.mode==='release'?20:speed)*dt);
     if(dist>.001){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;d.z+=(tz-d.z)/dist*step;}
    }
   }
@@ -2895,7 +2910,7 @@ function updateIndustrialAerials(t){
   industrialDummy.scale.setScalar(d.mode==='spent'?.65:1);
   industrialDummy.updateMatrix();mesh.setMatrixAt(i,industrialDummy.matrix);
   industrialEyeDummy.position.copy(industrialDummy.position);
-  industrialTipDirection.set(0,1.1,0).applyQuaternion(industrialDummy.quaternion);
+  industrialTipDirection.set(0,.55,0).applyQuaternion(industrialDummy.quaternion);
   industrialEyeDummy.position.add(industrialTipDirection);
   industrialEyeDummy.quaternion.copy(industrialDummy.quaternion);
   industrialEyeDummy.scale.setScalar(1);
@@ -2904,7 +2919,7 @@ function updateIndustrialAerials(t){
  for(let k=0;k<3;k++){
   const m=industrialAerialMeshes[k];m.count=counts[k];m.visible=industrial;
   if(counts[k]){m.instanceMatrix.needsUpdate=true;industrialEyes[k].instanceMatrix.needsUpdate=true;}
-  industrialEyes[k].count=0;industrialEyes[k].visible=false;
+  industrialEyes[k].count=counts[k];industrialEyes[k].visible=industrial;
  }
 }
 function update(t){requestAnimationFrame(update);updateIndustrialAerials(t);
@@ -3277,4 +3292,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=156"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
