@@ -2802,7 +2802,7 @@ function updateIndustrialAerials(t){
     for(const d of industrialAerials)if(d.flock===f){d.flock=winner;d.mode='roam';d.type=winner.type;d.homeX=winner.leadX;d.homeZ=winner.leadZ;d.homeY=winner.leadY;}
    }
   }
-  if(f.dead||!f.active)continue;
+  if(f.dead)continue;
   const range=Math.hypot(px-f.leadX,pz-f.leadZ);
   if(!industrial||range>260)continue;
   nearGroups.add(f);
@@ -2813,7 +2813,7 @@ function updateIndustrialAerials(t){
     d.mode=d.type===1?'embedded':'roam';d.x=d.homeX;d.z=d.homeZ;d.y=d.homeY;
    }
   }
-  if(range<100&&!f.alert&&t-f.resetAt>1500){
+  if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500){
    f.alert=true;f.alarmAt=t;industrialAlarm(t);
   }
   if(t>f.nextTurn){
@@ -2833,7 +2833,7 @@ function updateIndustrialAerials(t){
  // only once, after five minutes, merged into the surviving formation.
  for(let i=0;i<industrialFlocks.length;i++)for(let j=i+1;j<industrialFlocks.length;j++){
   const a=industrialFlocks[i],b=industrialFlocks[j];
-  if(!nearGroups.has(a)||!nearGroups.has(b)||a.dead||b.dead||a.type===1||b.type===1)continue;
+  if(!nearGroups.has(a)||!nearGroups.has(b)||!a.active||!b.active||a.dead||b.dead||a.type===1||b.type===1)continue;
   if(Math.hypot(a.leadX-b.leadX,a.leadZ-b.leadZ)<24&&Math.abs(a.leadY-b.leadY)<22){
    const winner=a.count>=b.count?a:b,loser=winner===a?b:a;
    loser.dead=true;loser.mergeAt=t+300000;loser.winnerId=winner.id;loser.alert=false;
@@ -2857,7 +2857,7 @@ function updateIndustrialAerials(t){
    }
   }else if(d.mode==='stuck'||d.mode==='spent'){
    if(d.mode==='stuck'&&t-d.diveStart>20000)d.mode='spent';
-  }else if(d.type===1&&!f.alert){
+  }else if(!f.active||(d.type===1&&!f.alert)){
    // Visible orange-metal spikes extend out from factory walls.
    tx=d.homeX+2.2;ty=d.homeY;tz=d.homeZ;
   }else{
