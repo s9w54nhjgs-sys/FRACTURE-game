@@ -2913,6 +2913,8 @@ function updateIndustrialAerials(t){
    }
   }else if(d.mode==='stuck'||d.mode==='spent'){
    if(d.mode==='stuck'&&t-d.diveStart>20000)d.mode='spent';
+  }else if(d.mode==='release'){
+   // Keep the radial bloom target; ordinary formation steering resumes after regroup.
   }else if(!f.active||(d.type===1&&!f.alert)){
    // Visible orange-metal spikes extend out from factory walls.
    tx=d.homeX+2.2;ty=d.homeY;tz=d.homeZ;
