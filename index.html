@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V168 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V169 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2128,7 +2128,7 @@ function streamedBuildingBlockers(x,z,feet){
   // Activate collision only for nearby, ready chunks; render silhouettes persist.
   if(!chunkCache.get(key)?.loaded)continue;
   for(const b of [...(terrainCollisionCells.get(key)||[]),...(streamedTerrain.get(key)?.colliders||[])]){
-   if(feet<b.top-.2&&feet+2>0&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
+   if(feet<b.top-.2&&feet+2>(b.bottom??0)&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
   }
  }
  return hits;
@@ -2230,6 +2230,94 @@ function createStreamedTerrain(key){
   platform(dx,dz,53,18,8);
   // Dock side walls are solid only where they don't block the basin entry.
   for(const side of [-1,1])colliders.push({x:dx,z:dz+side*40,w:190,d:7,top:18});
+ }
+
+ // V169: B+C abandoned industrial / aerial industrial waterways, dock infrastructure.
+ // All structural collision surfaces are registered with the same streamed chunk.
+ const industrialSector=cx>=2&&cx<=6&&cz>=-1&&cz<=1;
+ if(industrialSector){
+  const ox=cx*250,oz=cz*250;
+  const waterMat=new THREE.MeshStandardMaterial({color:0x163a48,metalness:.68,roughness:.24,transparent:true,opacity:.92});
+  const steelMat=new THREE.MeshStandardMaterial({color:0x4c6671,metalness:.78,roughness:.44});
+  const signalMat=new THREE.MeshStandardMaterial({color:0x65b7cc,emissive:0x174c5b,emissiveIntensity:.7,metalness:.35});
+  function structure(x,y,z,w,h,d,mat=steelMat,solid=true){
+   const m=box(x,y,z,w,h,d,mat);
+   if(solid)colliders.push({x,z,w,d,top:y+h/2,bottom:y-h/2});
+   return m;
+  }
+  function pipe(a,b,r=2.8){
+   const va=new THREE.Vector3(...a),vb=new THREE.Vector3(...b),delta=vb.clone().sub(va);
+   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,delta.length(),9),industrialPipeMat);
+   m.position.copy(va.add(vb).multiplyScalar(.5));
+   m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());group.add(m);
+   // Conservative AABB for horizontal/vertical pipe collision; same geometry endpoints.
+   const w=Math.abs(a[0]-b[0])+r*1.7,h=Math.abs(a[1]-b[1])+r*1.7,d=Math.abs(a[2]-b[2])+r*1.7;
+   colliders.push({x:m.position.x,z:m.position.z,w,d,top:m.position.y+h/2,bottom:m.position.y-h/2});
+   if(Math.abs(a[1]-b[1])<.1&&Math.abs(a[2]-b[2])<.1)platform(m.position.x,m.position.z,m.position.y+r,w,Math.max(3,r*1.7));
+   return m;
+  }
+  // Long water lane, extending seamlessly through each industrial chunk.
+  const laneZ=oz+205;
+  structure(ox+125,.055,laneZ,250,.1,46,waterMat,false);
+  for(const bank of [-1,1]){
+   structure(ox+125,3,laneZ+bank*27,250,6,7,industrialDarkMat);
+   for(const x of [ox+18,ox+125,ox+232])structure(x,7,laneZ+bank*28,4,8,4,industrialRustMat);
+  }
+  // Bridge is walkable and leaves water below unobstructed.
+  if((cx+cz)%2===0){
+   platform(ox+125,laneZ,12,10,65);
+   structure(ox+125,6,laneZ-31,6,12,4,industrialDarkMat);
+   structure(ox+125,6,laneZ+31,6,12,4,industrialDarkMat);
+  }
+  // Pipes connect factories and cross the canal above navigation clearance.
+  const pipeY=26+((cx+cz+12)%3)*7;
+  pipe([ox+12,pipeY,oz+70],[ox+238,pipeY,oz+70],3.2);
+  pipe([ox+45,pipeY,oz+70],[ox+45,pipeY,laneZ+45],2.7);
+  pipe([ox+45,5,oz+70],[ox+45,pipeY,oz+70],2.7);
+  pipe([ox+205,pipeY,oz+70],[ox+205,pipeY,laneZ+45],2.7);
+  // Heavy gantry crane: steel legs, cross beam, trolley and suspended hook.
+  if((cx+cz+12)%3===0){
+   const gx=ox+178,gz=oz+164,gh=72;
+   for(const xx of [gx-31,gx+31])for(const zz of [gz-24,gz+24])
+    structure(xx,gh/2,zz,4,gh,4,industrialRustMat);
+   structure(gx,gh,gz,74,6,6,steelMat);
+   structure(gx,gh,gz,8,6,60,steelMat);
+   structure(gx+8,gh-5,gz,13,6,12,industrialDarkMat);
+   structure(gx+8,gh-24,gz,1.2,36,1.2,industrialPipeMat,false);
+   const hook=new THREE.Mesh(new THREE.TorusGeometry(3.5,.85,6,12,Math.PI*1.5),industrialRustMat);
+   hook.position.set(gx+8,gh-43,gz);hook.rotation.z=Math.PI;group.add(hook);
+   platform(gx,gz,gh+3,74,6);
+  }
+  // Large military communication dish aimed toward submarine-class craft.
+  if(cx===3&&cz===0){
+   const ax=ox+132,az=oz+115,ay=89;
+   structure(ax,38,az,16,76,16,industrialDarkMat);
+   platform(ax,az,77,27,27);
+   const mast=new THREE.Mesh(new THREE.CylinderGeometry(4.5,7,17,12),steelMat);
+   mast.position.set(ax,85,az);group.add(mast);
+   const dish=new THREE.Mesh(new THREE.SphereGeometry(39,20,10,0,Math.PI*2,0,Math.PI*.47),new THREE.MeshStandardMaterial({color:0x8a9fa8,side:THREE.DoubleSide,metalness:.76,roughness:.37}));
+   dish.scale.y=.47;dish.position.set(ax,103,az);dish.rotation.z=-.42;group.add(dish);
+   const feed=new THREE.Mesh(new THREE.SphereGeometry(3.5,8,6),signalMat);
+   feed.position.set(ax+13,120,az);group.add(feed);
+   for(const k of [-1,1])pipe([ax+k*8,88,az],[ax+k*13,112,az],1.3);
+   structure(ax,106,az,76,2,76,steelMat,false); // visible dish support, no phantom player wall
+  }
+  // Expand the existing submarine dock into a working industrial terminal.
+  if(dockSlice){
+   for(const x of [560,610,670,720]){
+    structure(x,4,78,13,8,18,industrialDarkMat);
+    pipe([x,10,78],[x,10,97],2);
+   }
+   for(const z of [82,184]){
+    structure(640,2,z,185,4,8,industrialRustMat);
+    platform(640,z,5,185,8);
+   }
+   // Shore-side service crane and equipment platform.
+   structure(715,26,95,5,52,5,industrialRustMat);
+   structure(688,53,95,60,5,6,steelMat);
+   structure(672,40,95,2,22,2,industrialPipeMat,false);
+   platform(688,95,56,60,6);
+  }
  }
  // Dedicated breeding tank: dormant colonies appear as sulfur spikes growing
  // directly through its casing; when they leave it becomes a plain reservoir.
