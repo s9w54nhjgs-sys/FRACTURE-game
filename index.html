@@ -3465,7 +3465,7 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
  camera.position.copy(deathCameraPosition);camera.quaternion.copy(deathCameraQuaternion);
- if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');if(finalCellDeath)finalHomeReturnAt=t+4500;}
+ if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');window.fractureFinish?.(false,kills);if(finalCellDeath)finalHomeReturnAt=t+4500;}
 }
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
