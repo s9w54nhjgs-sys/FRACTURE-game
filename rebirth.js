@@ -50,6 +50,13 @@ document.getElementById('frReset').onclick=()=>{if(!confirm('試作データを�
 window.fractureAwardDecoyTag=()=>{const gained=decoyTags+1;data.tags+=gained;note='デコイ撃破：相手の所持タグ '+decoyTags+' 個 ＋ 本人タグ 1 個 = '+gained+' 個獲得';save();render()};
 window.fractureReturnHome=()=>{document.getElementById('result')?.classList.remove('show');show();};
 window.fractureLivesRemaining=()=>data.lives;
-window.fractureFinish=(success,kills)=>{if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;note='永久死亡。キルタグ '+lost+' 個を失い、第 '+data.generation+' 世代に転生しました。'}else note='死亡。残機を1つ失いました。現在の個性は維持されます。'}save();render();};
+window.fractureFinish=(success,kills)=>{if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;
+// Preserve the original procedural workshop: each reincarnation receives a newly generated recipe/seed.
+const parts=['basic','heavy','aerial','swarm','stalker','paint','aura'];
+const recipe={};for(const part of parts)recipe[part]=Math.floor(Math.random()*9)+(Math.random()<.3?Math.floor(Math.random()*15):0);
+const seed=Math.floor(Math.random()*1e9);const newCell={name:'転生CELL 第'+data.generation+'世代 #'+String(seed).slice(-4),source:'転生',recipe,seed,shape:parts.slice(0,5).sort((a,b)=>recipe[b]-recipe[a])[0],paint:recipe.paint>0,aura:recipe.aura>0};
+(data.cells??=[]).push(newCell);localStorage.setItem('fracture_equipped_cell_seed',String(seed));
+window.dispatchEvent(new Event('fracture-cell-updated'));window.dispatchEvent(new Event('fracture-cell-equipped'));
+note='永久死亡。キルタグ '+lost+' 個を失い、第 '+data.generation+' 世代に転生しました。'}else note='死亡。残機を1つ失いました。現在の個性は維持されます。'}save();render();};
 if(sessionStorage.getItem('frAutoDeploy')==='1'){sessionStorage.removeItem('frAutoDeploy');hide()}else show();
 })();
