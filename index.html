@@ -2469,6 +2469,26 @@ devWarpButton.addEventListener('click',()=>{
  camera.position.set(target.x,target.h+4,target.z+8);
  notify('DEV WARP: 橋梁上へ移動');
 });
+// V151: quick industrial vertical-slice access for repeatable mobile QA.
+const industryWarpButton=document.createElement('button');
+industryWarpButton.textContent='TEST ⇧ INDUSTRY';
+Object.assign(industryWarpButton.style,{position:'fixed',right:'12px',top:'156px',zIndex:'25',padding:'10px 12px',background:'#35271fe8',color:'#ffd3a6',border:'1px solid #ba8d65',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
+document.body.appendChild(industryWarpButton);
+industryWarpButton.addEventListener('click',()=>{
+ if(done)return;
+ const target={x:575,z:125,h:0};
+ player.position.x=target.x;player.position.z=target.z;
+ climbFloor=0;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=0;
+ fallPeak=0;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;
+ glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+ player.position.y=1.35;
+ camera.position.set(target.x,4,target.z+8);
+ const key=chunkKey(target.x,target.z);
+ if(!chunkCache.has(key))chunkCache.set(key,{key,loaded:true,lastSeen:performance.now(),score:0});
+ else{const entry=chunkCache.get(key);entry.loaded=true;entry.lastSeen=performance.now();}
+ createStreamedTerrain(key);
+ notify('DEV WARP: 工業地帯へ移動');
+});
 function jumpNow(){if(done||jumpCount>=2)return;
  // V108: before jumping after a glide landing, anchor to the actual roof
  // instead of carrying a stale ground-level climbFloor into the new jump.
