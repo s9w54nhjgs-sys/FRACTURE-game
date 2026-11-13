@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V166 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V167 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -302,7 +302,13 @@ const abyss=new THREE.MeshStandardMaterial({color:0x111b22,metalness:.42,roughne
 const edgeSilver=new THREE.MeshStandardMaterial({color:0x78868b,metalness:.8,roughness:.34});
 const dimCyan=new THREE.MeshBasicMaterial({color:0x6b9a9e});
 function megaBeam(x,y,z,w,h,d,angle=0,mat=voidMetal){const m=detailBox(x,y,z,w,h,d,mat);m.rotation.z=angle;return m}
-function floatingCore(x,y,z,r){const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
+function floatingCore(x,y,z,r){// V167: a CELL survives two life losses; only terminal loss creates a new phenotype.
+const cellGeneration=Math.max(0,Number(sessionStorage.getItem('fractureCellGeneration')||0));
+let cellLives=Math.max(1,Math.min(2,Number(sessionStorage.getItem('fractureCellLives')||2)));
+const cellPhenotypes=[{name:'AZURE',shell:0x8abcc7,core:0xb6ffff,petal:0x91c5ce,fin:0x688e99,casing:0xb6c4d1,dash:1,charge:1},{name:'EMBER',shell:0xb97154,core:0xffaa55,petal:0xe48d57,fin:0x874f48,casing:0xffab64,dash:1.16,charge:1.08},{name:'VIOLET',shell:0x8372c7,core:0xe5b8ff,petal:0xa79be0,fin:0x655aa0,casing:0xc6a6ff,dash:.92,charge:1.2},{name:'JADE',shell:0x4c9e82,core:0xaaffb5,petal:0x65caa1,fin:0x327f72,casing:0x91ffd2,dash:1.08,charge:1.12}];
+const cellPhenotype=cellPhenotypes[cellGeneration%cellPhenotypes.length];
+window.fractureLivesRemaining=()=>cellLives;
+const shell=new THREE.Mesh(new THREE.OctahedronGeometry(r,0),voidMetal);shell.position.set(x,y,z);architecture.add(shell);const inner=new THREE.Mesh(new THREE.OctahedronGeometry(r*.68,0),abyss);inner.position.set(x,y,z);inner.rotation.y=Math.PI/4;architecture.add(inner);for(let i=0;i<4;i++){const a=i*Math.PI/2;const fin=new THREE.Mesh(new THREE.TetrahedronGeometry(r*.63,0),armoredSteel);fin.position.set(x+Math.cos(a)*r*.9,y+(i%2?2:-2),z+Math.sin(a)*r*.9);fin.rotation.set(.4,a,.6);architecture.add(fin)}}
 // The sky is divided by an enormous vertical ring, with no building-like windows or roof.
 const halo=new THREE.Group();halo.position.set(5,103,-120);halo.rotation.y=.28;architecture.add(halo);
 // V103: a real missing sector in the suspended halo, not a painted-on scar.
@@ -969,6 +975,8 @@ for(const side of [-1,1]){
  const tip=new THREE.Mesh(new THREE.OctahedronGeometry(.105,0),petalMat);
  tip.position.set(side*1.12,-.12,.1);playerRig.add(tip);rollFins.push({mesh:tip,side,baseX:side*1.12});
 }
+shell.material.color.setHex(cellPhenotype.shell);core.material.color.setHex(cellPhenotype.core);petalMat.color.setHex(cellPhenotype.petal);stabilizerMat.color.setHex(cellPhenotype.fin);
+for(const shard of casingShards)for(const needle of shard.mesh.children)if(!needle.userData.isHotTip)needle.material.color.setHex(cellPhenotype.casing);
 const spike=new THREE.Mesh(new THREE.ConeGeometry(.32,2.1,4),petalMat);spike.rotation.x=-Math.PI/2;spike.position.set(0,0,-.55);spike.scale.set(.15,.05,.15);playerRig.add(spike);scene.add(player);player.position.set(0,1.3,0);
 // Equip the actual workshop mesh, retaining the existing movement and combat rig.
 let equippedCellMesh=null,equippedHeart=[],equippedNeedsSync=true,equippedParts=[],cellSpikes=[],cellCasings=[],cellLastEject=0,cellWasExtended=false,cellBreakup=0;const cellTmpDir=new THREE.Vector3(),cellWorldPos=new THREE.Vector3(),cellWorldDir=new THREE.Vector3(),cellWorldQuat=new THREE.Quaternion();
@@ -1453,8 +1461,11 @@ function cellDeathBurst(permadeath){
 function finish(success){
  if(done)return;
  done=true;
+ if(!success){cellLives--;if(cellLives<=0){sessionStorage.setItem('fractureCellGeneration',String(cellGeneration+1));sessionStorage.setItem('fractureCellLives','2');}else sessionStorage.setItem('fractureCellLives',String(cellLives));}
+ else {sessionStorage.setItem('fractureCellLives','2');}
+
  if(!success){
-  finalCellDeath=(window.fractureLivesRemaining?.()??2)<=1;
+  finalCellDeath=cellLives<=0;
   cellDeathBurst(finalCellDeath);
   cellLogRevealAt=performance.now()+(finalCellDeath?2000:950);
   deathCameraPosition.copy(camera.position);
@@ -1464,6 +1475,7 @@ function finish(success){
  $('cellRecord').textContent='CELL RECORD\\n撃破数  '+kills+' KILLS\\n総与ダメージ  '+Math.round(cellDamage)+' DMG\\n移動距離  '+Math.round(cellDistance)+' m\\n生存時間  '+Math.floor(lived/60)+'m '+String(lived%60).padStart(2,'0')+'s';
  if(success)window.fractureFinish?.(true,kills);
  $('resultTitle').textContent=success?'EXTRACTION SUCCESS':finalCellDeath?'CELL LOST':'CELL TRANSFER';
+ $('restart').textContent=finalCellDeath?'新しいCELLで転生':'残機で再出撃';
  $('resultText').textContent=success?'素材 '+loot+' 個回収 / 敵 '+kills+' 体撃破':finalCellDeath?'残機消失。CELLの記録を確定した。':'光学転送完了。残機を1消費して再出撃可能。';
  $('cellRecord').style.display=success||finalCellDeath?'block':'none';
  if(success)$('result').classList.add('show');
@@ -1480,7 +1492,7 @@ function aerialSlash(power,now){
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
 function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;
- if(power>1)pendingCasingEject='charge'; // Only charged attacks eject molten shards.
+ if(power>1){power*=cellPhenotype.charge;pendingCasingEject='charge';} // Only charged attacks eject molten shards.
  if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
  if(now<dashUntil){
   iaiUntil=now+185;iaiLastHit=0;iaiPower=power;
@@ -1495,7 +1507,7 @@ attackButton.addEventListener('pointerup',releaseAttack);attackButton.addEventLi
 function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  dashChain=now<dashChainUntil?Math.min(2,dashChain+1):1;dashChainUntil=now+850;
  dashCharges--;dashRechargeAt.push(now+2400);lastDash=now;
- dashUntil=now+(dashChain===2?390:300);dashBurstUntil=now+180;
+ dashUntil=now+(dashChain===2?390:300)*cellPhenotype.dash;dashBurstUntil=now+180;
  dashInvulnerableUntil=now+(dashChain===2?270:210);updateDashDisplay();
  if(dashChain===2){pendingCasingEject='dash';shockRing(player.position.x,player.position.z,3.3,now);impact(player.position.x,player.position.y,player.position.z);notify('DOUBLE DASH // OVERDRIVE')}
  let mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0);
@@ -3185,7 +3197,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
    shard.mesh.position.set(shard.side*1.15,-.18,-5.4);
    shard.mesh.rotation.set(0,0,0);
    shard.mesh.scale.setScalar(casingEffectMode==='charge'?.92:.55);
-   for(const needle of shard.mesh.children){const m=needle.material;if(needle.userData.isHotTip){m.opacity=casingEffectMode==='charge'?.85:0;continue}m.color.setHex(0xb6c4d1);m.emissive.setHex(0x000000);m.emissiveIntensity=0}
+   for(const needle of shard.mesh.children){const m=needle.material;if(needle.userData.isHotTip){m.opacity=casingEffectMode==='charge'?.85:0;continue}m.color.setHex(cellPhenotype.casing);m.emissive.setHex(0x000000);m.emissiveIntensity=0}
   }
   for(const fx of casingFlybyFx){fx.birth=t;fx.mesh.visible=casingEffectMode==='charge'||fx.j<3;fx.mesh.material.color.setHex(casingEffectMode==='charge'&&!fx.smoke?(fx.j%3===0?0xc84b30:0xffc8a0):fx.smoke?0x8b98a0:0xb8f7ff);}
   for(const puff of shardSmokeTrails){puff.birth=t;puff.mesh.visible=casingEffectMode==='charge'||puff.k===0;}
@@ -3464,7 +3476,7 @@ for(const fx of casingFlybyFx){
 }
 cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
  camera.position.copy(deathCameraPosition);camera.quaternion.copy(deathCameraQuaternion);
- if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');window.fractureFinish?.(false,kills);if(finalCellDeath)finalHomeReturnAt=t+4500;}
+ if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');if(finalCellDeath)finalHomeReturnAt=t+4500;}
 }
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
