@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V159 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V160 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2766,6 +2766,7 @@ const aerialMaterials=[
 ];
 for(const mat of aerialMaterials){mat.color.setHex(0xc8ba39);mat.emissive.setHex(0x373008);}
 const industrialAerialCap=450,industrialDummy=new THREE.Object3D();
+const boidVelocity=new Map(); // persistent per-agent steering; no per-frame mesh allocations
 const industrialEyeGeo=new THREE.SphereGeometry(.36,7,6);
 const industrialEyeMat=new THREE.MeshBasicMaterial({color:0xff1020,toneMapped:false,depthTest:false});
 const industrialEyes=[];
@@ -2848,22 +2849,30 @@ function updateIndustrialAerials(t){
     d.mode=d.type===1?'embedded':'roam';d.x=d.homeX;d.z=d.homeZ;d.y=d.homeY;
    }
   }
-  if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500&&(!f.originEmbedded||f.releasePhase===3)){
+  if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500&&!f.originEmbedded){
    f.alert=true;f.alarmAt=t;industrialAlarm(t);
    if(f.type===1){f.active=true;f.type=0;f.releaseAt=t;f.releasePhase=1;f.alert=false;for(const d of industrialAerials)if(d.flock===f){d.type=0;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ;}}
   }
-  if(t>f.nextTurn){
+  // One embedded scout seeing the player alerts its entire released colony.
+  if(f.originEmbedded&&f.releasePhase===3&&!f.alert){
+   const spotted=industrialAerials.some(d=>d.flock===f&&d.mode==='roam'&&Math.hypot(d.x-px,d.y-py,d.z-pz)<95);
+   if(spotted){f.alert=true;f.alarmAt=t;industrialAlarm(t);}
+  }
+  if(f.originEmbedded&&f.alert){
+   f.headingTarget=Math.atan2(px-f.leadX,pz-f.leadZ);
+  }
+  if(t>f.nextTurn&&!f.originEmbedded){
    f.headingTarget+=industrialRandom(-1.1,1.1);
    f.nextTurn=t+1200+Math.random()*2400;
   }
   const delta=Math.atan2(Math.sin(f.headingTarget-f.heading),Math.cos(f.headingTarget-f.heading));
   f.heading+=Math.max(-dt*.7,Math.min(dt*.7,delta));
   // Leaders drift like schools of fish, rather than every creature orbiting the player.
-  const leadSpeed=(f.originEmbedded&&f.releasePhase>0&&f.releasePhase<3)||f.type===1&&!f.alert?0:f.type===2?8:21;
+  const leadSpeed=(f.originEmbedded&&f.releasePhase>0&&f.releasePhase<3)||f.type===1&&!f.alert?0:f.originEmbedded&&f.alert?26:f.type===2?8:21;
   f.leadX+=Math.sin(f.heading)*leadSpeed*dt;
   f.leadZ+=Math.cos(f.heading)*leadSpeed*dt;
   if(Math.hypot(f.leadX-f.x,f.leadZ-f.z)>210)f.headingTarget=Math.atan2(f.x-f.leadX,f.z-f.leadZ);
-  f.leadY=f.type===2?76+Math.sin(age*.3+f.x)*11:32+Math.sin(age*.42+f.z)*22;
+  f.leadY=f.originEmbedded?(f.alert?py+6:Math.max(15,Math.min(27,f.leadY))):f.type===2?76+Math.sin(age*.3+f.x)*11:32+Math.sin(age*.42+f.z)*22;
  }
  // Inter-flock collisions: the smaller formation is impaled and revives
  // only once, after five minutes, merged into the surviving formation.
@@ -2914,7 +2923,7 @@ function updateIndustrialAerials(t){
   }else if(d.mode==='stuck'||d.mode==='spent'){
    if(d.mode==='stuck'&&t-d.diveStart>20000)d.mode='spent';
   }else if(d.mode==='release'){
-   // Keep the radial bloom target; ordinary formation steering resumes after regroup.
+   // Radial bloom targets are interpolated below.
   }else if(!f.active||(d.type===1&&!f.alert)){
    // Visible orange-metal spikes extend out from factory walls.
    tx=d.homeX+2.2;ty=d.homeY;tz=d.homeZ;
@@ -2925,7 +2934,20 @@ function updateIndustrialAerials(t){
    tx=f.leadX+side*lateral-forward*back+Math.sin(age*.85+ph)*1.5;
    tz=f.leadZ-forward*lateral-side*back+Math.cos(age*.73+ph)*1.5;
    ty=f.leadY+Math.sin(age*.7+ph)*5+Math.cos(age*.43+seed)*4+(d.slot%4)*1.5;
-   if(f.alert&&d.type!==2){
+   if(f.originEmbedded&&f.releasePhase===3){
+    // Boids: separation, cohesion, alignment and player pursuit. Only local colony members.
+    let sx=0,sy=0,sz=0,cx=0,cy=0,cz=0,ax=0,az=0,n=0;
+    for(const other of industrialAerials){if(other===d||other.flock!==f||other.mode!=='roam')continue;
+     const dx=d.x-other.x,dy=d.y-other.y,dz=d.z-other.z,dist2=dx*dx+dy*dy+dz*dz;
+     if(dist2>400||dist2<.0001)continue;
+     n++;cx+=other.x;cy+=other.y;cz+=other.z;
+     const ov=boidVelocity.get(other);if(ov){ax+=ov.x;az+=ov.z;}
+     if(dist2<36){const force=1/Math.max(1,dist2);sx+=dx*force;sy+=dy*force;sz+=dz*force;}
+    }
+    if(n){tx+=(cx/n-d.x)*.18+sx*2.8+ax/n*.055;ty+=(cy/n-d.y)*.12+sy*2;tz+=(cz/n-d.z)*.18+sz*2.8+az/n*.055;}
+    if(f.alert){tx=tx*.2+px*.8;ty=ty*.2+(py+3)*.8;tz=tz*.2+pz*.8;}
+   }
+   if(f.alert&&d.type!==2&&!f.originEmbedded){
     tx+=(px-tx)*.35;tz+=(pz-tz)*.35;ty+=(py+9-ty)*.25;
    }
    // Dive as soon as an alerted creature reaches a viable strike position.
@@ -2935,11 +2957,12 @@ function updateIndustrialAerials(t){
     d.mode='dive';d.diveStart=t;d.fromX=d.x;d.fromY=d.y;d.fromZ=d.z;
     d.lockedX=px;d.lockedZ=pz;industrialAlarm(t);
    }
-   if(d.mode!=='dive'){
-    const dist=Math.hypot(tx-d.x,ty-d.y,tz-d.z),speed=d.type===2?12:29;
-    const step=Math.min(dist,(d.mode==='release'&&f.originEmbedded?35:d.mode==='release'?20:speed)*dt);
-    if(dist>.001){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;d.z+=(tz-d.z)/dist*step;}
-   }
+  }
+  if(d.mode==='release'||d.mode==='roam'||d.mode==='embedded'){
+   const ox=d.x,oz=d.z,dist=Math.hypot(tx-d.x,ty-d.y,tz-d.z),speed=d.mode==='release'&&f.originEmbedded?35:d.type===2?12:29;
+   const step=Math.min(dist,speed*dt);
+   if(dist>.001){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;d.z+=(tz-d.z)/dist*step;}
+   if(f.originEmbedded)boidVelocity.set(d,{x:(d.x-ox)/Math.max(.001,dt),z:(d.z-oz)/Math.max(.001,dt)});
   }
   const i=counts[d.type]++,mesh=industrialAerialMeshes[d.type];
   industrialDummy.position.set(d.x,d.y,d.z);
