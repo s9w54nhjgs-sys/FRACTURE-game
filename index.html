@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V155 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V156 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2733,16 +2733,19 @@ function glideWallImpact(t,speed){
 // 15 persistent territories, randomized flocks of 15-30, three behaviors.
 // Geometry is batched into 3 instanced meshes and AI updates at 10 Hz.
 const industrialFlocks=[],industrialAerials=[],industrialAerialMeshes=[];
+// Match the submarine's original escort needle geometry exactly.
 const aerialForms=[
- new THREE.ConeGeometry(.48,4.5,5), // free-flying submarine wedge
- new THREE.ConeGeometry(.7,5.5,5),  // wall-embedded ambusher
- new THREE.ConeGeometry(.65,5.2,5)  // slow migratory thumper
+ escortMesh.geometry,
+ escortMesh.geometry,
+ escortMesh.geometry
 ];
+// Same reflective submarine-escort appearance, only sulfur-yellow recolored.
 const aerialMaterials=[
- new THREE.MeshStandardMaterial({color:0xb8a13b,metalness:.72,roughness:.4}),
- new THREE.MeshStandardMaterial({color:0xd9b34b,metalness:.74,roughness:.46}),
- new THREE.MeshStandardMaterial({color:0xa5963b,metalness:.78,roughness:.48})
+ escortChrome.clone(),
+ escortChrome.clone(),
+ escortChrome.clone()
 ];
+for(const mat of aerialMaterials){mat.color.setHex(0xc8ba39);mat.emissive.setHex(0x373008);}
 const industrialAerialCap=450,industrialDummy=new THREE.Object3D();
 const industrialEyeGeo=new THREE.SphereGeometry(.24,6,5);
 const industrialEyeMat=new THREE.MeshBasicMaterial({color:0xff1422});
@@ -2901,7 +2904,7 @@ function updateIndustrialAerials(t){
  for(let k=0;k<3;k++){
   const m=industrialAerialMeshes[k];m.count=counts[k];m.visible=industrial;
   if(counts[k]){m.instanceMatrix.needsUpdate=true;industrialEyes[k].instanceMatrix.needsUpdate=true;}
-  industrialEyes[k].count=counts[k];industrialEyes[k].visible=industrial;
+  industrialEyes[k].count=0;industrialEyes[k].visible=false;
  }
 }
 function update(t){requestAnimationFrame(update);updateIndustrialAerials(t);
@@ -3274,4 +3277,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=155"></script></body></html>
+</script><script src="./rebirth.js?v=144"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=156"></script></body></html>
