@@ -2224,6 +2224,25 @@ function createStreamedTerrain(key){
   // Dock side walls are solid only where they don't block the basin entry.
   for(const side of [-1,1])colliders.push({x:dx,z:dz+side*40,w:190,d:7,top:18});
  }
+ // Dedicated breeding tank: dormant colonies appear as sulfur spikes growing
+ // directly through its casing; when they leave it becomes a plain reservoir.
+ if(cx>=2&&cx<=6&&cz>=-1&&cz<=1){
+  const tankX=(cx+.5)*250+45,tankZ=(cz+.5)*250+30;
+  const tank=new THREE.Mesh(new THREE.CylinderGeometry(12,14,26,12),industrialDarkMat);
+  tank.position.set(tankX,13,tankZ);group.add(tank);
+  const crown=new THREE.Mesh(new THREE.CylinderGeometry(12.8,12.8,1.5,12),industrialRustMat);
+  crown.position.set(tankX,26,tankZ);group.add(crown);
+  const spikes=new THREE.Group();
+  const spikeMat=new THREE.MeshStandardMaterial({color:0xc8ba39,metalness:.85,roughness:.22});
+  for(let i=0;i<18;i++){
+   const ang=i*Math.PI*2/18,needle=new THREE.Mesh(escortMesh.geometry,spikeMat);
+   needle.position.set(tankX+Math.cos(ang)*12,10+(i%5)*3,tankZ+Math.sin(ang)*12);
+   needle.rotation.z=-Math.PI/2;needle.scale.set(2,2.4,2);spikes.add(needle);
+  }
+  group.add(spikes);
+  group.userData.breedingSpikes=spikes;
+  group.userData.breedingKey=cx+','+cz;
+ }
  // Main roof collision follows the silhouette's unchanged deterministic dimensions.
  for(let i=0;i<buildings.length;i++){
   const b=buildings[i];
@@ -2794,6 +2813,13 @@ function updateIndustrialAerials(t){
  const px=player.position.x,pz=player.position.z,py=climbFloor+jumpHeight+1.4;
  const industrial=px>490&&px<1990&&pz>-270&&pz<550&&!done;
  const counts=[0,0,0],nearGroups=new Set(),age=t*.001;
+ // Breeding tank exterior changes only when its local colony has hatched.
+ for(const entry of streamedTerrain.values()){
+  const g=entry.group,spikes=g.userData.breedingSpikes;
+  if(!spikes)continue;
+  const colony=industrialFlocks.find(f=>Math.floor(f.x/250)+','+Math.floor(f.z/250)===g.userData.breedingKey&&f.id>=1);
+  spikes.visible=!!colony&&!colony.releaseAt&&!colony.dead;
+ }
  for(const f of industrialFlocks){
   if(!f.active&&t>=f.emergeAt&&!f.dead){
    f.active=true;f.type=f.id%3===0?2:0;f.releaseAt=t;
@@ -2873,8 +2899,6 @@ function updateIndustrialAerials(t){
    }
   }else if(d.mode==='stuck'||d.mode==='spent'){
    if(d.mode==='stuck'&&t-d.diveStart>20000)d.mode='spent';
-  }else if(d.mode==='release'){
-   // Release positions were calculated above.
   }else if(!f.active||(d.type===1&&!f.alert)){
    // Visible orange-metal spikes extend out from factory walls.
    tx=d.homeX+2.2;ty=d.homeY;tz=d.homeZ;
