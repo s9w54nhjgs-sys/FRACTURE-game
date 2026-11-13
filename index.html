@@ -2873,7 +2873,7 @@ function updateIndustrialAerials(t){
     const distance=Math.hypot(g.leadX-f.leadX,g.leadZ-f.leadZ);
     if(distance<dist){dist=distance;rival=g;}
    }
-   if(rival&&dist<125){
+   if(rival&&dist<330){
     const away=Math.atan2(f.leadX-rival.leadX,f.leadZ-rival.leadZ);
     if(f.temperament==='timid')f.headingTarget=away;
     else if(f.temperament==='aggressive'&&!f.alert)f.headingTarget=away+Math.PI;
@@ -2912,7 +2912,7 @@ function updateIndustrialAerials(t){
  for(const d of industrialAerials){
   const f=d.flock;
   // Defeated agents stay visible while inert; revival is handled independently.
-  if(!nearGroups.has(f)&&d.mode!=='revive'&&d.mode!=='rejoin')continue;
+  if(!nearGroups.has(f)&&!f.dead&&d.mode!=='revive'&&d.mode!=='rejoin')continue;
   const ph=d.phase,seed=d.seed;
   let tx=d.x,ty=d.y,tz=d.z;
   if(d.mode==='release'){
@@ -2952,7 +2952,7 @@ function updateIndustrialAerials(t){
     }
    }else{d.mode='roam';d.flock.dead=false;d.flock.active=true;d.reviveTarget=null;}
    // A recovering individual can independently detect and strike the player.
-   if(elapsed>=1.8&&Math.hypot(d.x-px,d.y-py,d.z-pz)<22){
+   if(elapsed>=1.8&&industrial&&Math.hypot(d.x-px,d.y-py,d.z-pz)<22){
     d.mode='dive';d.diveStart=t;d.fromX=d.x;d.fromY=d.y;d.fromZ=d.z;
     d.lockedX=px;d.lockedZ=pz;
    }
