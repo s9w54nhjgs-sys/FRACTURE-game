@@ -2958,7 +2958,6 @@ function updateIndustrialAerials(t){
     d.lockedX=px;d.lockedZ=pz;industrialAlarm(t);
    }
   }
-  }
   if(d.mode==='release'||d.mode==='roam'||d.mode==='embedded'){
    const ox=d.x,oz=d.z,dist=Math.hypot(tx-d.x,ty-d.y,tz-d.z),speed=d.mode==='release'&&f.originEmbedded?35:d.type===2?12:29;
    const step=Math.min(dist,speed*dt);
