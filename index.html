@@ -3,7 +3,7 @@
 <style>
 *{box-sizing:border-box}html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#090e17;color:#e5f5f6;font-family:system-ui,-apple-system,sans-serif;touch-action:auto}canvas{display:block}#hud{position:fixed;inset:0;pointer-events:none}#damageGlass{position:fixed;inset:0;width:100%;height:100%;z-index:4;pointer-events:none;opacity:0}#top{position:absolute;top:env(safe-area-inset-top);left:0;right:0;padding:16px;display:flex;justify-content:space-between;gap:12px;text-shadow:0 2px 8px #000}#brand{font-weight:800;letter-spacing:.15em;font-size:14px}#stats{font-size:12px;text-align:right;line-height:1.7}#notice{position:absolute;top:23%;width:100%;text-align:center;font-weight:700;text-shadow:0 2px 10px #000;opacity:0;transition:opacity .2s}#notice.show{opacity:1}#joy{position:absolute;left:22px;bottom:calc(35px + env(safe-area-inset-bottom));width:132px;height:132px;border:2px solid #7ce7db66;border-radius:50%;background:#a6fdf512;pointer-events:auto;touch-action:none}#knob{position:absolute;left:43px;top:43px;width:42px;height:42px;border-radius:50%;background:#8ce8e3a8;box-shadow:0 0 18px #6dd8dd88}#buttons{position:absolute;right:18px;bottom:calc(32px + env(safe-area-inset-bottom));display:flex;gap:12px;align-items:end;pointer-events:auto}.btn{width:67px;height:67px;border:1px solid #b5f7e588;border-radius:50%;background:#0b2735b9;color:#d9fffc;font-weight:700;touch-action:none}.btn:active{background:#399f9eaa}#dash{width:58px;height:58px}#jump{width:56px;height:56px}#charge{width:62px;height:62px;border-color:#e2ba83aa;background:#473426ba}#buttons{gap:7px}#autoRun{position:absolute;left:42px;bottom:calc(178px + env(safe-area-inset-bottom));pointer-events:auto;border:1px solid #7ce7db77;background:#0b2735c9;color:#c4eae7;border-radius:9px;padding:7px 12px;font-size:11px;font-weight:700}#autoRun.active{background:#4b8f89;color:#071a20}#hint{position:absolute;bottom:calc(190px + env(safe-area-inset-bottom));right:16px;text-align:right;font-size:11px;color:#bcd5dc;max-width:180px}#loading{position:fixed;inset:0;display:grid;place-items:center;background:#090e17;z-index:5;text-align:center;padding:30px}#loading.hidden{display:none}#result{position:fixed;inset:0;background:#07111cdd;z-index:6;display:none;align-items:center;justify-content:center;padding:24px;text-align:center}#result.show{display:flex}#resultPanel{background:#122634;border:1px solid #7ce7db66;border-radius:20px;padding:30px 24px;width:min(360px,100%)}#restart{margin-top:18px;padding:14px 30px;background:#7ce7db;color:#09212a;border:0;border-radius:12px;font-size:16px;font-weight:800}#reticle{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:48px;height:48px;display:grid;place-items:center;pointer-events:none;opacity:.85}#reticle span{font-size:38px;font-family:monospace;font-weight:200;color:#d5f9f5;text-shadow:0 0 8px #8ff;line-height:1;transform:rotate(0deg)}#reticle:after{content:'';position:absolute;width:12px;height:12px;border-radius:50%;background:#91bfc6;box-shadow:0 0 0 4px #162b32}#extract{position:absolute;bottom:calc(175px + env(safe-area-inset-bottom));left:16px;font-size:12px;color:#baf9e9}
 @media (orientation:landscape){#top{padding:calc(8px + env(safe-area-inset-top)) calc(18px + env(safe-area-inset-right)) 8px calc(18px + env(safe-area-inset-left))}#brand{font-size:13px}#stats{font-size:12px}#joy{left:calc(22px + env(safe-area-inset-left));bottom:calc(16px + env(safe-area-inset-bottom));width:112px;height:112px}#knob{left:35px;top:35px}#buttons{right:calc(22px + env(safe-area-inset-right));bottom:calc(20px + env(safe-area-inset-bottom));gap:18px}.btn{width:74px;height:74px}#dash{width:60px;height:60px}#hint{right:calc(18px + env(safe-area-inset-right));bottom:calc(106px + env(safe-area-inset-bottom))}#extract{bottom:calc(12px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);white-space:nowrap}#notice{top:18%}}#rotate{display:none;position:fixed;inset:0;z-index:8;background:#07111b;color:#d8fff8;align-items:center;justify-content:center;text-align:center;padding:32px;font-size:19px;font-weight:750;line-height:1.8}@media (orientation:portrait) and (pointer:coarse){#rotate{display:flex}}@media (orientation:landscape) and (max-height:430px){#top{padding-top:5px}#brand{font-size:11px}#stats{font-size:11px}#joy{width:104px;height:104px}#knob{left:31px;top:31px}#hint{display:none}}
-</style></head><body>
+#scopeTest{position:fixed;right:12px;bottom:calc(env(safe-area-inset-bottom) + 108px);z-index:900;background:#081a25dd;color:#bff;border:1px solid #69b8bd;border-radius:12px;padding:10px 13px;font-weight:800;font-size:12px;touch-action:manipulation;pointer-events:auto}#scopeTest.active{background:#21555a;color:white}#scopeReticle{position:fixed;inset:0;z-index:850;pointer-events:none;display:none;align-items:center;justify-content:center;color:#bafff5;font:700 17px monospace;text-shadow:0 1px 4px black}#scopeReticle.active{display:flex}#scopeReticle:before{content:"";position:absolute;width:min(52vw,52vh);height:min(52vw,52vh);border:2px solid #92e5df99;border-radius:50%;box-shadow:0 0 0 200vmax #00000044}#scopeReticle span{z-index:1;opacity:.85}</style></head><body>
 <div id="rotate">↻<br>FRACTUREは横画面でプレイします<br><small>iPhoneを横向きにしてください<br>回転しない場合は画面の向きのロックを解除</small></div><div id="loading">FRACTURE<br>PROTOCOL INITIALIZING…<br><small>初回起動にはインターネット接続が必要です</small></div>
 <canvas id="damageGlass" aria-hidden="true"></canvas><div id="result"><div id="resultPanel"><h1 id="resultTitle">EXTRACTION SUCCESS</h1><p id="resultText"></p><div id="cellRecord" style="white-space:pre-line;line-height:1.9;text-align:left;margin:16px auto;max-width:260px;font-variant-numeric:tabular-nums"></div><button id="restart" onclick="sessionStorage.setItem('frAutoDeploy','1');location.reload()">もう一度出撃</button></div></div><div id="hud"><div id="top"><div id="brand">FRACTURE <small> / PROTOTYPE 01</small></div><div id="stats">HP <span id="hp">100</span>　SHIELD <span id="shield">50</span><br>素材 <span id="loot">0</span>/3　撃破 <span id="kills">0</span></div></div><div id="notice"></div><div id="reticle"><span>×</span></div><div id="extract">探索：信号中継器を3基起動せよ</div><div id="objectiveNav" style="position:absolute;top:94px;left:14px;color:#bffdf5;background:#071b24c9;border:1px solid #76bcb866;border-radius:9px;padding:9px 12px;font-size:12px;pointer-events:none;max-width:72vw">SIGNAL 0/3</div><div id="joy"><div id="knob"></div></div><button id="autoRun">AUTO</button><div id="hint">右側を上下スワイプ：天井を見上げる<br>左スティック：移動</div><div id="buttons"><button id="dash" class="btn">DASH</button><button id="jump" class="btn">JUMP</button><button id="charge" class="btn">CHARGE</button><button id="attack" class="btn">弱攻撃</button></div></div>
 <script>
@@ -15,11 +15,16 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V162 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V163 ✓</div>
+<button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
-const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);scene.add(camera); // Camera-mounted flyby meshes are included in scene graph.
+const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
+let scopeActive=false,scopeFocusX=0,scopeFocusZ=0;
+const scopeButton=document.getElementById('scopeTest');
+scopeButton.addEventListener('pointerdown',e=>e.stopPropagation());
+scopeButton.addEventListener('click',e=>{e.stopPropagation();scopeActive=!scopeActive;scopeButton.classList.toggle('active',scopeActive);document.getElementById('scopeReticle').classList.toggle('active',scopeActive);scopeButton.textContent=scopeActive?'SCOPE OFF':'SCOPE ×5';});scene.add(camera); // Camera-mounted flyby meshes are included in scene graph.
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
 // OPEN OVERCAST SKY: procedural daytime cloud field, replacing the geodesic dome.
 scene.background=new THREE.Color(0x87949d);
@@ -2335,6 +2340,8 @@ function planChunks(t){
   }
  }
  enqueue(px,pz,0);enqueue(predictedX,predictedZ,4);
+ // Scope observation loads the target and its immediate neighborhood, not the whole world.
+ if(scopeActive)enqueue(scopeFocusX,scopeFocusZ,1);
  chunkActiveKey=chunkKey(px,pz);chunkPredictedKey=chunkKey(predictedX,predictedZ);
  for(const [key,score] of targets){
   let entry=chunkCache.get(key);
@@ -2813,6 +2820,8 @@ function updateIndustrialAerials(t){
  updateIndustrialAerials.prev=t;
  const px=player.position.x,pz=player.position.z,py=climbFloor+jumpHeight+1.4;
  const industrial=px>490&&px<1990&&pz>-270&&pz<550&&!done;
+ const scopeIndustrial=scopeActive&&scopeFocusX>490&&scopeFocusX<1990&&scopeFocusZ>-270&&scopeFocusZ<550;
+ const observedIndustrial=industrial||scopeIndustrial;
  const hatchTime=Math.max(0,t-(updateIndustrialAerials.startedAt??(updateIndustrialAerials.startedAt=t)));
  const flockByTank=new Map(industrialFlocks.filter(f=>f.originEmbedded).map(f=>[Math.floor(f.x/250)+','+Math.floor(f.z/250),f]));
  const counts=[0,0,0],nearGroups=new Set(),age=t*.001;
@@ -2847,7 +2856,8 @@ function updateIndustrialAerials(t){
   }
   if(f.dead)continue;
   const range=Math.hypot(px-(f.type===1&&!f.alert?f.x:f.leadX),pz-(f.type===1&&!f.alert?f.z:f.leadZ));
-  if(!industrial||range>260)continue;
+  const scopeRange=scopeActive?Math.hypot(scopeFocusX-f.leadX,scopeFocusZ-f.leadZ):Infinity;
+  if((!industrial||range>260)&&(!scopeIndustrial||scopeRange>350))continue;
   nearGroups.add(f);
   if(!f.activatedAt)f.activatedAt=t;
   if(!f.resetDone&&t-f.activatedAt>=300000){
@@ -2906,7 +2916,7 @@ function updateIndustrialAerials(t){
   const a=industrialFlocks[i],b=industrialFlocks[j];
   if(!nearGroups.has(a)||!nearGroups.has(b)||!a.active||!b.active||a.dead||b.dead||a.type===1||b.type===1||t<a.clashCooldown||t<b.clashCooldown)continue;
   const distance=Math.hypot(a.leadX-b.leadX,a.leadZ-b.leadZ);
-  if(distance<20&&Math.abs(a.leadY-b.leadY)<25){
+  if(distance<34&&Math.abs(a.leadY-b.leadY)<32){
    const score=f=>f.count+(f.temperament==='aggressive'?8:f.temperament==='timid'?-7:0);
    const winner=score(a)>=score(b)?a:b,loser=winner===a?b:a;
    loser.dead=true;loser.mergeAt=t+10000;loser.winnerId=winner.id;loser.alert=false;
@@ -2914,6 +2924,7 @@ function updateIndustrialAerials(t){
    for(const d of industrialAerials)if(d.flock===loser){
     d.mode='stuck';d.diveStart=t;d.reviveX=d.x;d.reviveY=d.y;d.reviveZ=d.z;
    }
+   impact((a.leadX+b.leadX)*.5,Math.max(1,(a.leadY+b.leadY)*.5),(a.leadZ+b.leadZ)*.5);
    notify('FLOCK CLASH // REBOOT IN 00:10');
   }
  }
@@ -3026,19 +3037,22 @@ function updateIndustrialAerials(t){
   if(d.mode==='dive')industrialDummy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(d.lockedX-d.fromX,-Math.max(1,d.fromY),d.lockedZ-d.fromZ).normalize());
   else if(d.type===1&&!f.alert)industrialDummy.quaternion.setFromAxisAngle(new THREE.Vector3(0,0,1),-Math.PI/2);
   else industrialDummy.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(Math.sin(f.heading),Math.sin(age*.6+ph)*.35,Math.cos(f.heading)).normalize());
-  industrialDummy.scale.setScalar(d.mode==='spent'?.65:1);
+  // Distance LOD: distant drones shrink progressively rather than popping away.
+  const viewDistance=Math.hypot(d.x-camera.position.x,d.y-camera.position.y,d.z-camera.position.z);
+  const farScale=Math.max(.025,Math.min(1,(620-viewDistance)/220));
+  industrialDummy.scale.setScalar((d.mode==='spent'?.65:1)*farScale);
   industrialDummy.updateMatrix();mesh.setMatrixAt(i,industrialDummy.matrix);
   industrialEyeDummy.position.copy(industrialDummy.position);
   industrialTipDirection.set(0,.55,0).applyQuaternion(industrialDummy.quaternion);
   industrialEyeDummy.position.add(industrialTipDirection);
   industrialEyeDummy.quaternion.copy(industrialDummy.quaternion);
-  industrialEyeDummy.scale.setScalar(1);
+  industrialEyeDummy.scale.setScalar(farScale);
   industrialEyeDummy.updateMatrix();industrialEyes[d.type].setMatrixAt(i,industrialEyeDummy.matrix);
  }
  for(let k=0;k<3;k++){
-  const m=industrialAerialMeshes[k];m.count=counts[k];m.visible=industrial;
+  const m=industrialAerialMeshes[k];m.count=counts[k];m.visible=observedIndustrial;
   if(counts[k]){m.instanceMatrix.needsUpdate=true;industrialEyes[k].instanceMatrix.needsUpdate=true;}
-  industrialEyes[k].count=counts[k];industrialEyes[k].visible=industrial;
+  industrialEyes[k].count=counts[k];industrialEyes[k].visible=observedIndustrial;
  }
 }
 function update(t){requestAnimationFrame(update);updateIndustrialAerials(t);
@@ -3376,7 +3390,11 @@ else if(u.phase==='windup'){const duration=heavy?1050:ranged?750:650,p=Math.min(
 else if(u.phase==='strike'){const duration=heavy?360:ranged?300:250,p=Math.min(1,(t-u.windup)/duration);u.body.scale.set(ranged?1.75:1.15,ranged?.45:1.05,ranged?1.75:1.15);u.tell.material.opacity=(1-p)*.65;const step=(ranged?0:heavy?8:11)*dt;if(dt>0&&p<.7){const xx=u.aimX*step,zz=u.aimZ*step;if(!collides(e.position.x+xx,e.position.z))e.position.x+=xx,e.position.z+=zz}if(!ranged&&!u.hit&&d<(heavy?2.9:2.15)&&player.position.y<3.85&&t>=dashInvulnerableUntil&&dt>0){u.hit=true;let damage=heavy?25:14;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(heavy,shielded);glassUntil=t;glassDuration=heavy?1700:1350;hitReactionAt=t;hitReactionPower=heavy?1.8:1;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false)}if(p>=1){u.phase='recover';u.windup=t;u.cooldown=t+(heavy?1900:ranged?1250:1150);u.body.material.emissive.setHex(0)}}
 else if(u.phase==='recover'){u.tell.material.opacity=0;u.body.scale.lerp(new THREE.Vector3(1,1,1),Math.min(1,dt*8));if(t-u.windup>(heavy?650:ranged?420:430))u.phase='seek'}
 }
-for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.position.x+=p.vx*dt;p.m.position.z+=p.vz*dt;p.m.rotation.y+=dt*7}const distance=p.m.position.distanceTo(player.position);if(distance<1.05&&t>=dashInvulnerableUntil&&!done){let damage=12;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(false,shielded);glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=.85;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false);scene.remove(p.m);projectiles.splice(i,1)}else if(t-p.born>3200||collides(p.m.position.x,p.m.position.z)){scene.remove(p.m);projectiles.splice(i,1)}}if(Math.hypot(player.position.x-38,player.position.z+25)<2.7){if(loot>=3&&relaysActive===3){finish(true)}else if(t%2200<35)notify('脱出には素材3個＋中継器3基の起動が必要')}}const camDist=8,cy=player.position.y+3.2-Math.sin(pitch)*2;const desiredCam=new THREE.Vector3(player.position.x+Math.sin(yaw)*camDist,cy,player.position.z+Math.cos(yaw)*camDist);if(!cameraReady){camera.position.copy(desiredCam);cameraReady=true}else{const follow=1-Math.exp(-7*Math.min((t-cameraFrameTime)/1000,.05));camera.position.lerp(desiredCam,follow)}cameraFrameTime=t;if(hitPulse>0){camera.position.x+=Math.sin(t*.14)*hitPulse*.23;camera.position.y+=Math.cos(t*.19)*hitPulse*.17;camera.position.z+=Math.sin(t*.23)*hitPulse*.12}if(watcherMode==='killRush'){camera.position.lerp(new THREE.Vector3(player.position.x+Math.sin(yaw)*2.4,player.position.y+1.65,player.position.z+Math.cos(yaw)*2.4),.35)}camera.lookAt(player.position.x,player.position.y+.5+Math.tan(Math.min(1.54,Math.max(-.7,pitch)))*13,player.position.z);// Camera-local flyby: side clearance stays fixed even during turns.
+for(let i=projectiles.length-1;i>=0;i--){const p=projectiles[i];if(dt>0){p.m.position.x+=p.vx*dt;p.m.position.z+=p.vz*dt;p.m.rotation.y+=dt*7}const distance=p.m.position.distanceTo(player.position);if(distance<1.05&&t>=dashInvulnerableUntil&&!done){let damage=12;const shielded=shield>=damage;if(shield>0){const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed}hp-=damage;drawDamageGlass(false,shielded);glassUntil=t;glassDuration=1350;hitReactionAt=t;hitReactionPower=.85;impact(player.position.x,player.position.y,player.position.z);$('hp').textContent=Math.max(0,Math.round(hp));$('shield').textContent=Math.round(shield);if(hp<=0)finish(false);scene.remove(p.m);projectiles.splice(i,1)}else if(t-p.born>3200||collides(p.m.position.x,p.m.position.z)){scene.remove(p.m);projectiles.splice(i,1)}}if(Math.hypot(player.position.x-38,player.position.z+25)<2.7){if(loot>=3&&relaysActive===3){finish(true)}else if(t%2200<35)notify('脱出には素材3個＋中継器3基の起動が必要')}}const camDist=8,cy=player.position.y+3.2-Math.sin(pitch)*2;const desiredCam=new THREE.Vector3(player.position.x+Math.sin(yaw)*camDist,cy,player.position.z+Math.cos(yaw)*camDist);if(!cameraReady){camera.position.copy(desiredCam);cameraReady=true}else{const follow=1-Math.exp(-7*Math.min((t-cameraFrameTime)/1000,.05));camera.position.lerp(desiredCam,follow)}cameraFrameTime=t;if(hitPulse>0){camera.position.x+=Math.sin(t*.14)*hitPulse*.23;camera.position.y+=Math.cos(t*.19)*hitPulse*.17;camera.position.z+=Math.sin(t*.23)*hitPulse*.12}if(watcherMode==='killRush'){camera.position.lerp(new THREE.Vector3(player.position.x+Math.sin(yaw)*2.4,player.position.y+1.65,player.position.z+Math.cos(yaw)*2.4),.35)}camera.lookAt(player.position.x,player.position.y+.5+Math.tan(Math.min(1.54,Math.max(-.7,pitch)))*13,player.position.z);
+// Temporary telescope: zoom camera and stream chunks along the view ray.
+const desiredFov=scopeActive?16:78;
+if(Math.abs(camera.fov-desiredFov)>.05){camera.fov+=(desiredFov-camera.fov)*.18;camera.updateProjectionMatrix();}
+if(scopeActive){const view=new THREE.Vector3();camera.getWorldDirection(view);scopeFocusX=camera.position.x+view.x*520;scopeFocusZ=camera.position.z+view.z*520;}// Camera-local flyby: side clearance stays fixed even during turns.
 for(const shard of casingShards){
  if(!shard.mesh.visible)continue;
  const p=Math.min(1,(t-shard.birth)/360);
