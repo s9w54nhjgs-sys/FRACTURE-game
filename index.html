@@ -2128,7 +2128,7 @@ function streamedBuildingBlockers(x,z,feet){
   // Activate collision only for nearby, ready chunks; render silhouettes persist.
   if(!chunkCache.get(key)?.loaded)continue;
   for(const b of [...(terrainCollisionCells.get(key)||[]),...(streamedTerrain.get(key)?.colliders||[])]){
-   if(feet<b.top-.2&&feet+2>0&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
+   if(feet<b.top-.2&&feet+2>(b.bottom??0)&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
   }
  }
  return hits;
@@ -2242,7 +2242,7 @@ function createStreamedTerrain(key){
   const signalMat=new THREE.MeshStandardMaterial({color:0x65b7cc,emissive:0x174c5b,emissiveIntensity:.7,metalness:.35});
   function structure(x,y,z,w,h,d,mat=steelMat,solid=true){
    const m=box(x,y,z,w,h,d,mat);
-   if(solid)colliders.push({x,z,w,d,top:y+h/2});
+   if(solid)colliders.push({x,z,w,d,top:y+h/2,bottom:y-h/2});
    return m;
   }
   function pipe(a,b,r=2.8){
@@ -2252,7 +2252,7 @@ function createStreamedTerrain(key){
    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());group.add(m);
    // Conservative AABB for horizontal/vertical pipe collision; same geometry endpoints.
    const w=Math.abs(a[0]-b[0])+r*1.7,h=Math.abs(a[1]-b[1])+r*1.7,d=Math.abs(a[2]-b[2])+r*1.7;
-   colliders.push({x:m.position.x,z:m.position.z,w,d,top:m.position.y+h/2});
+   colliders.push({x:m.position.x,z:m.position.z,w,d,top:m.position.y+h/2,bottom:m.position.y-h/2});
    if(Math.abs(a[1]-b[1])<.1&&Math.abs(a[2]-b[2])<.1)platform(m.position.x,m.position.z,m.position.y+r,w,Math.max(3,r*1.7));
    return m;
   }
