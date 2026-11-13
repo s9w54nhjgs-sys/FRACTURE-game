@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V157 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V158 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2237,7 +2237,7 @@ function createStreamedTerrain(key){
   for(let i=0;i<18;i++){
    const ang=i*Math.PI*2/18,needle=new THREE.Mesh(escortMesh.geometry,spikeMat);
    needle.position.set(tankX+Math.cos(ang)*12,10+(i%5)*3,tankZ+Math.sin(ang)*12);
-   needle.rotation.z=-Math.PI/2;needle.scale.set(2,2.4,2);spikes.add(needle);
+   needle.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(Math.cos(ang),.18,Math.sin(ang)).normalize());needle.scale.set(2,2.4,2);spikes.add(needle);
   }
   group.add(spikes);
   group.userData.breedingSpikes=spikes;
@@ -2817,15 +2817,18 @@ function updateIndustrialAerials(t){
  for(const entry of streamedTerrain.values()){
   const g=entry.group,spikes=g.userData.breedingSpikes;
   if(!spikes)continue;
-  const colony=industrialFlocks.find(f=>Math.floor(f.x/250)+','+Math.floor(f.z/250)===g.userData.breedingKey&&f.id>=1);
+  const colony=industrialFlocks.find(f=>Math.floor(f.x/250)+','+Math.floor(f.z/250)===g.userData.breedingKey&&(f.type===1||f.id>=3));
   spikes.visible=!!colony&&!colony.releaseAt&&!colony.dead;
  }
  for(const f of industrialFlocks){
+  // Nearby player presence hatches the whole dormant tank, without waiting 90 seconds.
+  const tankDistance=Math.hypot(px-f.x,pz-f.z);
+  if(!f.active&&!f.dead&&industrial&&tankDistance<95){f.emergeAt=Math.min(f.emergeAt,t);}
   if(!f.active&&t>=f.emergeAt&&!f.dead){
    f.active=true;f.type=f.id%3===0?2:0;f.releaseAt=t;
    f.leadX=f.x;f.leadZ=f.z;f.leadY=16;
    for(const d of industrialAerials)if(d.flock===f){
-    d.type=f.type;d.mode='release';d.releaseAt=t; // take off from the actual tank, no teleport
+    d.type=f.type;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ; // emerge from tank, no teleport
    }
   }
   if(f.dead&&f.mergeAt&&t>=f.mergeAt&&!f.merged){
@@ -2835,7 +2838,7 @@ function updateIndustrialAerials(t){
    }
   }
   if(f.dead)continue;
-  const range=Math.hypot(px-f.leadX,pz-f.leadZ);
+  const range=Math.hypot(px-(f.type===1&&!f.alert?f.x:f.leadX),pz-(f.type===1&&!f.alert?f.z:f.leadZ));
   if(!industrial||range>260)continue;
   nearGroups.add(f);
   if(!f.activatedAt)f.activatedAt=t;
@@ -2847,7 +2850,7 @@ function updateIndustrialAerials(t){
   }
   if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500){
    f.alert=true;f.alarmAt=t;industrialAlarm(t);
-   if(f.type===1){f.active=true;f.type=0;f.releaseAt=t;for(const d of industrialAerials)if(d.flock===f){d.type=0;d.mode='release';d.releaseAt=t;}}
+   if(f.type===1){f.active=true;f.type=0;f.releaseAt=t;for(const d of industrialAerials)if(d.flock===f){d.type=0;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ;}}
   }
   if(t>f.nextTurn){
    f.headingTarget+=industrialRandom(-1.1,1.1);
@@ -2856,7 +2859,7 @@ function updateIndustrialAerials(t){
   const delta=Math.atan2(Math.sin(f.headingTarget-f.heading),Math.cos(f.headingTarget-f.heading));
   f.heading+=Math.max(-dt*.7,Math.min(dt*.7,delta));
   // Leaders drift like schools of fish, rather than every creature orbiting the player.
-  const leadSpeed=f.type===2?8:21;
+  const leadSpeed=f.type===1&&!f.alert?0:f.type===2?8:21;
   f.leadX+=Math.sin(f.heading)*leadSpeed*dt;
   f.leadZ+=Math.cos(f.heading)*leadSpeed*dt;
   if(Math.hypot(f.leadX-f.x,f.leadZ-f.z)>210)f.headingTarget=Math.atan2(f.x-f.leadX,f.z-f.leadZ);
