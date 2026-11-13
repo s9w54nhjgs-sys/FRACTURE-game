@@ -2729,7 +2729,49 @@ function glideWallImpact(t,speed){
  glideCrashFX(player.position.x+vx/v*.9,climbFloor+jumpHeight+1.2,player.position.z+vz/v*.9,speed);
  moveVX=0;moveVZ=0;
 }
-function update(t){requestAnimationFrame(update);
+// V152 prototype swarm: 24 lightweight submarine-launched tracking drones.
+// One draw call, capped update rate, no effect on the existing enemy roster.
+const dockSwarmCount=24;
+const dockDroneGeo=new THREE.OctahedronGeometry(.8,0);
+const dockDroneMat=new THREE.MeshStandardMaterial({color:0x9bb9bd,metalness:.7,roughness:.42,emissive:0x162d35});
+const dockDroneMesh=new THREE.InstancedMesh(dockDroneGeo,dockDroneMat,dockSwarmCount);
+dockDroneMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);
+dockDroneMesh.frustumCulled=false;scene.add(dockDroneMesh);
+const dockDroneDummy=new THREE.Object3D();
+const dockDrones=Array.from({length:dockSwarmCount},(_,i)=>({x:625+Math.cos(i*2.399)*12,y:22+(i%6)*1.5,z:133+Math.sin(i*2.399)*12,phase:i*2.399}));
+let lastDockSwarmUpdate=0,lastDockSwarmHit=-Infinity;
+function updateDockSwarm(t){
+ if(t-lastDockSwarmUpdate<45)return;
+ const dt=Math.min(.08,(t-lastDockSwarmUpdate)/1000||.045);
+ lastDockSwarmUpdate=t;
+ const px=player.position.x,pz=player.position.z,py=climbFloor+jumpHeight+1.5;
+ const near=Math.hypot(px-640,pz-133)<180&&!done;
+ dockDroneMesh.visible=near;
+ if(!near)return;
+ let closest=Infinity;
+ for(let i=0;i<dockSwarmCount;i++){
+  const d=dockDrones[i],a=t*.00048+d.phase;
+  const tx=px+Math.cos(a)*((i%5)+4),tz=pz+Math.sin(a)*((i%5)+4);
+  const ty=py+3+(i%6)*.85+Math.sin(a*2)*1.2;
+  const speed=7+(i%4)*1.2;
+  const dist=Math.hypot(tx-d.x,ty-d.y,tz-d.z);
+  const step=Math.min(dist,speed*dt);
+  if(dist>.001){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;d.z+=(tz-d.z)/dist*step;}
+  closest=Math.min(closest,Math.hypot(px-d.x,py-d.y,pz-d.z));
+  dockDroneDummy.position.set(d.x,d.y,d.z);
+  dockDroneDummy.rotation.set(a*.4,a,a*.6);dockDroneDummy.scale.setScalar(.8+(i%3)*.12);
+  dockDroneDummy.updateMatrix();dockDroneMesh.setMatrixAt(i,dockDroneDummy.matrix);
+ }
+ dockDroneMesh.instanceMatrix.needsUpdate=true;
+ if(closest<2.3&&t-lastDockSwarmHit>1800){
+  lastDockSwarmHit=t;
+  const damage=6,absorbed=Math.min(shield,damage);
+  shield-=absorbed;hp=Math.max(0,hp-(damage-absorbed));
+  $('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);
+  if(hp<=0)notify('SWARM CONTACT — HP DEPLETED');
+ }
+}
+function update(t){requestAnimationFrame(update);updateDockSwarm(t);
  for(let i=cellWarpRings.length-1;i>=0;i--){
   const w=cellWarpRings[i],p=(t-w.born)/w.life;
   if(p<0)continue;
