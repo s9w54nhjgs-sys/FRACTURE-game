@@ -15,13 +15,14 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V165 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V166 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
 let scopeActive=false,scopeFocusX=0,scopeFocusZ=0;
+const scopeRay=new THREE.Vector3(),scopeAim=new THREE.Vector3();
 const scopeButton=document.getElementById('scopeTest');
 scopeButton.addEventListener('pointerdown',e=>e.stopPropagation());
 scopeButton.addEventListener('click',e=>{e.stopPropagation();scopeActive=!scopeActive;scopeButton.classList.toggle('active',scopeActive);document.getElementById('scopeReticle').classList.toggle('active',scopeActive);scopeButton.textContent=scopeActive?'SCOPE OFF':'SCOPE ×5';});scene.add(camera); // Camera-mounted flyby meshes are included in scene graph.
@@ -2791,7 +2792,7 @@ for(let f=0;f<15;f++){
  const type=f===0?0:f===1?1:f===2?2:1;
  if(type===1){x=(cx+.5)*250+45;z=(cz+.5)*250+30;}
  const count=15+Math.floor(Math.random()*16);
- const flock={id:f,x,z,type,count,temperament:f%5===0?'aggressive':f%5===2?'timid':'neutral',clashCooldown:0,originEmbedded:type===1,releasePhase:0,active:f===0||f===2,emergeAt:90000,releaseAt:0,dead:false,mergeAt:0,merged:false,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0,heading:Math.random()*Math.PI*2,headingTarget:Math.random()*Math.PI*2,nextTurn:0,leadX:x,leadZ:z,leadY:type===2?78:34};
+ const flock={id:f,x,z,type,count,temperament:f%5===0?'aggressive':f%5===2?'timid':'neutral',rememberedPlayer:false,clashCooldown:0,originEmbedded:type===1,releasePhase:0,active:f===0||f===2,emergeAt:90000,releaseAt:0,dead:false,mergeAt:0,merged:false,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0,heading:Math.random()*Math.PI*2,headingTarget:Math.random()*Math.PI*2,nextTurn:0,leadX:x,leadZ:z,leadY:type===2?78:34};
  industrialFlocks.push(flock);
  for(let j=0;j<count;j++){
   const theta=j*2.39996,dist=5+Math.sqrt(j)*3;
@@ -2799,17 +2800,11 @@ for(let f=0;f<15;f++){
   industrialAerials.push({flock,type,seed:Math.random()*100,phase:Math.random()*6.28,
    x:type===1?x+Math.cos(theta)*Math.min(9,dist*.4):x+Math.cos(theta)*dist,y,z:type===1?z+Math.sin(theta)*Math.min(9,dist*.4):z+Math.sin(theta)*dist,
    homeX:type===1?x+Math.cos(theta)*Math.min(9,dist*.4):x,homeZ:type===1?z+Math.sin(theta)*Math.min(9,dist*.4):z,homeY:y,mode:type===1?'embedded':'roam',slot:j,lockedX:0,lockedZ:0,
-   diveStart:0,fromX:0,fromY:0,fromZ:0,resetUsed:false,reviveAt:0,reviveX:0,reviveY:0,reviveZ:0,reviveTarget:null,eyeOffAt:0,eyeOnAt:0,fallAt:0,fallStartY:0});
+   diveStart:0,fromX:0,fromY:0,fromZ:0,resetUsed:false,reviveAt:0,reviveX:0,reviveY:0,reviveZ:0,reviveTarget:null,reboots:0,eyeOffAt:0,eyeOnAt:0,fallAt:0,fallStartY:0});
  }
 }
 let lastIndustrialAI=0,lastIndustrialHit=-Infinity,lastIndustrialAlarm=-Infinity;
 function industrialAlarm(t){
- // Looking through the telescope alone never causes a lock warning.
- // A warning is permitted only if an active drone is actually within its own detection radius.
- if(scopeActive){const px=player.position.x,pz=player.position.z,py=climbFloor+jumpHeight+1.4;
-  const physicallyDetected=industrialAerials.some(d=>d.flock.active&&!d.flock.dead&&(d.mode==='roam'||d.mode==='dive'||d.mode==='rejoin')&&Math.hypot(d.x-px,d.y-py,d.z-pz)<95);
-  if(!physicallyDetected)return;
- }
  if(t-lastIndustrialAlarm<650)return;lastIndustrialAlarm=t;
  try{
   if(!vesselAudio||vesselAudio.state!=='running')return;
@@ -2856,12 +2851,26 @@ function updateIndustrialAerials(t){
    f.merged=true;f.active=false;
    const winner=industrialFlocks.find(g=>g.id===f.winnerId&&!g.dead&&g.active);
    for(const d of industrialAerials)if(d.flock===f){
+    if(d.reboots>=2){d.mode='permadead';d.eyeOnAt=0;continue;}
+    d.reboots++;
     d.reviveTarget=winner||null;d.reviveAt=t+(d.slot%5)*110;
     d.reviveX=d.x;d.reviveY=d.y;d.reviveZ=d.z;
     d.mode='revive';d.eyeOnAt=0;d.type=winner?winner.type:f.type;
    }
   }
   if(f.dead)continue;
+  // Lost target: do not pursue a player who warped or escaped the detection radius.
+  const closestDrone=industrialAerials.reduce((best,d)=>d.flock===f&&d.mode!=='permadead'&&d.mode!=='fallen'&&d.mode!=='revive'?Math.min(best,Math.hypot(d.x-px,d.y-py,d.z-pz)):best,Infinity);
+  if(f.alert&&closestDrone>145){f.alert=false;f.alarmAt=0;f.headingTarget+=Math.PI*.6;}
+  // Only previously alerted flocks can recognize direct eye contact through the scope.
+  if(scopeActive&&f.rememberedPlayer&&!f.alert){
+   camera.getWorldDirection(scopeRay);
+   for(const d of industrialAerials){if(d.flock!==f||d.mode!=='roam')continue;
+    scopeAim.set(d.x-camera.position.x,d.y-camera.position.y,d.z-camera.position.z);
+    const distance=scopeAim.length();
+    if(distance>35&&distance<1200&&scopeRay.dot(scopeAim.multiplyScalar(1/distance))>.9995){f.alert=true;f.rememberedPlayer=true;f.alarmAt=t;industrialAlarm(t);break;}
+   }
+  }
   const range=Math.hypot(px-(f.type===1&&!f.alert?f.x:f.leadX),pz-(f.type===1&&!f.alert?f.z:f.leadZ));
   const scopeRange=scopeActive?Math.hypot(scopeFocusX-f.leadX,scopeFocusZ-f.leadZ):Infinity;
   if((!industrial||range>260)&&(!scopeIndustrial||scopeRange>350))continue;
@@ -2880,9 +2889,9 @@ function updateIndustrialAerials(t){
   // One embedded scout seeing the player alerts its entire released colony.
   if(f.originEmbedded&&f.releasePhase===3&&!f.alert){
    const spotted=industrialAerials.some(d=>d.flock===f&&d.mode==='roam'&&Math.hypot(d.x-px,d.y-py,d.z-pz)<95);
-   if(spotted){f.alert=true;f.alarmAt=t;industrialAlarm(t);}
+   if(spotted){f.alert=true;f.rememberedPlayer=true;f.alarmAt=t;industrialAlarm(t);}
   }
-  if(f.originEmbedded&&f.alert){
+  if(f.alert){
    f.headingTarget=Math.atan2(px-f.leadX,pz-f.leadZ);
   }
   // Temperaments: aggressive flocks pursue rivals; timid flocks evade them.
@@ -2937,6 +2946,7 @@ function updateIndustrialAerials(t){
  }
  for(const d of industrialAerials){
   const f=d.flock;
+  if(d.mode==='permadead')continue;
   // Defeated agents stay visible while inert; revival is handled independently.
   if(!nearGroups.has(f)&&!f.dead&&d.mode!=='revive'&&d.mode!=='rejoin')continue;
   const ph=d.phase,seed=d.seed;
@@ -2991,6 +3001,10 @@ function updateIndustrialAerials(t){
    const fallGround=climbDeckUnder(d.reviveX,d.reviveZ,d.fallStartY+1);
    d.y=Math.max(fallGround+.75,.75,d.fallStartY-4.9*fallSeconds*fallSeconds);
    d.x=d.reviveX;d.z=d.reviveZ;
+  }
+  if(d.mode==='dive'){
+   // Abandon an obsolete dive when the player has escaped by teleport or fast travel.
+   if(Math.hypot(px-d.lockedX,pz-d.lockedZ)>65){d.mode='roam';d.flock.alert=false;}
   }
   if(d.mode==='dive'){
    const p=Math.min(1,(t-d.diveStart)/530),ease=p*p*(3-2*p);
