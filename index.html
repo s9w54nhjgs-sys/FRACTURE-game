@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V164 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V165 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2804,6 +2804,12 @@ for(let f=0;f<15;f++){
 }
 let lastIndustrialAI=0,lastIndustrialHit=-Infinity,lastIndustrialAlarm=-Infinity;
 function industrialAlarm(t){
+ // Looking through the telescope alone never causes a lock warning.
+ // A warning is permitted only if an active drone is actually within its own detection radius.
+ if(scopeActive){const px=player.position.x,pz=player.position.z,py=climbFloor+jumpHeight+1.4;
+  const physicallyDetected=industrialAerials.some(d=>d.flock.active&&!d.flock.dead&&(d.mode==='roam'||d.mode==='dive'||d.mode==='rejoin')&&Math.hypot(d.x-px,d.y-py,d.z-pz)<95);
+  if(!physicallyDetected)return;
+ }
  if(t-lastIndustrialAlarm<650)return;lastIndustrialAlarm=t;
  try{
   if(!vesselAudio||vesselAudio.state!=='running')return;
@@ -2852,7 +2858,7 @@ function updateIndustrialAerials(t){
    for(const d of industrialAerials)if(d.flock===f){
     d.reviveTarget=winner||null;d.reviveAt=t+(d.slot%5)*110;
     d.reviveX=d.x;d.reviveY=d.y;d.reviveZ=d.z;
-    d.mode='revive';d.eyeOnAt=d.reviveAt;d.type=winner?winner.type:f.type;
+    d.mode='revive';d.eyeOnAt=0;d.type=winner?winner.type:f.type;
    }
   }
   if(f.dead)continue;
@@ -2975,23 +2981,29 @@ function updateIndustrialAerials(t){
    // A recovering individual can independently detect and strike the player.
    if(elapsed>=1.8&&industrial&&Math.hypot(d.x-px,d.y-py,d.z-pz)<22){
     d.mode='dive';d.diveStart=t;d.fromX=d.x;d.fromY=d.y;d.fromZ=d.z;
-    d.lockedX=px;d.lockedZ=pz;
+    d.lockedX=px;d.lockedZ=pz;d.lockedY=py;
    }
   }
   if(d.mode==='fallen'||d.mode==='revive'){
    // Power-off: red optics fade to black in 200ms, then the carcass falls.
    const fallSeconds=Math.max(0,(t-d.fallAt-200)/1000);
-   d.y=Math.max(.75,d.fallStartY-4.9*fallSeconds*fallSeconds);
+   // Respect rooftop collision while falling, instead of passing through buildings.
+   const fallGround=climbDeckUnder(d.reviveX,d.reviveZ,d.fallStartY+1);
+   d.y=Math.max(fallGround+.75,.75,d.fallStartY-4.9*fallSeconds*fallSeconds);
    d.x=d.reviveX;d.z=d.reviveZ;
   }
   if(d.mode==='dive'){
    const p=Math.min(1,(t-d.diveStart)/530),ease=p*p*(3-2*p);
    d.x=d.fromX+(d.lockedX-d.fromX)*ease;
-   d.y=d.fromY+(.45-d.fromY)*ease;
+   d.y=d.fromY+(d.lockedY-d.fromY)*ease;
    d.z=d.fromZ+(d.lockedZ-d.fromZ)*ease;
-   if(p>=1){
-    d.mode='stuck';d.diveStart=t;impact(d.x,.2,d.z);
-    if(Math.hypot(px-d.x,pz-d.z)<2.8&&Math.abs(py-1.4)<5&&t-lastIndustrialHit>350){
+   // Roof interception: stop the dive on the first roof surface it crosses.
+   const roof=climbDeckUnder(d.x,d.z,d.fromY+1);
+   const hitRoof=roof>0&&d.y<=roof+.8;
+   if(hitRoof){d.y=roof+.8;}
+   if(p>=1||hitRoof){
+    d.mode='stuck';d.diveStart=t;impact(d.x,d.y,d.z);
+    if(!hitRoof&&Math.hypot(px-d.x,pz-d.z)<2.8&&Math.abs(py-d.y)<4&&t-lastIndustrialHit>350){
      lastIndustrialHit=t;applySpecialDamage(26,t);
     }
    }
@@ -3030,7 +3042,7 @@ function updateIndustrialAerials(t){
    const canDive=f.alert&&t-f.alarmAt>850&&horizontal<(d.type===2?9:18)&&d.y>py+4;
    if(canDive&&((d.slot+Math.floor(t/850))%5===0||horizontal<5)){
     d.mode='dive';d.diveStart=t;d.fromX=d.x;d.fromY=d.y;d.fromZ=d.z;
-    d.lockedX=px;d.lockedZ=pz;industrialAlarm(t);
+    d.lockedX=px;d.lockedZ=pz;d.lockedY=py;industrialAlarm(t);
    }
   }
   if(d.mode==='release'||d.mode==='roam'||d.mode==='embedded'||d.mode==='rejoin'){
