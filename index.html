@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V158 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V159 ✓</div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
@@ -2782,7 +2782,7 @@ for(let f=0;f<15;f++){
  const type=f===0?0:f===1?1:f===2?2:1;
  if(type===1){x=(cx+.5)*250+45;z=(cz+.5)*250+30;}
  const count=15+Math.floor(Math.random()*16);
- const flock={id:f,x,z,type,count,active:f<3,emergeAt:90000,releaseAt:0,dead:false,mergeAt:0,merged:false,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0,heading:Math.random()*Math.PI*2,headingTarget:Math.random()*Math.PI*2,nextTurn:0,leadX:x,leadZ:z,leadY:type===2?78:34};
+ const flock={id:f,x,z,type,count,originEmbedded:type===1,releasePhase:0,active:f<3,emergeAt:90000,releaseAt:0,dead:false,mergeAt:0,merged:false,resetAt:0,resetDone:false,activatedAt:0,alert:false,alarmAt:0,heading:Math.random()*Math.PI*2,headingTarget:Math.random()*Math.PI*2,nextTurn:0,leadX:x,leadZ:z,leadY:type===2?78:34};
  industrialFlocks.push(flock);
  for(let j=0;j<count;j++){
   const theta=j*2.39996,dist=5+Math.sqrt(j)*3;
@@ -2828,7 +2828,7 @@ function updateIndustrialAerials(t){
    f.active=true;f.type=f.id%3===0?2:0;f.releaseAt=t;
    f.leadX=f.x;f.leadZ=f.z;f.leadY=16;
    for(const d of industrialAerials)if(d.flock===f){
-    d.type=f.type;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ; // emerge from tank, no teleport
+    d.type=f.type;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ;f.releasePhase=1;f.alert=false;f.alarmAt=0; // hatch, radial spread, regroup
    }
   }
   if(f.dead&&f.mergeAt&&t>=f.mergeAt&&!f.merged){
@@ -2848,9 +2848,9 @@ function updateIndustrialAerials(t){
     d.mode=d.type===1?'embedded':'roam';d.x=d.homeX;d.z=d.homeZ;d.y=d.homeY;
    }
   }
-  if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500){
+  if(f.active&&range<100&&!f.alert&&t-f.resetAt>1500&&(!f.originEmbedded||f.releasePhase===3)){
    f.alert=true;f.alarmAt=t;industrialAlarm(t);
-   if(f.type===1){f.active=true;f.type=0;f.releaseAt=t;for(const d of industrialAerials)if(d.flock===f){d.type=0;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ;}}
+   if(f.type===1){f.active=true;f.type=0;f.releaseAt=t;f.releasePhase=1;f.alert=false;for(const d of industrialAerials)if(d.flock===f){d.type=0;d.mode='release';d.releaseAt=t;d.x=d.homeX;d.y=d.homeY;d.z=d.homeZ;}}
   }
   if(t>f.nextTurn){
    f.headingTarget+=industrialRandom(-1.1,1.1);
@@ -2859,7 +2859,7 @@ function updateIndustrialAerials(t){
   const delta=Math.atan2(Math.sin(f.headingTarget-f.heading),Math.cos(f.headingTarget-f.heading));
   f.heading+=Math.max(-dt*.7,Math.min(dt*.7,delta));
   // Leaders drift like schools of fish, rather than every creature orbiting the player.
-  const leadSpeed=f.type===1&&!f.alert?0:f.type===2?8:21;
+  const leadSpeed=(f.originEmbedded&&f.releasePhase>0&&f.releasePhase<3)||f.type===1&&!f.alert?0:f.type===2?8:21;
   f.leadX+=Math.sin(f.heading)*leadSpeed*dt;
   f.leadZ+=Math.cos(f.heading)*leadSpeed*dt;
   if(Math.hypot(f.leadX-f.x,f.leadZ-f.z)>210)f.headingTarget=Math.atan2(f.x-f.leadX,f.z-f.leadZ);
@@ -2882,12 +2882,23 @@ function updateIndustrialAerials(t){
   const ph=d.phase,seed=d.seed;
   let tx=d.x,ty=d.y,tz=d.z;
   if(d.mode==='release'){
-   // Emerge from the tank as a single school, climb vertically before roaming.
    const elapsed=(t-d.releaseAt)/1000;
-   tx=d.homeX+Math.sin(d.phase)*elapsed*2;
-   tz=d.homeZ+Math.cos(d.phase)*elapsed*2;
-   ty=d.homeY+Math.min(55,elapsed*13)+(d.slot%4)*.4;
-   if(elapsed>4.5)d.mode='roam';
+   if(f.originEmbedded){
+    // 360-degree 15m radial bloom, then converge to a compact airborne school.
+    const angle=d.slot*2.399963229728653;
+    const spread=Math.min(1,elapsed/1.6);
+    const regroup=Math.max(0,Math.min(1,(elapsed-1.6)/2.2));
+    const radius=15*spread*(1-regroup)+Math.min(4,Math.sqrt(d.slot)*.65)*regroup;
+    tx=f.x+Math.cos(angle)*radius;
+    tz=f.z+Math.sin(angle)*radius;
+    ty=d.homeY+Math.min(15,elapsed*6)+Math.sin(angle*2)*1.5;
+    if(elapsed>=3.8){d.mode='roam';f.releasePhase=3;f.leadX=f.x;f.leadZ=f.z;f.leadY=ty+4;}
+   }else{
+    tx=d.homeX+Math.sin(d.phase)*elapsed*2;
+    tz=d.homeZ+Math.cos(d.phase)*elapsed*2;
+    ty=d.homeY+Math.min(55,elapsed*13)+(d.slot%4)*.4;
+    if(elapsed>4.5)d.mode='roam';
+   }
   }
   if(d.mode==='dive'){
    const p=Math.min(1,(t-d.diveStart)/530),ease=p*p*(3-2*p);
@@ -2902,6 +2913,8 @@ function updateIndustrialAerials(t){
    }
   }else if(d.mode==='stuck'||d.mode==='spent'){
    if(d.mode==='stuck'&&t-d.diveStart>20000)d.mode='spent';
+  }else if(d.mode==='release'){
+   // Keep the radial bloom target; ordinary formation steering resumes after regroup.
   }else if(!f.active||(d.type===1&&!f.alert)){
    // Visible orange-metal spikes extend out from factory walls.
    tx=d.homeX+2.2;ty=d.homeY;tz=d.homeZ;
@@ -2924,7 +2937,7 @@ function updateIndustrialAerials(t){
    }
    if(d.mode!=='dive'){
     const dist=Math.hypot(tx-d.x,ty-d.y,tz-d.z),speed=d.type===2?12:29;
-    const step=Math.min(dist,(d.mode==='release'?20:speed)*dt);
+    const step=Math.min(dist,(d.mode==='release'&&f.originEmbedded?35:d.mode==='release'?20:speed)*dt);
     if(dist>.001){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;d.z+=(tz-d.z)/dist*step;}
    }
   }
