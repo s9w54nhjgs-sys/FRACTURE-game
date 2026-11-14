@@ -2921,12 +2921,13 @@ const beeMat=new THREE.MeshStandardMaterial({color:0x9b164e,emissive:0x540024,em
 const beeMesh=new THREE.InstancedMesh(beeGeo,beeMat,beehiveColonies.length*beeParticleCount);
 beeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeMesh.frustumCulled=false;beeMesh.count=0;scene.add(beeMesh);
 const beeDummy=new THREE.Object3D();
+const beeStatus=document.createElement('div');beeStatus.style.cssText='position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 104px);z-index:810;pointer-events:none;background:#25081edb;color:#ff9bc9;border:1px solid #b74285;border-radius:9px;padding:7px 10px;font:700 11px monospace;display:none';beeStatus.textContent='BEEHIVE';document.body.appendChild(beeStatus);
 let beeAffliction=null;
 function beehiveDebuffLevel(t){
  if(!beeAffliction||t>=beeAffliction.expires||beeAffliction.colony.dead)return 0;
  return Math.min(1,Math.max(0,(t-beeAffliction.started)/15000));
 }
-function clearBeehiveAffliction(){beeAffliction=null;notify('BEEHIVE // STATUS CLEARED');}
+function clearBeehiveAffliction(){beeAffliction=null;beeStatus.style.display='none';notify('BEEHIVE // STATUS CLEARED');}
 function hitBeehive(power,t){
  const fx=-Math.sin(yaw),fz=-Math.cos(yaw);
  for(const b of beehiveColonies){if(b.dead)continue;
@@ -2959,8 +2960,10 @@ function updateBeehives(t){
  }
  beeMesh.count=count;if(count)beeMesh.instanceMatrix.needsUpdate=true;
  if(beeAffliction&&(beeAffliction.colony.dead||t>=beeAffliction.expires)){clearBeehiveAffliction();return;}
- if(!beeAffliction||done)return;
+ if(!beeAffliction||done){beeStatus.style.display='none';return;}
  const a=beeAffliction;
+ const level=beehiveDebuffLevel(t),seconds=Math.ceil((a.expires-t)/1000);
+ beeStatus.style.display='block';beeStatus.textContent='BEEHIVE '+seconds+'s | '+(level>=1?'SLOW / DASH×1 / JUMP×1':level>=.66?'SLOW / DASH×1':level>=.33?'SLOW':'INFECTION');
  if(t-a.started<15000&&t-a.lastDamage>=500){
   const ticks=Math.min(3,Math.floor((t-a.lastDamage)/500));a.lastDamage+=ticks*500;
   let damage=ticks*2;const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed;
