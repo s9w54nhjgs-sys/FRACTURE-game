@@ -2329,7 +2329,7 @@ function createStreamedTerrain(key){
     const band=new THREE.Mesh(new THREE.TorusGeometry(rr,2.2,7,56),seam);band.rotation.x=Math.PI/2;band.position.set(tx,yy,tz);group.add(band);
    }
    // Collision approximates the spherical shell with stacked radial segments, not one giant blocking box.
-   for(let h=80;h<570;h+=30){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<48;k++){const ang=(k+.5)*Math.PI/24;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;if(Math.hypot(x-(tx-lipR-8),z-(tz+30))<29&&h>lipY-55)continue;colliders.push({x,z,w:Math.max(12,radius*.135),d:Math.max(12,radius*.135),top:h+19,bottom:h-19});}}
+   for(let h=80;h<570;h+=36){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<32;k++){const ang=(k+.5)*Math.PI/16;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;if(Math.hypot(x-(tx-lipR-8),z-(tz+30))<29&&h>lipY-55)continue;colliders.push({x,z,w:Math.max(12,radius*.135),d:Math.max(12,radius*.135),top:h+19,bottom:h-19});}}
    // A single water surface, INSIDE the tank, not on the ground.
    const waterY=cy+155,waterR=Math.sqrt(R*R-155*155)-8;
    const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,48),new THREE.MeshPhysicalMaterial({color:0x3b99a8,transparent:true,opacity:.42,roughness:.18,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
@@ -2761,7 +2761,7 @@ devWarpButton.textContent='TEST ⇧ BRIDGE';
 Object.assign(devWarpButton.style,{position:'fixed',right:'12px',top:'112px',zIndex:'9999',padding:'10px 12px',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
 document.body.appendChild(devWarpButton);
 const reservoirWarp=document.createElement('button');reservoirWarp.textContent='TEST ⇧ SECRET TANK';Object.assign(reservoirWarp.style,{position:'fixed',right:'12px',top:'157px',zIndex:'9999',padding:'9px 10px',background:'#233d48e8',color:'#9cf5f1',border:'1px solid #66d9ce',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});document.body.appendChild(reservoirWarp);
-reservoirWarp.addEventListener('click',()=>{if(done)return;player.position.set(760,3,1130);climbFloor=2;jumpHeight=0;jumpVelocity=0;jumpCount=0;moveVX=0;moveVZ=0;notify('SECRET RESERVOIR // PIPE ENTRANCE');});
+reservoirWarp.addEventListener('click',()=>{if(done)return;player.position.set(642,3,1130);climbFloor=2;jumpHeight=0;jumpVelocity=0;jumpCount=0;moveVX=0;moveVZ=0;notify('SECRET RESERVOIR // PIPE ENTRANCE');});
 devWarpButton.addEventListener('click',()=>{
  if(done)return;
  const target={x:0,z:-65,h:80};
