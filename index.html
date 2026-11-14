@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V170 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V171 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2160,6 +2160,8 @@ const industrialPipeMat=new THREE.MeshStandardMaterial({color:0x62717a,metalness
 const industrialRustMat=new THREE.MeshStandardMaterial({color:0x74564a,metalness:.58,roughness:.78});
 const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness:.48,roughness:.88});
 const industrialCylinderGeo=new THREE.CylinderGeometry(1,1,1,10);
+const canalWaterSurfaces=[],canalRipples=[];
+const canalRippleMaterial=new THREE.MeshBasicMaterial({color:0x5e99a7,transparent:true,opacity:.38,depthWrite:false,side:THREE.DoubleSide});
 function createStreamedTerrain(key){
  if(streamedTerrain.has(key))return;
  const [cx,cz]=key.split(',').map(Number);
@@ -2239,7 +2241,7 @@ function createStreamedTerrain(key){
  const industrialSector=cx>=2&&cx<=6&&cz>=-1&&cz<=1;
  if(industrialSector){
   const ox=cx*250,oz=cz*250;
-  const waterMat=new THREE.MeshStandardMaterial({color:0x163a48,metalness:.68,roughness:.24,transparent:true,opacity:.92});
+  const waterMat=new THREE.MeshStandardMaterial({color:0x163a48,metalness:.38,roughness:.2,transparent:true,opacity:.82,side:THREE.DoubleSide});
   const steelMat=new THREE.MeshStandardMaterial({color:0x4c6671,metalness:.78,roughness:.44});
   const signalMat=new THREE.MeshStandardMaterial({color:0x65b7cc,emissive:0x174c5b,emissiveIntensity:.7,metalness:.35});
   function structure(x,y,z,w,h,d,mat=steelMat,solid=true){
@@ -2260,7 +2262,9 @@ function createStreamedTerrain(key){
   }
   // Long water lane, extending seamlessly through each industrial chunk.
   const laneZ=oz+205;
-  structure(ox+125,.055,laneZ,250,.1,46,waterMat,false);
+  const flowing=structure(ox+125,.055,laneZ,250,.1,46,waterMat,false);flowing.userData.canalFlow=true;flowing.userData.canalBase=flowing.position.y;canalWaterSurfaces.push(flowing);
+  // Surface current lines: small repeating strips that drift with the water, not static glass.
+  for(let j=0;j<10;j++){const ripple=new THREE.Mesh(new THREE.PlaneGeometry(8+(j%4)*6,.13),canalRippleMaterial);ripple.rotation.x=-Math.PI/2;ripple.position.set(ox+12+j*23,.14,laneZ-15+(j*17)%30);group.add(ripple);canalRipples.push(ripple);}
   for(const bank of [-1,1]){
    structure(ox+125,3,laneZ+bank*27,250,6,7,industrialDarkMat);
    for(const x of [ox+18,ox+125,ox+232])structure(x,7,laneZ+bank*28,4,8,4,industrialRustMat);
@@ -2798,15 +2802,14 @@ function hullDepth(b,x,z){
  }
  return Math.min(b.w/2+.4-Math.abs(x-b.x),b.d/2+.4-Math.abs(z-b.z));
 }
-function inIndustrialWater(x,z){if(x<500||x>1750||z< -250||z>750)return false;const lane=Math.floor(z/250)*250+205;return Math.abs(z-lane)<24&&!(Math.abs((x%250)-125)<8&&climbFloor+jumpHeight>10);}
-function collides(x,z){return Math.abs(x)>1995||Math.abs(z)>1995||(climbFloor+jumpHeight<9&&inIndustrialWater(x,z))||activeBlockers(x,z).length>0}
+function inIndustrialWater(x,z){if(x<500||x>1750||z< -250||z>750)return false;const lane=Math.floor(z/250)*250+205;return Math.abs(z-lane)<23;}
+function collides(x,z){return Math.abs(x)>1995||Math.abs(z)>1995||activeBlockers(x,z).length>0}
 function collisionSafeMove(x1,z1,x2,z2){
  const initial=new Set(activeBlockers(x1,z1));
  const n=Math.max(1,Math.ceil(Math.hypot(x2-x1,z2-z1)/.45));
  for(let k=1;k<=n;k++){
   const f=k/n,x=x1+(x2-x1)*f,z=z1+(z2-z1)*f;
   if(Math.abs(x)>1995||Math.abs(z)>1995)return false;
-  if(climbFloor+jumpHeight<9&&inIndustrialWater(x,z))return false;
   for(const b of activeBlockers(x,z)){
    if(!initial.has(b))return false;
    if(hullDepth(b,x,z)>hullDepth(b,x1,z1)+.02)return false;
@@ -2921,6 +2924,17 @@ const beeMat=new THREE.MeshStandardMaterial({color:0x9b164e,emissive:0x540024,em
 const beeMesh=new THREE.InstancedMesh(beeGeo,beeMat,beehiveColonies.length*beeParticleCount);
 beeMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeMesh.frustumCulled=false;beeMesh.count=0;scene.add(beeMesh);
 const beeDummy=new THREE.Object3D();
+// Billboard insects: flat silhouette always faces camera, as in sprite-based console enemies.
+const beeBillboardMat=new THREE.MeshBasicMaterial({color:0xd22a6d,transparent:true,opacity:.8,side:THREE.DoubleSide,depthWrite:false});
+const beeBillboard=new THREE.InstancedMesh(new THREE.PlaneGeometry(.55,.88),beeBillboardMat,beehiveColonies.length*beeParticleCount);
+beeBillboard.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeBillboard.frustumCulled=false;beeBillboard.count=0;scene.add(beeBillboard);
+const beeCling=new THREE.InstancedMesh(new THREE.SphereGeometry(.2,5,4),new THREE.MeshBasicMaterial({color:0xb41b60,transparent:true,opacity:.92}),12);
+beeCling.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeCling.frustumCulled=false;beeCling.count=0;scene.add(beeCling);
+const canalWormGeo=new THREE.CylinderGeometry(.095,.15,1,5,5);
+const canalWormMat=new THREE.MeshStandardMaterial({color:0x74203e,emissive:0x33000e,roughness:.4});
+const canalWorms=[];for(let cx=2;cx<=6;cx++)for(let cz=-1;cz<=1;cz++)for(let j=0;j<3;j++)canalWorms.push({x:cx*250+45+j*65,z:cz*250+205,phase:cx*2+cz*4+j*1.7,lastHit:0});
+const wormMesh=new THREE.InstancedMesh(canalWormGeo,canalWormMat,canalWorms.length*8);wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);wormMesh.frustumCulled=false;wormMesh.count=0;scene.add(wormMesh);
+let inWaterLast=false,waterSplashLast=-1e5,waterWormAfflictionUntil=0;
 const beeStatus=document.createElement('div');beeStatus.style.cssText='position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 104px);z-index:810;pointer-events:none;background:#25081edb;color:#ff9bc9;border:1px solid #b74285;border-radius:9px;padding:7px 10px;font:700 11px monospace;display:none';beeStatus.textContent='BEEHIVE';document.body.appendChild(beeStatus);
 let beeAffliction=null;
 function beehiveDebuffLevel(t){
@@ -2941,8 +2955,28 @@ function hitBeehive(power,t){
  }
  return false;
 }
+function applyBeeDamage(amount,t){if(done)return;const absorbed=Math.min(shield,amount);shield-=absorbed;hp=Math.max(0,hp-(amount-absorbed));$('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);glassUntil=t;glassDuration=650;drawDamageGlass(amount>=20,amount>absorbed);if(hp<=0)finish(false);}
+function waterSplash(x,z,speed){for(let i=0;i<Math.min(28,10+Math.floor(speed*.35));i++){const angle=Math.random()*Math.PI*2,r=Math.random()*1.7;const m=new THREE.Mesh(sparkGeometry,new THREE.MeshBasicMaterial({color:0x91d6df,transparent:true,opacity:.8}));m.position.set(x+Math.cos(angle)*r,.35,z+Math.sin(angle)*r);scene.add(m);sparks.push({m,born:performance.now(),vx:Math.cos(angle)*(2+speed*.18),vy:3+Math.random()*6,vz:Math.sin(angle)*(2+speed*.18)});}}
 function updateBeehives(t){
  let count=0;
+ const wet=inIndustrialWater(player.position.x,player.position.z)&&climbFloor+jumpHeight<3.3;
+ if(wet&&!inWaterLast){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
+ inWaterLast=wet;
+ for(const m of canalWaterSurfaces)if(m.parent)m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.12;
+ for(const r of canalRipples)if(r.parent){r.position.x+=.016;if(r.position.x>Math.floor(r.position.x/250)*250+249)r.position.x-=240;r.material.opacity=.24+.14*Math.sin(t*.002+r.position.z);}
+ let wormCount=0;
+ for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<310||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<310);if(!near)continue;
+  const phase=t*.0018+w.phase,wx=w.x+Math.sin(phase*.53)*32,wz=w.z+Math.sin(phase)*14;
+  const hunting=wet&&Math.hypot(player.position.x-wx,player.position.z-wz)<90;
+  if(hunting){const step=Math.min(1,(t-(w.lastMove||t))/1000*27/Math.max(1,Math.hypot(dx,dz)));w.x+=(player.position.x-w.x)*step;w.z+=(player.position.z-w.z)*step;}
+  w.lastMove=t;
+  for(let j=0;j<8;j++){const k=j/7,yy=-1.2-(.5+.5*Math.sin(phase*.65+w.phase))*11;
+   beeDummy.position.set(wx-Math.cos(phase)*k*4+Math.sin(phase*4-k*9)*.5,yy+Math.sin(phase*3-k*6)*.6,wz-Math.sin(phase)*k*4+Math.cos(phase*3-k*8)*.7);
+   beeDummy.rotation.set(Math.PI/2+Math.sin(phase*3-k*6)*.28,0,phase);beeDummy.scale.set(.85,.9,1);beeDummy.updateMatrix();wormMesh.setMatrixAt(wormCount++,beeDummy.matrix);
+  }
+  if(wet&&Math.hypot(player.position.x-wx,player.position.z-wz)<5&&t-w.lastHit>=800){w.lastHit=t;waterWormAfflictionUntil=Math.max(waterWormAfflictionUntil,t+120000);applyBeeDamage(20,t);notify('CANAL FILARIA // 20 DAMAGE');}
+ }
+ wormMesh.count=wormCount;if(wormCount)wormMesh.instanceMatrix.needsUpdate=true;
  const px=player.position.x,pz=player.position.z,py=player.position.y;
  for(const b of beehiveColonies){if(b.dead)continue;
   const distance=Math.hypot(px-b.x,pz-b.z);
@@ -2952,13 +2986,24 @@ function updateBeehives(t){
    const theta=i*2.399963+b.phase+t*.00042*(i%3===0?-1:1);
    const v=(i+.5)/beeParticleCount,rad=Math.sqrt(1-Math.pow(2*v-1,2))* (2.5+.3*Math.sin(t*.002+i));
    beeDummy.position.set(b.x+Math.cos(theta)*rad,hover+(2*v-1)*2.7+Math.sin(t*.003+i)*.25,b.z+Math.sin(theta)*rad);
-   beeDummy.scale.setScalar(.7+.55*Math.sin(i*8.1+t*.004)**2);beeDummy.updateMatrix();beeMesh.setMatrixAt(count++,beeDummy.matrix);
+   beeDummy.scale.setScalar(.7+.55*Math.sin(i*8.1+t*.004)**2);beeDummy.updateMatrix();beeMesh.setMatrixAt(count,beeDummy.matrix);
+   beeDummy.quaternion.copy(camera.quaternion);beeDummy.updateMatrix();beeBillboard.setMatrixAt(count,beeDummy.matrix);count++;
   }
   if(distance<10&&Math.abs(py-hover)<11&&!done){
    if(!beeAffliction||beeAffliction.colony.dead||t>=beeAffliction.expires){beeAffliction={colony:b,started:t,expires:t+120000,lastDamage:t};notify('BEEHIVE // INFECTION');}
   }
  }
- beeMesh.count=count;if(count)beeMesh.instanceMatrix.needsUpdate=true;
+ beeMesh.count=count;beeBillboard.count=count;if(count){beeMesh.instanceMatrix.needsUpdate=true;beeBillboard.instanceMatrix.needsUpdate=true;}
+ // Projectiles visibly detach from the hive and stick to the player for the 15-second damage phase.
+ let clingCount=0;
+ if(beeAffliction&&!beeAffliction.colony.dead&&t-beeAffliction.started<15000){const age=t-beeAffliction.started,b=beeAffliction.colony;
+  for(let i=0;i<12;i++){const delay=i*170,progress=Math.min(1,Math.max(0,(age-delay)/460));if(progress<=0)continue;
+   const ang=i*2.39996,tx=player.position.x+Math.cos(ang)*.55,tz=player.position.z+Math.sin(ang)*.55,ty=player.position.y+1+Math.sin(ang*3)*.55;
+   const x=b.x+(tx-b.x)*progress,z=b.z+(tz-b.z)*progress,y=b.y+(ty-b.y)*progress+Math.sin(progress*Math.PI)*2.5;
+   beeDummy.position.set(x+Math.sin(t*.015+i)*.075*progress,y+Math.cos(t*.014+i)*.09*progress,z);beeDummy.quaternion.identity();beeDummy.scale.setScalar(.85+Math.sin(t*.01+i)*.15);beeDummy.updateMatrix();beeCling.setMatrixAt(clingCount++,beeDummy.matrix);
+  }
+ }
+ beeCling.count=clingCount;if(clingCount)beeCling.instanceMatrix.needsUpdate=true;
  if(beeAffliction&&(beeAffliction.colony.dead||t>=beeAffliction.expires)){clearBeehiveAffliction();return;}
  if(!beeAffliction||done){beeStatus.style.display='none';return;}
  const a=beeAffliction;
@@ -2966,10 +3011,7 @@ function updateBeehives(t){
  beeStatus.style.display='block';beeStatus.textContent='BEEHIVE '+seconds+'s | '+(level>=1?'SLOW / DASH×1 / JUMP×1':level>=.66?'SLOW / DASH×1':level>=.33?'SLOW':'INFECTION');
  if(t-a.started<15000&&t-a.lastDamage>=500){
   const ticks=Math.min(3,Math.floor((t-a.lastDamage)/500));a.lastDamage+=ticks*500;
-  let damage=ticks*2;const absorbed=Math.min(shield,damage);shield-=absorbed;damage-=absorbed;
-  hp=Math.max(0,hp-damage);$('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);
-  glassUntil=t;glassDuration=500;drawDamageGlass(false,damage>0);
-  if(hp<=0)finish(false);
+  applyBeeDamage(ticks*2,t);
  }
 }
 function updateIndustrialAerials(t){
@@ -3458,7 +3500,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  // V83: forward glide gains speed smoothly; air steering remains available.
  const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
- const glideSpeed=(glideFlight?32.2:6.2)*(beehiveDebuffLevel(t)>=.33?.7:1);
+ const glideSpeed=(glideFlight?32.2:6.2)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .65:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
