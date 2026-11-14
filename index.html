@@ -2348,7 +2348,7 @@ function createStreamedTerrain(key){
     const floor=new THREE.Mesh(new THREE.BoxGeometry(L,1.5,17),metal);floor.position.copy(pipeShell.position);floor.rotation.z=Math.atan2(dy,dx);group.add(floor);
     const route={ax,az:p0.z,bx,bz:p0.z,ah:ay,bh:by,width:12,slide:true,streamKey:key};ramps.push(route);climbRamps.push(route);
     // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
-    const midH=(ay+by)/2;colliders.push({x:midX,z:p0.z,w:Math.abs(dx)+7,d:29,top:Math.max(ay,by)+15,bottom:Math.min(ay,by)-15});
+    // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
    }
    // Broken ground-connected pipeline, deliberately open at its low end.
    const broken=new THREE.Mesh(new THREE.CylinderGeometry(19,19,150,12,1,true),seam);
