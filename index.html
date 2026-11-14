@@ -2306,6 +2306,8 @@ function createStreamedTerrain(key){
     const rr=R*Math.sin(phi),yy=cy+R*Math.cos(phi);
     const band=new THREE.Mesh(new THREE.TorusGeometry(rr,2.2,7,56),seam);band.rotation.x=Math.PI/2;band.position.set(tx,yy,tz);group.add(band);
    }
+   // Collision approximates the spherical shell with stacked radial segments, not one giant blocking box.
+   for(const h of [110,235,370]){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<20;k++){const ang=(k+.5)*Math.PI/10;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;colliders.push({x,z,w:Math.abs(Math.sin(ang))*radius*.3+9,d:Math.abs(Math.cos(ang))*radius*.3+9,top:h+36,bottom:h-36});}}
    // A single water surface, INSIDE the tank, not on the ground.
    const waterY=cy+155,waterR=Math.sqrt(R*R-155*155)-8;
    const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,48),new THREE.MeshPhysicalMaterial({color:0x2b8f9e,transparent:true,opacity:.65,roughness:.14,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
@@ -2345,7 +2347,7 @@ function createStreamedTerrain(key){
     }
     rod([ex-60,130-7,z],[ex+350,172,z],2.7);
    }
-   for(let x=ex-60;x<ex+350;x+=70)rod([x,130+(x-ex)*.12,ez-28],[x,130+(x-ex)*.12,ez+28],2);
+   for(let x=ex-60;x<ex+350;x+=70){rod([x,130+(x-ex)*.12,ez-28],[x,130+(x-ex)*.12,ez+28],2);colliders.push({x,z:ez,w:6,d:65,top:135+(x-ex)*.12,bottom:125+(x-ex)*.12});}
    const wheelX=ex+355,wheelY=170,wheelR=65;
    const wheel=new THREE.Mesh(new THREE.TorusGeometry(wheelR,6,9,36),seam);wheel.position.set(wheelX,wheelY,ez);wheel.rotation.y=Math.PI/2;group.add(wheel);
    for(let i=0;i<12;i++){const a=i*Math.PI/6;rod([wheelX,wheelY,ez],[wheelX,wheelY+wheelR*Math.cos(a),ez+wheelR*Math.sin(a)],2);const bucket=new THREE.Mesh(new THREE.BoxGeometry(14,17,21),metal);bucket.position.set(wheelX,wheelY+wheelR*Math.cos(a),ez+wheelR*Math.sin(a));bucket.rotation.x=a;group.add(bucket);}
@@ -3625,7 +3627,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
- const slope=climbRamps.find(p=>p.slide&&Math.hypot(player.position.x-(p.ax+p.bx)/2,player.position.z-(p.az+p.bz)/2)<p.width+5);
+ const slope=climbRamps.find(p=>{if(!p.slide)return false;const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((player.position.x-p.ax)*dx+(player.position.z-p.az)*dz)/l2));return Math.hypot(player.position.x-p.ax-dx*u,player.position.z-p.az-dz*u)<p.width+2;});
  if(slope&&!testFlight&&jumpCount===0){const dx=slope.bx-slope.ax,dz=slope.bz-slope.az,l=Math.hypot(dx,dz)||1,drop=slope.ah-slope.bh;const sign=drop>=0?1:-1,accel=Math.abs(drop/l)*23;moveVX+=dx/l*sign*accel*dt;moveVZ+=dz/l*sign*accel*dt;landingSkidUntil=Math.max(landingSkidUntil,t+350);}
  const skidActive=t<landingSkidUntil&&jumpCount===0;const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
