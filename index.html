@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V174 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V175 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2284,12 +2284,7 @@ function createStreamedTerrain(key){
   const laneZ=oz+205;
   const flowing=structure(ox+125,.055,laneZ,250,.08,46,waterMat,false);flowing.userData.canalFlow=true;flowing.userData.canalBase=flowing.position.y;canalWaterSurfaces.push(flowing);
   structure(ox+125,-42,laneZ,250,2,46,canalDeepMat,false);
-  // Subsurface layers create depth haze without costly full-screen refraction.
-  for(let layer=0;layer<5;layer++){
-   const depth=-3-layer*7;
-   const fogPlane=new THREE.Mesh(new THREE.PlaneGeometry(250,46),new THREE.MeshBasicMaterial({color:layer<2?0x1c5665:0x061b2a,transparent:true,opacity:.11+layer*.055,depthWrite:false,side:THREE.DoubleSide}));
-   fogPlane.rotation.x=-Math.PI/2;fogPlane.position.set(ox+125,depth,laneZ);group.add(fogPlane);
-  }
+  // No horizontal haze sheets: they looked like stacked glass. Depth comes from dark walls and abyss floor.
   for(const bank of [-1,1]){
    structure(ox+125,-20,laneZ+bank*23,250,42,2,canalWallMat,false);
    structure(ox+125,.55,laneZ+bank*24,250,1.1,2.4,industrialRustMat,false);
@@ -2964,10 +2959,10 @@ const beeBillboard=new THREE.InstancedMesh(new THREE.PlaneGeometry(.22,.38),beeB
 beeBillboard.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeBillboard.frustumCulled=false;beeBillboard.count=0;scene.add(beeBillboard);
 const beeCling=new THREE.InstancedMesh(new THREE.SphereGeometry(.2,5,4),new THREE.MeshBasicMaterial({color:0xb41b60,transparent:true,opacity:.92}),12);
 beeCling.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeCling.frustumCulled=false;beeCling.count=0;scene.add(beeCling);
-const canalWormGeo=new THREE.SphereGeometry(.18,6,5);
+const canalWormGeo=new THREE.SphereGeometry(.24,7,6);
 const canalWormMat=new THREE.MeshStandardMaterial({color:0x74203e,emissive:0x33000e,roughness:.4});
 const canalWorms=[];for(let cx=2;cx<=6;cx++)for(let cz=-1;cz<=1;cz++)for(let j=0;j<3;j++)canalWorms.push({x:cx*250+45+j*65,z:cz*250+205,phase:cx*2+cz*4+j*1.7,lastHit:0,solitary:j===0,school:j!==0,homeX:cx*250+45+j*65,homeZ:cz*250+205});
-const wormMesh=new THREE.InstancedMesh(canalWormGeo,canalWormMat,canalWorms.length*18);wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);wormMesh.frustumCulled=false;wormMesh.count=0;scene.add(wormMesh);
+const wormMesh=new THREE.InstancedMesh(canalWormGeo,canalWormMat,canalWorms.length*26);wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);wormMesh.frustumCulled=false;wormMesh.count=0;scene.add(wormMesh);
 let inWaterLast=false,waterSplashLast=-1e5,waterWormAfflictionUntil=0;
 let canalBobEntry=0,canalBobVelocity=0,canalLastWet=false;
 const canalWormNotice=document.createElement('div');canalWormNotice.style.cssText='position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 144px);z-index:810;pointer-events:none;background:#2d0a1ce6;color:#ff8cb6;border:1px solid #b84265;border-radius:9px;padding:6px 9px;font:700 11px monospace;display:none';document.body.appendChild(canalWormNotice);
@@ -3006,12 +3001,25 @@ function updateBeehives(t){
  for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<520||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<520);if(!near)continue;
   const phase=t*.0018+w.phase,wx=w.x+Math.sin(phase*.53)*32,wz=w.z+Math.sin(phase)*14;
   const hunting=wet&&Math.abs(player.position.z-w.homeZ)<150&&Math.abs(player.position.x-w.homeX)<500;
-  if(hunting){const step=Math.min(1,(t-(w.lastMove||t))/1000*27/Math.max(1,Math.hypot(dx,dz)));w.x+=(player.position.x-w.x)*step;w.z+=(player.position.z-w.z)*step;}
+  if(hunting){const step=Math.min(1,(t-(w.lastMove||t))/1000*18/Math.max(1,Math.hypot(dx,dz)));w.x+=(player.position.x-w.x)*step;w.z+=(player.position.z-w.z)*step;}
   w.lastMove=t;
-  for(let j=0;j<18;j++){const k=j/17,yy=(hunting&&Math.hypot(player.position.x-wx,player.position.z-wz)<9?.5+Math.sin(phase*8-k*13)*1.1:-1.2-(.5+.5*Math.sin(phase*.65+w.phase))*11);
+  // Organic filaria: overlapping ellipsoids form a continuous, pulsating worm body.
+  // Schooling specimens share a loose moving center; solitary ones wander independently.
+  const tailAngle=phase*.75+(w.solitary?Math.sin(phase*.34):0);
+  const bodyLength=12.5;
+  const depth=hunting&&Math.hypot(player.position.x-wx,player.position.z-wz)<11?.15:-2.2-(.5+.5*Math.sin(phase*.52+w.phase))*14;
+  for(let j=0;j<26;j++){
+   const k=j/25,angle=tailAngle+k*2.2;
    const schoolOffset=w.school?Math.sin(phase*.38+w.phase)*2.5:0;
-   beeDummy.position.set(wx-Math.cos(phase)*k*8+Math.sin(phase*4-k*12)*.7+schoolOffset,yy+Math.sin(phase*3-k*9)*.85,wz-Math.sin(phase)*k*8+Math.cos(phase*3-k*11)*.9);
-   beeDummy.rotation.set(0,0,0);beeDummy.scale.setScalar((.8+.45*Math.sin(k*Math.PI))*(1+.17*Math.sin(phase*4-k*12)));beeDummy.updateMatrix();wormMesh.setMatrixAt(wormCount++,beeDummy.matrix);
+   const bodyX=wx-Math.cos(tailAngle)*k*bodyLength+Math.sin(phase*3-k*10)*1.05+schoolOffset;
+   const bodyZ=wz-Math.sin(tailAngle)*k*bodyLength+Math.cos(phase*2.8-k*10)*.85;
+   const bodyY=depth+Math.sin(phase*2.7-k*10)*1.15;
+   const pulse=1+.23*Math.sin(t*.013-k*19+w.phase);
+   const taper=Math.max(.16,Math.sin(Math.PI*(.08+.86*k)));
+   beeDummy.position.set(bodyX,bodyY,bodyZ);
+   beeDummy.rotation.set(0,-angle,0);
+   beeDummy.scale.set(.9*pulse*taper,1.2*pulse*taper,2.9);
+   beeDummy.updateMatrix();wormMesh.setMatrixAt(wormCount++,beeDummy.matrix);
   }
   if(wet&&Math.hypot(player.position.x-wx,player.position.z-wz)<7&&t-w.lastHit>=800){w.lastHit=t;waterWormAfflictionUntil=Math.max(waterWormAfflictionUntil,t+120000);applyBeeDamage(20,t);notify('CANAL FILARIA // 20 DAMAGE');}
  }
@@ -3608,7 +3616,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
     canalBobEntry=t;canalBobVelocity=Math.min(2.25,Math.max(.3,Math.abs(jumpVelocity)*.065+speed*.012));
     if(glideFlightActive||glideWasActive){landingSkidStart=t;landingSkidUntil=t+1260;}}
    const plunge=canalBobVelocity*Math.exp(-Math.max(0,t-canalBobEntry)/750)*Math.abs(Math.sin(Math.max(0,t-canalBobEntry)*.009));
-   jumpHeight=-.45+Math.sin(t*.0021)*.24+Math.sin(t*.0031+1.2)*.13-plunge;
+   jumpHeight=-1.15+Math.sin(t*.0021)*.34+Math.sin(t*.0031+1.2)*.19-plunge;
    climbFloor=0;jumpVelocity=0;jumpCount=0;gliding=false;glideFlightActive=false;
   }
  }
@@ -3666,7 +3674,9 @@ if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5&&
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }
  climbPrevFeet=climbFloor+jumpHeight;
- player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*.08;
+ const floatingNow=inIndustrialWater(player.position.x,player.position.z)&&climbFloor<2&&jumpCount===0;
+ player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*(floatingNow?.19:.08);
+ if(floatingNow){player.rotation.z=Math.sin(t*.0019)*.14;player.rotation.x=Math.sin(t*.0026+1.2)*.12;}else{player.rotation.z*=.87;player.rotation.x*=.87;}
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
  previousYaw=yaw;
  const turning=dt>.001?THREE.MathUtils.clamp(yawDelta/dt,-5,5):0;
