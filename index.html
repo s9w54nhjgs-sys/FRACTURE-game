@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V186 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V187 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2371,24 +2371,27 @@ function createStreamedTerrain(key){
     for(let h=45;h<lipY;h+=45)platform(x,z,h,18,18);
    }
    // Elevated pipe from ground to reservoir rim: 8 climbable/slideable ramp sections.
-   const p0={x:entryX-1500,z:tz+30,y:17},p1={x:entryX,z:entryZ,y:entryY}; // 1500m approach reduces pitch to ~18 degrees.
+   const p0={x:575,z:125,y:17},p1={x:entryX,z:entryZ,y:entryY}; // 1500m approach reduces pitch to ~18 degrees.
    // Exit intake at the water surface: half-round aperture, separate from the upper entry.
    const exitArch=new THREE.Mesh(new THREE.TorusGeometry(18,2.2,8,32,Math.PI),new THREE.MeshBasicMaterial({color:0x6af6df,side:THREE.DoubleSide}));exitArch.position.set(entryX,waterY,entryZ);exitArch.rotation.y=Math.PI/2;group.add(exitArch);
+   // Flowing lower half of the tube: translucent water ribbon with animated texture-free ripples.
+   const streamMaterial=new THREE.MeshBasicMaterial({color:0x4bbed3,transparent:true,opacity:.45,depthWrite:false,side:THREE.DoubleSide});
    const n=24;
    for(let i=0;i<n;i++){
-    const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
-    const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),midX=(ax+bx)/2,midY=(ay+by)/2;
+    const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,az=p0.z+(p1.z-p0.z)*a,bz=p0.z+(p1.z-p0.z)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
+    const dx=bx-ax,dy=by-ay,dz=bz-az,L=Math.hypot(dx,dy,dz),midX=(ax+bx)/2,midY=(ay+by)/2,midZ=(az+bz)/2;
     const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,12,1,true),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
-    pipeShell.position.set(midX,midY,p0.z);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,0).normalize());group.add(pipeShell);
+    pipeShell.position.set(midX,midY,midZ);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,dz).normalize());group.add(pipeShell);
     // Cylindrical tube only: a narrow curved trough follows the pipe, no flat box floor.
     const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,24,1,true,Math.PI*.60,Math.PI*.80),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
-    const route={ax,az:p0.z,bx,bz:p0.z,ah:ay-11,bh:by-11,width:13,slide:false,pipeWalk:true,pipeRadius:15,streamKey:key};ramps.push(route);climbRamps.push(route);
+    const flow=new THREE.Mesh(new THREE.CylinderGeometry(14.4,14.4,L,24,1,true,Math.PI*.60,Math.PI*.80),streamMaterial);flow.position.copy(pipeShell.position);flow.quaternion.copy(pipeShell.quaternion);group.add(flow);
+    const route={ax,az,bx,bz,ah:ay-11,bh:by-11,width:13,slide:false,pipeWalk:true,pipeRadius:15,streamKey:key};ramps.push(route);climbRamps.push(route);
     // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
     // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
    }
    // Broken ground-connected pipeline, deliberately open at its low end.
    const broken=new THREE.Mesh(new THREE.CylinderGeometry(19,19,150,12,1,true),new THREE.MeshStandardMaterial({color:0x7c929b,metalness:.7,roughness:.48,side:THREE.DoubleSide}));
-   broken.rotation.z=Math.PI/2;broken.position.set(p0.x-65,9,p0.z);group.add(broken);
+   broken.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(p1.x-p0.x,p1.y-p0.y,p1.z-p0.z).normalize());broken.position.set(p0.x-(p1.x-p0.x)*.04,9,p0.z-(p1.z-p0.z)*.04);group.add(broken);
    for(let j=0;j<6;j++)structure(p0.x-140+j*22,1,p0.z-14,10,2,3,seam,true);
    // Broken pipe approach remains traversable from the ground.
    platform(p0.x-70,p0.z,2,150,16);
@@ -2793,7 +2796,10 @@ const industryWarpButton=document.createElement('button');
 industryWarpButton.textContent='TEST ⇧ INDUSTRY';
 Object.assign(industryWarpButton.style,{position:'fixed',right:'12px',top:'156px',zIndex:'9999',padding:'10px 12px',background:'#35271fe8',color:'#ffd3a6',border:'1px solid #ba8d65',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
 document.body.appendChild(industryWarpButton);
-industryWarpButton.addEventListener('click',()=>{
+// Industrial portal sends the player above the broken crown, not to the outlet.
+const crownPortal=document.createElement('button');crownPortal.textContent='PORTAL ⇧ TANK CROWN';Object.assign(crownPortal.style,{position:'fixed',right:'12px',top:'202px',zIndex:'9999',padding:'10px',background:'#163f45e8',color:'#c3ffff',border:'1px solid #6ee7ec',borderRadius:'9px',fontWeight:'bold',fontSize:'11px'});document.body.appendChild(crownPortal);
+crownPortal.addEventListener('click',()=>{if(done)return;player.position.set(1125,630,1100);climbFloor=628;jumpHeight=0;jumpVelocity=0;jumpCount=1;climbPrevFeet=628;fallPeak=628;moveVX=moveVZ=0;camera.position.set(1125,636,1115);createStreamedTerrain('4,4');notify('TANK CROWN // DROP INTO THE RESERVOIR');});
+ industryWarpButton.addEventListener('click',()=>{
  if(done)return;
  const target={x:575,z:125,h:0};
  player.position.x=target.x;player.position.z=target.z;
@@ -3700,16 +3706,19 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
  // Cylinder-constrained movement: track the centerline and its bowl-shaped cross-section.
- const activePipe=climbRamps.find(p=>p.pipeWalk&&player.position.x>=Math.min(p.ax,p.bx)-2&&player.position.x<=Math.max(p.ax,p.bx)+2&&Math.abs(player.position.z-p.az)<p.pipeRadius+1&&Math.abs(climbFloor+jumpHeight-(p.ah+(p.bh-p.ah)*Math.max(0,Math.min(1,(player.position.x-p.ax)/(p.bx-p.ax)))))<24);
+ const pipeDistance=(p,x,z)=>{const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/l2));return Math.hypot(x-p.ax-dx*u,z-p.az-dz*u);};
+ const activePipe=climbRamps.find(p=>p.pipeWalk&&pipeDistance(p,player.position.x,player.position.z)<p.pipeRadius+1&&Math.abs(climbFloor+jumpHeight-(p.ah+(p.bh-p.ah)*Math.max(0,Math.min(1,(player.position.x-p.ax)/(p.bx-p.ax)))))<24);
  if(activePipe&&!testFlight){
-  const u=Math.max(0,Math.min(1,(player.position.x-activePipe.ax)/(activePipe.bx-activePipe.ax)));
+  const pdx=activePipe.bx-activePipe.ax,pdz=activePipe.bz-activePipe.az;const u=Math.max(0,Math.min(1,((player.position.x-activePipe.ax)*pdx+(player.position.z-activePipe.az)*pdz)/(pdx*pdx+pdz*pdz)));
   const centerY=activePipe.ah+(activePipe.bh-activePipe.ah)*u;
-  const lateral=Math.max(-12,Math.min(12,player.position.z-activePipe.az));
+  const lateral=Math.max(-12,Math.min(12,((player.position.z-activePipe.az)*pdx-(player.position.x-activePipe.ax)*pdz)/Math.hypot(pdx,pdz)));
   const bowl=15-Math.sqrt(Math.max(0,225-lateral*lateral));
   if(jumpCount===0){climbFloor=centerY+bowl;jumpHeight=0;jumpVelocity=0;}
   // Input is always able to overcome downhill drift while climbing.
   landingSkidUntil=0;
  }
+ // Guided waterslide: powerful current carries the player downhill toward industry.
+ if(activePipe&&!testFlight&&jumpCount===0){const dx=activePipe.ax-activePipe.bx,dz=activePipe.az-activePipe.bz,dl=Math.hypot(dx,dz)||1;const flowSpeed=31;moveVX=dx/dl*flowSpeed;moveVZ=dz/dl*flowSpeed;}
  const slope=climbRamps.find(p=>{if(!p.slide)return false;const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((player.position.x-p.ax)*dx+(player.position.z-p.az)*dz)/l2));return Math.hypot(player.position.x-p.ax-dx*u,player.position.z-p.az-dz*u)<p.width+2;});
  if(slope&&!testFlight&&jumpCount===0){const dx=slope.bx-slope.ax,dz=slope.bz-slope.az,l=Math.hypot(dx,dz)||1,drop=slope.ah-slope.bh;const sign=drop>=0?1:-1,accel=Math.abs(drop/l)*23;moveVX+=dx/l*sign*accel*dt;moveVZ+=dz/l*sign*accel*dt;landingSkidUntil=Math.max(landingSkidUntil,t+350);}
  const skidActive=t<landingSkidUntil&&jumpCount===0&&!climbRamps.some(p=>p.pipeWalk&&Math.abs(player.position.z-p.az)<p.width&&player.position.x>=Math.min(p.ax,p.bx)-3&&player.position.x<=Math.max(p.ax,p.bx)+3);const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
@@ -3794,8 +3803,8 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
   }
  }
  // Hard floor projection onto the tube, including segment transitions.
- const tubeHere=climbRamps.find(p=>p.pipeWalk&&player.position.x>=Math.min(p.ax,p.bx)-1&&player.position.x<=Math.max(p.ax,p.bx)+1&&Math.abs(player.position.z-p.az)<14);
- if(tubeHere&&!testFlight&&jumpCount===0){const u=Math.max(0,Math.min(1,(player.position.x-tubeHere.ax)/(tubeHere.bx-tubeHere.ax)));const lateral=Math.max(-13,Math.min(13,player.position.z-tubeHere.az));climbFloor=tubeHere.ah+(tubeHere.bh-tubeHere.ah)*u+15-Math.sqrt(Math.max(0,225-lateral*lateral));jumpHeight=0;jumpVelocity=0;}
+ const tubeHere=climbRamps.find(p=>p.pipeWalk&&pipeDistance(p,player.position.x,player.position.z)<14);
+ if(tubeHere&&!testFlight&&jumpCount===0){const pdx=tubeHere.bx-tubeHere.ax,pdz=tubeHere.bz-tubeHere.az;const u=Math.max(0,Math.min(1,((player.position.x-tubeHere.ax)*pdx+(player.position.z-tubeHere.az)*pdz)/(pdx*pdx+pdz*pdz)));const lateral=Math.max(-13,Math.min(13,((player.position.z-tubeHere.az)*pdx-(player.position.x-tubeHere.ax)*pdz)/Math.hypot(pdx,pdz)));climbFloor=tubeHere.ah+(tubeHere.bh-tubeHere.ah)*u+15-Math.sqrt(Math.max(0,225-lateral*lateral));jumpHeight=0;jumpVelocity=0;}
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
