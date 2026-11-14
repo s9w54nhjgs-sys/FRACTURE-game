@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V180 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V181 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2153,11 +2153,13 @@ function streamedBuildingBlockers(x,z,feet){
  for(let ox=-1;ox<=1;ox++)for(let oz=-1;oz<=1;oz++){
   const key=(cx+ox)+','+(cz+oz);
   // Activate collision only for nearby, ready chunks; render silhouettes persist.
-  if(!chunkCache.get(key)?.loaded)continue;
+  if(!chunkCache.get(key)?.loaded&&key!=='4,4')continue;
   for(const b of [...(terrainCollisionCells.get(key)||[]),...(streamedTerrain.get(key)?.colliders||[])]){
    if(feet<b.top-.2&&feet+2>(b.bottom??0)&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35)hits.push(b);
   }
  }
+ // Mega reservoir spans several chunks: include its shell collision regardless of local chunk.
+ if(streamedTerrain.has('4,4')&&Math.hypot(x-1125,z-1100)<340){for(const b of streamedTerrain.get('4,4').colliders){if(feet<b.top-.2&&feet+2>(b.bottom??0)&&Math.abs(x-b.x)<b.w/2+.35&&Math.abs(z-b.z)<b.d/2+.35&&!hits.includes(b))hits.push(b);}}
  return hits;
 }
 const distantSkyline=new THREE.InstancedMesh(terrainLandmarkGeo,terrainLandmarkMat,distantBuildings.length);
@@ -2188,7 +2190,7 @@ const industrialRustMat=new THREE.MeshStandardMaterial({color:0x74564a,metalness
 const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness:.48,roughness:.88});
 const industrialCylinderGeo=new THREE.CylinderGeometry(1,1,1,10);
 const canalWaterSurfaces=[],canalRipples=[];
-const elevatedReservoir={x:1125,z:100,cy:334,radius:282,waterY:489};
+const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
 function reservoirWet(x,z,feet){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226&&feet>elevatedReservoir.waterY-4&&feet<elevatedReservoir.waterY+2;}
 function reservoirSupport(x,z){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226?elevatedReservoir.waterY-1.15:null;}
 const canalDeepMat=new THREE.MeshStandardMaterial({color:0x03131e,roughness:.9,side:THREE.DoubleSide});
@@ -2296,7 +2298,7 @@ function createStreamedTerrain(key){
   // V178: no ground-level canals, surface water or retaining walls.
   const laneZ=oz+205;
   // V178: monumental six-times-diameter open-topped spherical reservoir.
-  if(cx===4&&cz===0){
+  if(cx===4&&cz===4){
    const metal=new THREE.MeshStandardMaterial({color:0xa0b3bb,metalness:.65,roughness:.44,side:THREE.DoubleSide});
    const seam=new THREE.MeshStandardMaterial({color:0x536b79,metalness:.75,roughness:.48});
    const R=282,tx=ox+125,tz=oz+100,cy=334;
@@ -2327,18 +2329,28 @@ function createStreamedTerrain(key){
     const band=new THREE.Mesh(new THREE.TorusGeometry(rr,2.2,7,56),seam);band.rotation.x=Math.PI/2;band.position.set(tx,yy,tz);group.add(band);
    }
    // Collision approximates the spherical shell with stacked radial segments, not one giant blocking box.
-   for(const h of [110,235,370]){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<20;k++){const ang=(k+.5)*Math.PI/10;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;colliders.push({x,z,w:15,d:15,top:h+36,bottom:h-36});}}
+   for(let h=80;h<570;h+=30){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<48;k++){const ang=(k+.5)*Math.PI/24;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;if(Math.hypot(x-(tx-lipR-8),z-(tz+30))<29&&h>lipY-55)continue;colliders.push({x,z,w:Math.max(12,radius*.135),d:Math.max(12,radius*.135),top:h+19,bottom:h-19});}}
    // A single water surface, INSIDE the tank, not on the ground.
    const waterY=cy+155,waterR=Math.sqrt(R*R-155*155)-8;
    const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,48),new THREE.MeshPhysicalMaterial({color:0x3b99a8,transparent:true,opacity:.42,roughness:.18,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
    // Vertical depth gradient, not stacked horizontal panes. Interior ribs fade into darkness.
    const depthGradient=new THREE.ShaderMaterial({transparent:true,side:THREE.BackSide,depthWrite:false,uniforms:{},vertexShader:'varying float vHeight; void main(){vHeight=position.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'varying float vHeight; void main(){float deep=clamp((155.0-vHeight)/380.0,0.0,1.0);vec3 c=mix(vec3(.10,.36,.43),vec3(.005,.014,.034),pow(deep,1.3));gl_FragColor=vec4(c,.18+.76*deep);}'});
-   const inner=new THREE.Mesh(tornGeo,depthGradient);inner.position.set(tx,cy,tz);group.add(inner);
+   // Do not draw a second coplanar shell: it caused GPU z-fighting.
+   // The water and distant lower shell already provide depth cues.
    // Soft shafts through the torn crown; lightweight transparent cones.
-   const shaftMat=new THREE.MeshBasicMaterial({color:0x8bd5df,transparent:true,opacity:.075,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
+   const shaftMat=new THREE.MeshBasicMaterial({color:0x8bd5df,transparent:true,opacity:.045,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending});
    for(let i=0;i<5;i++){const shaft=new THREE.Mesh(new THREE.CylinderGeometry(7+i*4,28+i*6,270,12,1,true),shaftMat);shaft.position.set(tx-85+i*42,waterY+45,tz+Math.sin(i*2.1)*48);shaft.rotation.z=.11+(i-2)*.09;group.add(shaft);}
    tankWater.rotation.x=-Math.PI/2;tankWater.position.set(tx,waterY,tz);group.add(tankWater);
    tankWater.userData.canalBase=waterY;canalWaterSurfaces.push(tankWater);
+   // Secret entrance: a drone-flock-sized breach and an identifiable bright pipeline mouth.
+   const entryX=tx-lipR-8,entryZ=tz+30,entryY=lipY-6;
+   const beacon=new THREE.Mesh(new THREE.TorusGeometry(17,2.5,8,20),new THREE.MeshBasicMaterial({color:0x8df6e7,transparent:true,opacity:.85}));beacon.position.set(entryX,entryY,entryZ);beacon.rotation.y=Math.PI/2;group.add(beacon);
+   const entryLamp=new THREE.PointLight(0x79e5ef,1.2,80);entryLamp.position.set(entryX,entryY+8,entryZ);group.add(entryLamp);
+   // Remove a shell patch around the pipeline opening (not just paint a circle).
+   const pos=tornGeo.getAttribute('position'),index=tornGeo.getIndex(),kept=[];
+   const holeCenter=new THREE.Vector3(entryX-tx,entryY-cy,entryZ-tz).normalize();
+   for(let i=0;i<index.count;i+=3){let hole=false;for(let j=0;j<3;j++){const vi=index.getX(i+j),v=new THREE.Vector3(pos.getX(vi),pos.getY(vi),pos.getZ(vi)).normalize();if(v.dot(holeCenter)>.988)hole=true;}if(!hole)kept.push(index.getX(i),index.getX(i+1),index.getX(i+2));}
+   tornGeo.setIndex(kept);tornGeo.computeVertexNormals();
    // Tangible access scaffold and ring walkway.
    for(let a=0;a<Math.PI*2;a+=Math.PI/6){
     const x=tx+Math.cos(a)*lipR,z=tz+Math.sin(a)*lipR;
@@ -2360,7 +2372,7 @@ function createStreamedTerrain(key){
     // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
    }
    // Broken ground-connected pipeline, deliberately open at its low end.
-   const broken=new THREE.Mesh(new THREE.CylinderGeometry(19,19,150,12,1,true),seam);
+   const broken=new THREE.Mesh(new THREE.CylinderGeometry(19,19,150,12,1,true),new THREE.MeshStandardMaterial({color:0x7c929b,metalness:.7,roughness:.48,side:THREE.DoubleSide}));
    broken.rotation.z=Math.PI/2;broken.position.set(p0.x-65,9,p0.z);group.add(broken);
    for(let j=0;j<6;j++)structure(p0.x-140+j*22,1,p0.z-14,10,2,3,seam,true);
    // Broken pipe approach remains traversable from the ground.
@@ -2515,9 +2527,9 @@ function createStreamedTerrain(key){
  }
  scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders});
 }
-createStreamedTerrain('4,0'); // Load the monumental landmark immediately and keep it resident.
+createStreamedTerrain('4,4'); // The secret reservoir landmark stays resident.
 function evictStreamedTerrain(key){
- if(key==='4,0')return; // Mega landmark and its walkable collision never unload.
+ if(key==='4,4')return; // Secret reservoir and collision remain loaded.
  const entry=streamedTerrain.get(key);if(!entry)return;
  // Never remove the player's supporting platforms mid-air.
  const feet=climbFloor+jumpHeight;
@@ -2568,7 +2580,7 @@ function planChunks(t){
  chunkPending.sort((a,b)=>(chunkCache.get(a)?.score??99)-(chunkCache.get(b)?.score??99));
  // Keep recently visited chunks warm for turns and rapid direction changes.
  for(const [key,entry] of chunkCache){
-  if(t-entry.lastSeen>12000&&key!=='4,0'){
+  if(t-entry.lastSeen>12000&&key!=='4,4'){
    evictStreamedTerrain(key);
    if(streamedTerrain.has(key))continue;
    entry.loaded=false;chunkCache.delete(key);
@@ -2748,6 +2760,8 @@ const devWarpButton=document.createElement('button');
 devWarpButton.textContent='TEST ⇧ BRIDGE';
 Object.assign(devWarpButton.style,{position:'fixed',right:'12px',top:'112px',zIndex:'9999',padding:'10px 12px',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
 document.body.appendChild(devWarpButton);
+const reservoirWarp=document.createElement('button');reservoirWarp.textContent='TEST ⇧ SECRET TANK';Object.assign(reservoirWarp.style,{position:'fixed',right:'12px',top:'157px',zIndex:'9999',padding:'9px 10px',background:'#233d48e8',color:'#9cf5f1',border:'1px solid #66d9ce',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});document.body.appendChild(reservoirWarp);
+reservoirWarp.addEventListener('click',()=>{if(done)return;player.position.set(760,3,1130);climbFloor=2;jumpHeight=0;jumpVelocity=0;jumpCount=0;moveVX=0;moveVZ=0;notify('SECRET RESERVOIR // PIPE ENTRANCE');});
 devWarpButton.addEventListener('click',()=>{
  if(done)return;
  const target={x:0,z:-65,h:80};
