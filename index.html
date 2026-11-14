@@ -2826,7 +2826,7 @@ crownPortal.remove(); // Physical portals below replace the debug teleport.
 const portalGeo=new THREE.TorusGeometry(12,1.7,10,32);const portalMat=new THREE.MeshBasicMaterial({color:0x8ff7ff});
 const industryPortal=new THREE.Mesh(portalGeo,portalMat);industryPortal.position.set(575,15,125);scene.add(industryPortal);
 const crownPortalMesh=new THREE.Mesh(portalGeo,portalMat);crownPortalMesh.position.set(1125,624,1100);scene.add(crownPortalMesh);
-const crownDeck=new THREE.Mesh(new THREE.CylinderGeometry(85,85,3,48,1,false,0,Math.PI),new THREE.MeshStandardMaterial({color:0x5d737e,metalness:.65,roughness:.55,side:THREE.DoubleSide}));crownDeck.position.set(1125,613,1100);scene.add(crownDeck);
+const crownDeck=new THREE.Mesh(new THREE.CylinderGeometry(85,85,3,48,1,false,0,Math.PI),new THREE.MeshStandardMaterial({color:0x5d737e,metalness:.65,roughness:.55,side:THREE.DoubleSide}));crownDeck.position.set(1125,613,1100);scene.add(crownDeck);climbDecks.push({x:1125,z:1100,h:614.5,w:150,d:110});
 const resetTravel=(x,y,z)=>{player.position.set(x,y+1.35,z);climbFloor=y;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=y;fallPeak=y;moveVX=moveVZ=dashX=dashZ=0;landingSkidUntil=0;gliding=false;glideFlightActive=false;glideInterrupted=false;releaseJump();};
  function jumpNow(){if(done||inIndustrialWater(player.position.x,player.position.z)||jumpCount>=(beehiveDebuffLevel(performance.now())>=1?1:2))return;
  // V108: before jumping after a glide landing, anchor to the actual roof
@@ -3852,7 +3852,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  climbPrevFeet=climbFloor+jumpHeight;
  const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-575,player.position.z-125)<13&&climbFloor<30){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
- if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-1125,player.position.z-1100)<13&&climbFloor>605){resetTravel(575,2,125);portalCooldown=t+3000;}
+
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
  if(!floatingNow&&jumpHeight<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
