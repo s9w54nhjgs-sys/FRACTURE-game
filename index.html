@@ -3158,12 +3158,12 @@ function updateIndustrialAerials(t){
   const f=d.flock;
   if(d.mode==='permadead')continue;
   // Water short-circuits airborne drones; retain the carcass for the falling animation.
-  if(inIndustrialWater(d.x,d.z)&&d.y<=.7&&d.mode!=='fallen'&&d.mode!=='revive'){
-   d.mode='fallen';d.fallAt=t;d.fallStartY=d.y;d.reviveX=d.x;d.reviveZ=d.z;d.eyeOffAt=t;d.eyeOnAt=0;
+  if(inIndustrialWater(d.x,d.z)&&d.y<=.35&&d.mode!=='sunken'&&d.mode!=='fallen'&&d.mode!=='revive'){
+   d.mode='sunken';d.fallAt=t;d.fallStartY=d.y;d.reviveX=d.x;d.reviveZ=d.z;d.eyeOffAt=t;d.eyeOnAt=0;
    d.reboots=2;d.flock.alert=false;
   }
   // Defeated agents stay visible while inert; revival is handled independently.
-  if(!nearGroups.has(f)&&!f.dead&&d.mode!=='revive'&&d.mode!=='rejoin')continue;
+  if(!nearGroups.has(f)&&!f.dead&&d.mode!=='revive'&&d.mode!=='rejoin'&&d.mode!=='sunken')continue;
   const ph=d.phase,seed=d.seed;
   let tx=d.x,ty=d.y,tz=d.z;
   if(d.mode==='release'){
@@ -3209,6 +3209,7 @@ function updateIndustrialAerials(t){
     d.lockedX=px;d.lockedZ=pz;d.lockedY=py;
    }
   }
+  if(d.mode==='sunken'){d.x=d.reviveX;d.z=d.reviveZ;d.y=Math.max(-30,d.fallStartY-6.5*Math.max(0,(t-d.fallAt)/1000));}
   if(d.mode==='fallen'||d.mode==='revive'){
    // Power-off: red optics fade to black in 200ms, then the carcass falls.
    const fallSeconds=Math.max(0,(t-d.fallAt-200)/1000);
