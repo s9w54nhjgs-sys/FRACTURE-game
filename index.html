@@ -3618,7 +3618,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
  const slope=climbRamps.find(p=>p.slide&&Math.hypot(player.position.x-(p.ax+p.bx)/2,player.position.z-(p.az+p.bz)/2)<p.width+5);
- if(slope&&!testFlight&&jumpCount===0){const dx=slope.bx-slope.ax,dz=slope.bz-slope.az,l=Math.hypot(dx,dz)||1,drop=slope.ah-slope.bh;const accel=Math.max(0,drop/l)*23;moveVX+=dx/l*accel*dt;moveVZ+=dz/l*accel*dt;landingSkidUntil=Math.max(landingSkidUntil,t+350);}
+ if(slope&&!testFlight&&jumpCount===0){const dx=slope.bx-slope.ax,dz=slope.bz-slope.az,l=Math.hypot(dx,dz)||1,drop=slope.ah-slope.bh;const sign=drop>=0?1:-1,accel=Math.abs(drop/l)*23;moveVX+=dx/l*sign*accel*dt;moveVZ+=dz/l*sign*accel*dt;landingSkidUntil=Math.max(landingSkidUntil,t+350);}
  const skidActive=t<landingSkidUntil&&jumpCount===0;const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
  moveVX+=(desiredVX-moveVX)*blend;moveVZ+=(desiredVZ-moveVZ)*blend;
