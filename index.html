@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V175 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V176 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2287,6 +2287,8 @@ function createStreamedTerrain(key){
   // No horizontal haze sheets: they looked like stacked glass. Depth comes from dark walls and abyss floor.
   for(const bank of [-1,1]){
    structure(ox+125,-20,laneZ+bank*23,250,42,2,canalWallMat,false);
+   // Above-water retaining lip blocks walking straight through the reservoir wall.
+   structure(ox+125,1.8,laneZ+bank*23,250,3.6,2.5,canalWallMat,true);
    structure(ox+125,.55,laneZ+bank*24,250,1.1,2.4,industrialRustMat,false);
    for(let x=ox+15;x<ox+250;x+=32)structure(x,-13,laneZ+bank*22.8,1.3,25,1.4,industrialDarkMat,false);
   }
@@ -2995,24 +2997,32 @@ function updateBeehives(t){
  if(wet&&!inWaterLast){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
  if(wet&&t<dashUntil&&t-waterSplashLast>110){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
  inWaterLast=wet;
- for(const m of canalWaterSurfaces)if(m.parent)m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.12;
+ for(const m of canalWaterSurfaces)if(m.parent){m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.18+Math.sin(t*.0027+m.position.z*.13)*.09;m.rotation.z=Math.sin(t*.0011+m.position.x*.007)*.003;}
  for(const r of canalRipples)if(r.parent){r.position.x+=.016;if(r.position.x>Math.floor(r.position.x/250)*250+249)r.position.x-=240;r.material.opacity=.24+.14*Math.sin(t*.002+r.position.z);}
  let wormCount=0;
  for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<520||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<520);if(!near)continue;
-  const phase=t*.0018+w.phase,wx=w.x+Math.sin(phase*.53)*32,wz=w.z+Math.sin(phase)*14;
+  const phase=t*.0018+w.phase;
+  const targetX=wet?player.position.x:w.homeX+Math.sin(phase*.45)*35;
+  const targetZ=wet?player.position.z:w.homeZ+Math.cos(phase*.55)*12;
+  const turnTarget=Math.atan2(targetZ-w.z,targetX-w.x);
+  w.heading??=turnTarget;
+  w.heading+=Math.atan2(Math.sin(turnTarget-w.heading),Math.cos(turnTarget-w.heading))*Math.min(.07,Math.max(.01,(t-(w.lastMove||t))*.00013));
+  const wx=w.x,wz=w.z;
   const hunting=wet&&Math.abs(player.position.z-w.homeZ)<150&&Math.abs(player.position.x-w.homeX)<500;
-  if(hunting){const step=Math.min(1,(t-(w.lastMove||t))/1000*18/Math.max(1,Math.hypot(dx,dz)));w.x+=(player.position.x-w.x)*step;w.z+=(player.position.z-w.z)*step;}
+  const travel=Math.min(.65,Math.max(0,(t-(w.lastMove||t))/1000)* (hunting?18:6));
+  w.x+=Math.cos(w.heading)*travel;w.z+=Math.sin(w.heading)*travel;
+  if(!inIndustrialWater(w.x,w.z)){w.x=wx;w.z=wz;w.heading+=.14;}
   w.lastMove=t;
   // Organic filaria: overlapping ellipsoids form a continuous, pulsating worm body.
   // Schooling specimens share a loose moving center; solitary ones wander independently.
-  const tailAngle=phase*.75+(w.solitary?Math.sin(phase*.34):0);
+  const tailAngle=w.heading;
   const bodyLength=12.5;
   const depth=hunting&&Math.hypot(player.position.x-wx,player.position.z-wz)<11?.15:-2.2-(.5+.5*Math.sin(phase*.52+w.phase))*14;
   for(let j=0;j<26;j++){
    const k=j/25,angle=tailAngle+k*2.2;
    const schoolOffset=w.school?Math.sin(phase*.38+w.phase)*2.5:0;
-   const bodyX=wx-Math.cos(tailAngle)*k*bodyLength+Math.sin(phase*3-k*10)*1.05+schoolOffset;
-   const bodyZ=wz-Math.sin(tailAngle)*k*bodyLength+Math.cos(phase*2.8-k*10)*.85;
+   const bodyX=wx-Math.cos(tailAngle)*k*bodyLength-Math.sin(tailAngle)*Math.sin(phase*3-k*10)*1.05+schoolOffset;
+   const bodyZ=wz-Math.sin(tailAngle)*k*bodyLength+Math.cos(tailAngle)*Math.sin(phase*3-k*10)*1.05;
    const bodyY=depth+Math.sin(phase*2.7-k*10)*1.15;
    const pulse=1+.23*Math.sin(t*.013-k*19+w.phase);
    const taper=Math.max(.16,Math.sin(Math.PI*(.08+.86*k)));
@@ -3663,13 +3673,13 @@ if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5&&
  resolveFallDamage(rampFloor,t);
  climbFloor=rampFloor;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
 }
- if(jumpCount===0){
+ if(jumpCount===0&&!inIndustrialWater(player.position.x,player.position.z)){
   if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
   else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
   else if(deck>=climbFloor-.85)climbFloor=deck;
- }else if(landingDeck>climbFloor+.08 || (jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&feet<=sweptDeck+.25&&climbPrevFeet>=sweptDeck-.5&&sweptDeck>=climbFloor-.2)){
+ }else if(!inIndustrialWater(player.position.x,player.position.z)&&(landingDeck>climbFloor+.08 || (jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&feet<=sweptDeck+.25&&climbPrevFeet>=sweptDeck-.5&&sweptDeck>=climbFloor-.2))){
   resolveFallDamage(Math.max(landingDeck,sweptDeck),t);climbFloor=Math.max(landingDeck,sweptDeck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
- }else if(jumpVelocity<=0&&feet<=climbFloor+.01){
+ }else if(!inIndustrialWater(player.position.x,player.position.z)&&jumpVelocity<=0&&feet<=climbFloor+.01){
   // V76: preserve the actual support deck; never reset to world zero while standing on a platform.
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }
