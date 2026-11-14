@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V177 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V178 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2121,14 +2121,7 @@ const chunkDecor=new Map();
 const streamedTerrain=new Map();
 const terrainTileGeo=new THREE.PlaneGeometry(CHUNK_SIZE,CHUNK_SIZE);
 const terrainTileMat=new THREE.MeshStandardMaterial({color:0x424d4d,metalness:.2,roughness:.95});
-// Cut actual canal openings out of the continuous outer terrain. A translucent overlay alone
-// cannot show depth while an opaque metal floor remains directly beneath it.
-terrainTileMat.onBeforeCompile=shader=>{
- shader.vertexShader='varying vec3 vCanalWorld;\n'+shader.vertexShader;
- shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n vCanalWorld=(modelMatrix*vec4(position,1.0)).xyz;');
- shader.fragmentShader='varying vec3 vCanalWorld;\n'+shader.fragmentShader;
- shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if(vCanalWorld.x>500.0&&vCanalWorld.x<1750.0&&vCanalWorld.z>-250.0&&vCanalWorld.z<750.0){float lane=floor(vCanalWorld.z/250.0)*250.0+205.0;if(abs(vCanalWorld.z-lane)<23.0)discard;}');
-};
+// V178: ground stays intact; elevated tank contains the only water.
 const terrainLandmarkGeo=new THREE.BoxGeometry(1,1,1);
 const terrainLandmarkMat=new THREE.MeshStandardMaterial({color:0x33424a,metalness:.4,roughness:.85});
 const terrainDetailMat=new THREE.MeshStandardMaterial({color:0x59646a,metalness:.55,roughness:.75});
@@ -2187,14 +2180,7 @@ addOuterFloor(sideWidth,outerSpan,(centerWidth+sideWidth)/2,0);
 addOuterFloor(centerWidth,sideWidth,0,-(centerWidth+sideWidth)/2);
 addOuterFloor(centerWidth,sideWidth,0,(centerWidth+sideWidth)/2);
 scene.add(outerFloor);
-// V174: permanent opaque deep-water basin prevents the sky showing through streamed gaps.
-const abyssGeo=new THREE.BoxGeometry(1250,2,46),abyssMat=new THREE.MeshBasicMaterial({color:0x020c16,side:THREE.DoubleSide});
-for(let cz=-1;cz<=1;cz++){
- const lane=cz*250+205;
- const bottom=new THREE.Mesh(abyssGeo,abyssMat);bottom.position.set(1125,-42,lane);scene.add(bottom);
- const capGeo=new THREE.BoxGeometry(3,43,46);
- for(const x of [500,1750]){const cap=new THREE.Mesh(capGeo,canalAbyssEndMaterial);cap.position.set(x,-20,lane);scene.add(cap);}
-}
+// V178: removed ground-level abyss and canal.
 // V151 industrial vertical slice: structural scenery and matching climb collision.
 // The original city's bridge, roof, movement and rebirth logic are untouched.
 const industrialPipeMat=new THREE.MeshStandardMaterial({color:0x62717a,metalness:.8,roughness:.48});
@@ -2304,46 +2290,68 @@ function createStreamedTerrain(key){
    if(Math.abs(a[1]-b[1])<.1&&Math.abs(a[2]-b[2])<.1)platform(m.position.x,m.position.z,m.position.y+r,w,Math.max(3,r*1.7));
    return m;
   }
-  // Long water lane, extending seamlessly through each industrial chunk.
+  // V178: no ground-level canals, surface water or retaining walls.
   const laneZ=oz+205;
-  const flowing=structure(ox+125,.055,laneZ,250,.08,46,waterMat,false);flowing.userData.canalFlow=true;flowing.userData.canalBase=flowing.position.y;canalWaterSurfaces.push(flowing);
-  structure(ox+125,-42,laneZ,250,2,46,canalDeepMat,false);
-  // No horizontal haze sheets: they looked like stacked glass. Depth comes from dark walls and abyss floor.
-  for(const bank of [-1,1]){
-   structure(ox+125,-20,laneZ+bank*23,250,42,2,canalWallMat,false);
-   // Above-water retaining lip blocks walking straight through the reservoir wall.
-   structure(ox+125,1.8,laneZ+bank*23,250,3.6,2.5,canalWallMat,true);
-   structure(ox+125,.55,laneZ+bank*24,250,1.1,2.4,industrialRustMat,false);
-   for(let x=ox+15;x<ox+250;x+=32)structure(x,-13,laneZ+bank*22.8,1.3,25,1.4,industrialDarkMat,false);
-  }
-  for(const edgeX of [ox+36,ox+214]){const rz=laneZ+(edgeX===ox+36?-1:1)*21;const ramp=new THREE.Mesh(new THREE.BoxGeometry(16,1,18),canalIslandMat);ramp.position.set(edgeX,.5,rz);ramp.rotation.x=edgeX===ox+36?-.09:.09;group.add(ramp);ramps.push({ax:edgeX,az:laneZ,bx:edgeX,bz:rz+(edgeX===ox+36?-8:8),ah:.4,bh:4,w:15});}
-  if((cx+cz+10)%3===0){structure(ox+126,.6,laneZ,26,1.2,18,canalIslandMat,false);platform(ox+126,laneZ,1.2,26,18);}
-  // Surface current lines: small repeating strips that drift with the water, not static glass.
-  for(let j=0;j<10;j++){const ripple=new THREE.Mesh(new THREE.PlaneGeometry(8+(j%4)*6,.13),canalRippleMaterial);ripple.rotation.x=-Math.PI/2;ripple.position.set(ox+12+j*23,.14,laneZ-15+(j*17)%30);group.add(ripple);canalRipples.push(ripple);}
-  for(const bank of [-1,1]){
-   structure(ox+125,3,laneZ+bank*27,250,6,7,industrialDarkMat);
-   for(const x of [ox+18,ox+125,ox+232])structure(x,7,laneZ+bank*28,4,8,4,industrialRustMat);
-  }
-  // Capital-ship scale spherical propellant depot; open truss crane and traversable pipe.
+  // V178: monumental six-times-diameter open-topped spherical reservoir.
   if(cx===4&&cz===0){
-   const metal=new THREE.MeshStandardMaterial({color:0x9aabb4,metalness:.82,roughness:.34});
-   const seam=new THREE.MeshStandardMaterial({color:0x536b79,metalness:.86,roughness:.5});
-   const tank=new THREE.Mesh(new THREE.SphereGeometry(47,20,12),metal);tank.position.set(ox+145,102,oz+90);group.add(tank);
-   for(const latitude of [-.62,-.3,0,.3,.62]){const rr=47*Math.cos(latitude),ring=new THREE.Mesh(new THREE.TorusGeometry(rr,.8,7,40),seam);ring.rotation.x=Math.PI/2;ring.position.set(ox+145,102+47*Math.sin(latitude),oz+90);group.add(ring);}
-   for(const dx of [-32,32])for(const dz of [-32,32])structure(ox+145+dx,27,oz+90+dz,5,56,5,seam,true);
-   platform(ox+145,oz+90,57,105,105);
-   // Walkable elevated pipe: open industrial pipe with collision-matched descending floor.
-   const a={x:ox+10,y:8,z:oz+90},b={x:ox+145,y:59,z:oz+90};
-   const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy);
-   const tube=new THREE.Mesh(new THREE.CylinderGeometry(11,11,L,16,1,true),new THREE.MeshStandardMaterial({color:0x6f8b94,metalness:.75,roughness:.45,side:THREE.BackSide}));
-   tube.position.set((a.x+b.x)/2,(a.y+b.y)/2,a.z);tube.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,0).normalize());group.add(tube);
-   const ramp=new THREE.Mesh(new THREE.BoxGeometry(L,1,12),metal);ramp.position.copy(tube.position);ramp.rotation.z=Math.atan2(dy,dx);group.add(ramp);
-   ramps.push({ax:a.x,az:a.z,bx:b.x,bz:b.z,ah:a.y,bh:b.y,w:9,slide:true});
-   // Truss gantry, with diagonal members instead of block-only crane silhouettes.
-   const rod=(p,q,r=.9)=>{const u=new THREE.Vector3(...p),v=new THREE.Vector3(...q),d=v.clone().sub(u),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),6),seam);m.position.copy(u.add(v).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());group.add(m);};
-   for(const z of [oz+170,oz+193]){rod([ox+30,5,z],[ox+30,125,z],2);rod([ox+205,5,z],[ox+205,125,z],2);rod([ox+30,125,z],[ox+205,125,z],2);
-    for(let x=ox+30;x<ox+205;x+=18){rod([x,125,z],[x+18,125,z],.8);rod([x,119,z],[x+18,125,z],.7);rod([x,125,z],[x+18,119,z],.7);}}
-   rod([ox+140,119,oz+181],[ox+140,67,oz+181],.45);
+   const metal=new THREE.MeshStandardMaterial({color:0xa0b3bb,metalness:.65,roughness:.44,side:THREE.DoubleSide});
+   const seam=new THREE.MeshStandardMaterial({color:0x536b79,metalness:.75,roughness:.48});
+   const R=282,tx=ox+125,tz=oz+100,cy=334;
+   // Cut away the upper spherical cap to reveal the interior water surface.
+   const shell=new THREE.Mesh(new THREE.SphereGeometry(R,40,22,0,Math.PI*2,.54,Math.PI-.54),metal);
+   shell.position.set(tx,cy,tz);group.add(shell);
+   const lipY=cy+R*Math.cos(.54),lipR=R*Math.sin(.54);
+   const lip=new THREE.Mesh(new THREE.TorusGeometry(lipR,4,9,64),seam);lip.rotation.x=Math.PI/2;lip.position.set(tx,lipY,tz);group.add(lip);
+   for(const phi of [.72,1.05,1.4,1.85,2.25]){
+    const rr=R*Math.sin(phi),yy=cy+R*Math.cos(phi);
+    const band=new THREE.Mesh(new THREE.TorusGeometry(rr,2.2,7,56),seam);band.rotation.x=Math.PI/2;band.position.set(tx,yy,tz);group.add(band);
+   }
+   // A single water surface, INSIDE the tank, not on the ground.
+   const waterY=cy+155,waterR=Math.sqrt(R*R-155*155)-8;
+   const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,48),new THREE.MeshPhysicalMaterial({color:0x2b8f9e,transparent:true,opacity:.65,roughness:.14,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
+   tankWater.rotation.x=-Math.PI/2;tankWater.position.set(tx,waterY,tz);group.add(tankWater);
+   tankWater.userData.canalBase=waterY;canalWaterSurfaces.push(tankWater);
+   // Tangible access scaffold and ring walkway.
+   for(let a=0;a<Math.PI*2;a+=Math.PI/6){
+    const x=tx+Math.cos(a)*lipR,z=tz+Math.sin(a)*lipR;
+    structure(x,lipY/2,z,8,lipY,8,seam,true);
+   }
+   // Elevated pipe from ground to reservoir rim: 8 climbable/slideable ramp sections.
+   const p0={x:ox-360,z:tz+30,y:2},p1={x:tx-lipR-8,z:tz+30,y:lipY-6};
+   const n=8;
+   for(let i=0;i<n;i++){
+    const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
+    const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),midX=(ax+bx)/2,midY=(ay+by)/2;
+    const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,12,1,true),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
+    pipeShell.position.set(midX,midY,p0.z);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,0).normalize());group.add(pipeShell);
+    const floor=new THREE.Mesh(new THREE.BoxGeometry(L,1.5,17),metal);floor.position.copy(pipeShell.position);floor.rotation.z=Math.atan2(dy,dx);group.add(floor);
+    ramps.push({ax,az:p0.z,bx,bz:p0.z,ah:ay,bh:by,w:9,slide:true});
+   }
+   // Broken ground-connected pipeline, deliberately open at its low end.
+   const broken=new THREE.Mesh(new THREE.CylinderGeometry(19,19,150,12,1,true),seam);
+   broken.rotation.z=Math.PI/2;broken.position.set(p0.x-65,9,p0.z);group.add(broken);
+   for(let j=0;j<6;j++)structure(p0.x-140+j*22,1,p0.z-14,10,2,3,seam,true);
+   // Bucket-wheel excavator: vast cantilever lattice, tracked base and toothed wheel.
+   const rod=(a,b,r=1.5)=>{const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),d=w.clone().sub(v),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),6),seam);m.position.copy(v.add(w).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());group.add(m);return m;};
+   const ex=tx+280,ez=tz-265;
+   structure(ex,14,ez,120,28,78,seam,true);
+   for(const z of [ez-28,ez+28]){
+    for(let x=ex-60;x<=ex+350;x+=35){
+     const top=130+(x-ex)*.12;
+     rod([x,20,z],[x,top,z],2.1);
+     rod([x,top,z],[x+35,top+4.2,z],2.2);
+     rod([x,20,z],[x+35,top+4.2,z],1.2);
+     rod([x,top,z],[x+35,20,z],1.2);
+    }
+    rod([ex-60,130-7,z],[ex+350,172,z],2.7);
+   }
+   for(let x=ex-60;x<ex+350;x+=70)rod([x,130+(x-ex)*.12,ez-28],[x,130+(x-ex)*.12,ez+28],2);
+   const wheelX=ex+355,wheelY=170,wheelR=65;
+   const wheel=new THREE.Mesh(new THREE.TorusGeometry(wheelR,6,9,36),seam);wheel.position.set(wheelX,wheelY,ez);wheel.rotation.y=Math.PI/2;group.add(wheel);
+   for(let i=0;i<12;i++){const a=i*Math.PI/6;rod([wheelX,wheelY,ez],[wheelX,wheelY+wheelR*Math.cos(a),ez+wheelR*Math.sin(a)],2);const bucket=new THREE.Mesh(new THREE.BoxGeometry(14,17,21),metal);bucket.position.set(wheelX,wheelY+wheelR*Math.cos(a),ez+wheelR*Math.sin(a));bucket.rotation.x=a;group.add(bucket);}
+   // Physical blockers on excavator base and wheel hub; standable service deck.
+   colliders.push({x:wheelX,z:ez,w:20,d:wheelR*2,top:wheelY+wheelR,bottom:wheelY-wheelR});
+   platform(ex,ez,31,112,72);
   }
   // Bridge is walkable and leaves water below unobstructed.
   if((cx+cz)%2===0){
@@ -2881,7 +2889,7 @@ function hullDepth(b,x,z){
  }
  return Math.min(b.w/2+.4-Math.abs(x-b.x),b.d/2+.4-Math.abs(z-b.z));
 }
-function inIndustrialWater(x,z){if(x<500||x>1750||z< -250||z>750)return false;const lane=Math.floor(z/250)*250+205;const localX=((x%250)+250)%250;return Math.abs(z-lane)<22.5&&!(Math.abs(localX-126)<14&&((Math.floor(x/250)+Math.floor(z/250)+10)%3===0));}
+function inIndustrialWater(x,z){return false;} // Ground water disabled; tank water is elevated.
 function collides(x,z){return Math.abs(x)>1995||Math.abs(z)>1995||activeBlockers(x,z).length>0}
 function collisionSafeMove(x1,z1,x2,z2){
  const initial=new Set(activeBlockers(x1,z1));
@@ -3011,7 +3019,7 @@ const beeCling=new THREE.InstancedMesh(new THREE.SphereGeometry(.2,5,4),new THRE
 beeCling.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeCling.frustumCulled=false;beeCling.count=0;scene.add(beeCling);
 const canalWormGeo=new THREE.SphereGeometry(.24,7,6);
 const canalWormMat=new THREE.MeshStandardMaterial({color:0x74203e,emissive:0x33000e,roughness:.4});
-const canalWorms=[];for(let cx=2;cx<=6;cx++)for(let cz=-1;cz<=1;cz++)for(let j=0;j<3;j++)canalWorms.push({x:cx*250+45+j*65,z:cz*250+205,phase:cx*2+cz*4+j*1.7,lastHit:0,solitary:j===0,school:j!==0,homeX:cx*250+45+j*65,homeZ:cz*250+205});
+const canalWorms=[]; // Ground-water enemies removed pending elevated reservoir integration.
 const wormMesh=new THREE.InstancedMesh(canalWormGeo,canalWormMat,canalWorms.length*26);wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);wormMesh.frustumCulled=false;wormMesh.count=0;scene.add(wormMesh);
 let inWaterLast=false,waterSplashLast=-1e5,waterWormAfflictionUntil=0;
 let canalBobEntry=0,canalBobVelocity=0,canalLastWet=false;
