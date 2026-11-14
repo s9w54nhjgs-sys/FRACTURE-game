@@ -3810,7 +3810,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  const tubeHere=climbRamps.find(p=>p.pipeWalk&&pipeDistance(p,player.position.x,player.position.z)<14);
  if(tubeHere&&!testFlight&&jumpCount===0){const pdx=tubeHere.bx-tubeHere.ax,pdz=tubeHere.bz-tubeHere.az;const u=Math.max(0,Math.min(1,((player.position.x-tubeHere.ax)*pdx+(player.position.z-tubeHere.az)*pdz)/(pdx*pdx+pdz*pdz)));const lateral=Math.max(-13,Math.min(13,((player.position.z-tubeHere.az)*pdx-(player.position.x-tubeHere.ax)*pdz)/Math.hypot(pdx,pdz)));climbFloor=tubeHere.ah+(tubeHere.bh-tubeHere.ah)*u+15-Math.sqrt(Math.max(0,225-lateral*lateral));jumpHeight=0;jumpVelocity=0;}
  // Waterline intake -> guided downhill ride. Keeps the player on the cylinder rather than falling through its mouth.
- if(!testFlight&&waterslideProgress<0&&Math.hypot(player.position.x-898,player.position.z-1130)<22&&Math.abs(climbFloor+jumpHeight-489)<15){waterslideProgress=1;notify('WATERSLIDE // CURRENT ENGAGED');}
+ if(!testFlight&&waterslideProgress<0&&Math.hypot(player.position.x-(1125-Math.sqrt(282*282-155*155)-8),player.position.z-1130)<25&&Math.abs(climbFloor+jumpHeight-489)<15){waterslideProgress=1;notify('WATERSLIDE // CURRENT ENGAGED');}
  if(waterslideProgress>=0&&!testFlight){
   waterslideProgress=Math.max(0,waterslideProgress-dt*.085);
   const p=climbRamps.filter(p=>p.pipeWalk);const first=p[0],last=p[p.length-1];
