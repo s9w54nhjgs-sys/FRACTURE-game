@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V188 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V189 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2374,7 +2374,13 @@ function createStreamedTerrain(key){
     for(let h=45;h<lipY;h+=45)platform(x,z,h,18,18);
    }
    // Elevated pipe from ground to reservoir rim: 8 climbable/slideable ramp sections.
-   const p0=slideStart,p1=slideEnd; // 1500m approach reduces pitch to ~18 degrees.
+   const p0=slideStart,p1=slideEnd; // Open U-trough from tank to industrial area.
+   // Two-piece elbow joins the curved reservoir wall to the diagonal flume.
+   const elbowKnee=new THREE.Vector3(slideEnd.x+26,slideEnd.y,slideEnd.z);
+   const elbowMouth=new THREE.Vector3(slideEnd.x+58,slideEnd.y,slideEnd.z);
+   const elbowTubeMat=new THREE.MeshStandardMaterial({color:0x839ba4,metalness:.68,roughness:.46,side:THREE.DoubleSide});
+   const makeElbow=(a,b)=>{const d=new THREE.Vector3().subVectors(b,a),mesh=new THREE.Mesh(new THREE.CylinderGeometry(15.3,15.3,d.length()+1,32,1,true,-Math.PI/2,Math.PI),elbowTubeMat);mesh.position.copy(a).add(b).multiplyScalar(.5);mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());group.add(mesh);};
+   makeElbow(elbowMouth,elbowKnee);makeElbow(elbowKnee,new THREE.Vector3(slideEnd.x-12,slideEnd.y-12,slideEnd.z-12));
    // Exit intake at the water surface: half-round aperture, separate from the upper entry.
    const exitArch=new THREE.Mesh(new THREE.TorusGeometry(18,2.2,8,32,Math.PI),new THREE.MeshBasicMaterial({color:0x6af6df,side:THREE.DoubleSide}));exitArch.position.set(entryX,waterY,entryZ);exitArch.rotation.y=Math.PI/2;group.add(exitArch);
    // Flowing lower half of the tube: translucent water ribbon with animated texture-free ripples.
@@ -2388,11 +2394,11 @@ function createStreamedTerrain(key){
    for(let i=0;i<n;i++){
     const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,az=p0.z+(p1.z-p0.z)*a,bz=p0.z+(p1.z-p0.z)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
     const dx=bx-ax,dy=by-ay,dz=bz-az,L=Math.hypot(dx,dy,dz),midX=(ax+bx)/2,midY=(ay+by)/2,midZ=(az+bz)/2;
-    const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,24,1,true,Math.PI/2,Math.PI),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
+    const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,24,1,true,-Math.PI/2,Math.PI),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
     pipeShell.position.set(midX,midY,midZ);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,dz).normalize());group.add(pipeShell);
     // Cylindrical tube only: a narrow curved trough follows the pipe, no flat box floor.
-    const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,24,1,true,Math.PI*.60,Math.PI*.80),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
-    const flow=new THREE.Mesh(new THREE.CylinderGeometry(14.4,14.4,L,24,1,true,Math.PI/2,Math.PI),streamMaterial);flow.position.copy(pipeShell.position);flow.quaternion.copy(pipeShell.quaternion);group.add(flow);
+    const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,24,1,true,-Math.PI/2,Math.PI),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
+    const flow=new THREE.Mesh(new THREE.CylinderGeometry(14.4,14.4,L,24,1,true,-Math.PI/2,Math.PI),streamMaterial);flow.position.copy(pipeShell.position);flow.quaternion.copy(pipeShell.quaternion);group.add(flow);
     // V188: decorative-only trough; slide movement uses a separate state machine.
     // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
     // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
@@ -2950,7 +2956,7 @@ const reservoirWallBlocker={x:1125,z:1100,w:564,d:564,top:620,bottom:50};
 function reservoirWallHit(x,z,feet){
  const dx=x-elevatedReservoir.x,dz=z-elevatedReservoir.z,rad=Math.hypot(dx,dz),rr=Math.sqrt(Math.max(0,282*282-(feet-334)*(feet-334)));
  if(feet<53||feet>608||rr<10)return false;
- const inMouth=Math.abs(z-1130)<23&&x<elevatedReservoir.x&&Math.abs(feet-(elevatedReservoir.waterY+1.5))<23;
+ const inMouth=x<elevatedReservoir.x&&Math.abs(z-slideEnd.z)<35&&Math.abs(feet-slideEnd.y)<35;
  return !inMouth&&Math.abs(rad-rr)<2.8;
 }
 function activeBlockers(x,z){
@@ -3720,7 +3726,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
  // V188: dedicated slide animation; ordinary ground physics never owns the trough.
- if(waterslideProgress<0&&t>slideCooldown&&!testFlight&&Math.hypot(player.position.x-slideEnd.x,player.position.z-slideEnd.z)<24&&Math.abs(climbFloor+jumpHeight-489)<19){waterslideProgress=1;moveVX=moveVZ=0;notify('WATER CURRENT // ENGAGED');}
+ if(waterslideProgress<0&&t>slideCooldown&&!testFlight&&Math.hypot(player.position.x-slideEnd.x,player.position.z-slideEnd.z)<37&&Math.abs(climbFloor+jumpHeight-slideEnd.y)<34){waterslideProgress=1;moveVX=moveVZ=0;notify('WATER CURRENT // ENGAGED');}
  if(waterslideProgress>=0&&!testFlight){moveVX=moveVZ=0;landingSkidUntil=0;}
  const skidActive=t<landingSkidUntil&&jumpCount===0&&!climbRamps.some(p=>p.pipeWalk&&Math.abs(player.position.z-p.az)<p.width&&player.position.x>=Math.min(p.ax,p.bx)-3&&player.position.x<=Math.max(p.ax,p.bx)+3);const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
