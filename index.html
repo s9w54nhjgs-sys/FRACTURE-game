@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V176 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V177 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1499,7 +1499,7 @@ attackButton.addEventListener('pointerup',releaseAttack);attackButton.addEventLi
 let legacyCooldownUntil=0,legacySpeedUntil=0,legacyEchoUntil=0;
 const legacyButton=document.createElement('button');
 legacyButton.textContent='LEGACY ✦';
-Object.assign(legacyButton.style,{position:'fixed',right:'13px',bottom:'calc(env(safe-area-inset-bottom) + 220px)',zIndex:'12',padding:'9px 12px',borderRadius:'12px',border:'1px solid #9b8bff',background:'#271d49df',color:'#e6dfff',fontWeight:'800',fontSize:'12px',touchAction:'manipulation'});
+Object.assign(legacyButton.style,{position:'fixed',right:'calc(14% + 4px)',bottom:'calc(env(safe-area-inset-bottom) + 34px)',zIndex:'12',padding:'9px 12px',borderRadius:'12px',border:'1px solid #9b8bff',background:'#271d49df',color:'#e6dfff',fontWeight:'800',fontSize:'12px',touchAction:'manipulation',boxShadow:'0 0 15px #9164ff66'});
 document.body.appendChild(legacyButton);
 function legacySkill(){
  const now=performance.now();if(done||window.fractureMenuOpen)return;
@@ -1513,6 +1513,8 @@ function legacySkill(){
  else if(name==='磁界追跡'){let target=null,best=27;for(const e of enemies){const d=Math.hypot(e.position.x-x,e.position.z-z);if(d<best){best=d;target=e;}}if(target){target.userData.hp-=3;impact(target.position.x,target.position.y,target.position.z);if(target.userData.hp<=0){dissolveEnemy(target,0,0);enemies.splice(enemies.indexOf(target),1);kills++;$('kills').textContent=kills;}}shockRing(x,z,5,now);}
  else if(name==='残響射撃'){legacyEchoUntil=now+8000;shockRing(x,z,7,now);}
  else if(name==='虚空の爪'){aerialSlash(2,now);shockRing(x,z,6,now);}
+ const fxColor=name==='閃光歩法'?0x9fffff:name==='装甲共鳴'?0x65f8d2:name==='重力干渉'?0x9a66ff:name==='磁界追跡'?0xffb04c:name==='残響射撃'?0x4bbfff:0xff4d99;
+ for(let i=0;i<18;i++){const a=i*Math.PI*2/18,r=2+Math.random()*2.5;const p=new THREE.Mesh(sparkGeometry,new THREE.MeshBasicMaterial({color:fxColor,transparent:true,opacity:.9}));p.position.set(x+Math.cos(a)*r,player.position.y+Math.random()*2,z+Math.sin(a)*r);p.scale.setScalar(1.4);scene.add(p);sparks.push({m:p,born:now,vx:Math.cos(a)*3,vy:3+Math.random()*4,vz:Math.sin(a)*3});}
  notify('LEGACY // '+name);
 }
 legacyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();legacySkill()});
@@ -2322,6 +2324,27 @@ function createStreamedTerrain(key){
    structure(ox+125,3,laneZ+bank*27,250,6,7,industrialDarkMat);
    for(const x of [ox+18,ox+125,ox+232])structure(x,7,laneZ+bank*28,4,8,4,industrialRustMat);
   }
+  // Capital-ship scale spherical propellant depot; open truss crane and traversable pipe.
+  if(cx===4&&cz===0){
+   const metal=new THREE.MeshStandardMaterial({color:0x9aabb4,metalness:.82,roughness:.34});
+   const seam=new THREE.MeshStandardMaterial({color:0x536b79,metalness:.86,roughness:.5});
+   const tank=new THREE.Mesh(new THREE.SphereGeometry(47,20,12),metal);tank.position.set(ox+145,102,oz+90);group.add(tank);
+   for(const latitude of [-.62,-.3,0,.3,.62]){const rr=47*Math.cos(latitude),ring=new THREE.Mesh(new THREE.TorusGeometry(rr,.8,7,40),seam);ring.rotation.x=Math.PI/2;ring.position.set(ox+145,102+47*Math.sin(latitude),oz+90);group.add(ring);}
+   for(const dx of [-32,32])for(const dz of [-32,32])structure(ox+145+dx,27,oz+90+dz,5,56,5,seam,true);
+   platform(ox+145,oz+90,57,105,105);
+   // Walkable elevated pipe: open industrial pipe with collision-matched descending floor.
+   const a={x:ox+10,y:8,z:oz+90},b={x:ox+145,y:59,z:oz+90};
+   const dx=b.x-a.x,dy=b.y-a.y,L=Math.hypot(dx,dy);
+   const tube=new THREE.Mesh(new THREE.CylinderGeometry(11,11,L,16,1,true),new THREE.MeshStandardMaterial({color:0x6f8b94,metalness:.75,roughness:.45,side:THREE.BackSide}));
+   tube.position.set((a.x+b.x)/2,(a.y+b.y)/2,a.z);tube.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,0).normalize());group.add(tube);
+   const ramp=new THREE.Mesh(new THREE.BoxGeometry(L,1,12),metal);ramp.position.copy(tube.position);ramp.rotation.z=Math.atan2(dy,dx);group.add(ramp);
+   ramps.push({ax:a.x,az:a.z,bx:b.x,bz:b.z,ah:a.y,bh:b.y,w:9,slide:true});
+   // Truss gantry, with diagonal members instead of block-only crane silhouettes.
+   const rod=(p,q,r=.9)=>{const u=new THREE.Vector3(...p),v=new THREE.Vector3(...q),d=v.clone().sub(u),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),6),seam);m.position.copy(u.add(v).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());group.add(m);};
+   for(const z of [oz+170,oz+193]){rod([ox+30,5,z],[ox+30,125,z],2);rod([ox+205,5,z],[ox+205,125,z],2);rod([ox+30,125,z],[ox+205,125,z],2);
+    for(let x=ox+30;x<ox+205;x+=18){rod([x,125,z],[x+18,125,z],.8);rod([x,119,z],[x+18,125,z],.7);rod([x,125,z],[x+18,119,z],.7);}}
+   rod([ox+140,119,oz+181],[ox+140,67,oz+181],.45);
+  }
   // Bridge is walkable and leaves water below unobstructed.
   if((cx+cz)%2===0){
    platform(ox+125,laneZ,12,10,65);
@@ -2548,6 +2571,9 @@ function resolveFallDamage(ground,t){
  fallPeak=ground;fallGlideUsed=false;
 }
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;
+let testFlight=false,testFlightHeight=0;
+const flightTestButton=document.createElement('button');flightTestButton.textContent='DEV FLIGHT OFF';Object.assign(flightTestButton.style,{position:'fixed',left:'10px',top:'calc(env(safe-area-inset-top) + 170px)',zIndex:'12',background:'#162b43e8',color:'#a8e8ff',border:'1px solid #72bcd9',borderRadius:'9px',padding:'7px 9px',font:'700 11px monospace',touchAction:'manipulation'});document.body.appendChild(flightTestButton);
+flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=climbFloor+jumpHeight+15;notify('FLIGHT TEST // joystick move, JUMP ascend, DASH descend');}else{climbFloor=Math.max(0,testFlightHeight);jumpHeight=0;jumpVelocity=0;jumpCount=1;}});
 let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;function releaseJump(){jumpHeld=false;gliding=false;}window.addEventListener("blur",releaseJump);
 // V123: route from the REAL registered roof footprints. Geometry and
 // collision use the same coordinates; no more guessed intermediate rooftops.
@@ -3587,10 +3613,12 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  // V83: forward glide gains speed smoothly; air steering remains available.
  const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
- const glideSpeed=(glideFlight?32.2:6.2)*(t<legacySpeedUntil?1.4:1)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
+ const glideSpeed=(testFlight?25:glideFlight?32.2:6.2)*(t<legacySpeedUntil?1.4:1)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
+ const slope=climbRamps.find(p=>p.slide&&Math.hypot(player.position.x-(p.ax+p.bx)/2,player.position.z-(p.az+p.bz)/2)<p.width+5);
+ if(slope&&!testFlight&&jumpCount===0){const dx=slope.bx-slope.ax,dz=slope.bz-slope.az,l=Math.hypot(dx,dz)||1,drop=slope.ah-slope.bh;const accel=Math.max(0,drop/l)*23;moveVX+=dx/l*accel*dt;moveVZ+=dz/l*accel*dt;landingSkidUntil=Math.max(landingSkidUntil,t+350);}
  const skidActive=t<landingSkidUntil&&jumpCount===0;const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
  moveVX+=(desiredVX-moveVX)*blend;moveVZ+=(desiredVZ-moveVZ)*blend;
@@ -3707,6 +3735,8 @@ if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5&&
  }
  climbPrevFeet=climbFloor+jumpHeight;
  const floatingNow=inIndustrialWater(player.position.x,player.position.z)&&climbFloor<2&&jumpCount===0;
+ if(!floatingNow&&jumpHeight<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
+ if(testFlight){testFlightHeight+=((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
  player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*(floatingNow?.19:.08);
  if(floatingNow){player.rotation.z=Math.sin(t*.0019)*.14;player.rotation.x=Math.sin(t*.0026+1.2)*.12;}else{player.rotation.z*=.87;player.rotation.x*=.87;}
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
