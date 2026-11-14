@@ -2189,7 +2189,7 @@ const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness
 const industrialCylinderGeo=new THREE.CylinderGeometry(1,1,1,10);
 const canalWaterSurfaces=[],canalRipples=[];
 const elevatedReservoir={x:1125,z:100,cy:334,radius:282,waterY:489};
-function reservoirWet(x,z,feet){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226&&feet>elevatedReservoir.cy-180&&feet<elevatedReservoir.waterY+2;}
+function reservoirWet(x,z,feet){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226&&feet>elevatedReservoir.waterY-4&&feet<elevatedReservoir.waterY+2;}
 function reservoirSupport(x,z){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226?elevatedReservoir.waterY-1.15:null;}
 const canalDeepMat=new THREE.MeshStandardMaterial({color:0x03131e,roughness:.9,side:THREE.DoubleSide});
 const canalWallMat=new THREE.MeshStandardMaterial({color:0x283b43,metalness:.35,roughness:.8});
@@ -2327,7 +2327,7 @@ function createStreamedTerrain(key){
     const band=new THREE.Mesh(new THREE.TorusGeometry(rr,2.2,7,56),seam);band.rotation.x=Math.PI/2;band.position.set(tx,yy,tz);group.add(band);
    }
    // Collision approximates the spherical shell with stacked radial segments, not one giant blocking box.
-   for(const h of [110,235,370]){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<20;k++){const ang=(k+.5)*Math.PI/10;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;colliders.push({x,z,w:Math.abs(Math.sin(ang))*radius*.3+9,d:Math.abs(Math.cos(ang))*radius*.3+9,top:h+36,bottom:h-36});}}
+   for(const h of [110,235,370]){const radius=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<20;k++){const ang=(k+.5)*Math.PI/10;const x=tx+Math.cos(ang)*radius,z=tz+Math.sin(ang)*radius;colliders.push({x,z,w:15,d:15,top:h+36,bottom:h-36});}}
    // A single water surface, INSIDE the tank, not on the ground.
    const waterY=cy+155,waterR=Math.sqrt(R*R-155*155)-8;
    const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,48),new THREE.MeshPhysicalMaterial({color:0x3b99a8,transparent:true,opacity:.42,roughness:.18,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
