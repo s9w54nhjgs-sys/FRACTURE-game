@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V181 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V182 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2191,6 +2191,8 @@ const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness
 const industrialCylinderGeo=new THREE.CylinderGeometry(1,1,1,10);
 const canalWaterSurfaces=[],canalRipples=[];
 const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
+// Distant giant silhouettes must remain visible inside the secret biome.
+const reservoirFogDensity=.0013,normalFogDensity=.009;
 function reservoirWet(x,z,feet){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226&&feet>elevatedReservoir.waterY-4&&feet<elevatedReservoir.waterY+2;}
 function reservoirSupport(x,z){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226?elevatedReservoir.waterY-1.15:null;}
 const canalDeepMat=new THREE.MeshStandardMaterial({color:0x03131e,roughness:.9,side:THREE.DoubleSide});
@@ -2273,7 +2275,7 @@ function createStreamedTerrain(key){
 
  // V169: B+C abandoned industrial / aerial industrial waterways, dock infrastructure.
  // All structural collision surfaces are registered with the same streamed chunk.
- const industrialSector=cx>=2&&cx<=6&&cz>=-1&&cz<=1;
+ const industrialSector=(cx>=2&&cx<=6&&cz>=-1&&cz<=1)||(cx===4&&cz===4); // Secret tank must pass the industrial generator gate.
  if(industrialSector){
   const ox=cx*250,oz=cz*250;
   const waterMat=new THREE.MeshPhysicalMaterial({color:0x5aabb7,metalness:0,roughness:.08,transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,clearcoat:.9,clearcoatRoughness:.07});
@@ -2761,7 +2763,7 @@ devWarpButton.textContent='TEST ⇧ BRIDGE';
 Object.assign(devWarpButton.style,{position:'fixed',right:'12px',top:'112px',zIndex:'9999',padding:'10px 12px',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});
 document.body.appendChild(devWarpButton);
 const reservoirWarp=document.createElement('button');reservoirWarp.textContent='TEST ⇧ SECRET TANK';Object.assign(reservoirWarp.style,{position:'fixed',right:'12px',top:'157px',zIndex:'9999',padding:'9px 10px',background:'#233d48e8',color:'#9cf5f1',border:'1px solid #66d9ce',borderRadius:'9px',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});document.body.appendChild(reservoirWarp);
-reservoirWarp.addEventListener('click',()=>{if(done)return;player.position.set(642,3,1130);climbFloor=2;jumpHeight=0;jumpVelocity=0;jumpCount=0;moveVX=0;moveVZ=0;notify('SECRET RESERVOIR // PIPE ENTRANCE');});
+reservoirWarp.addEventListener('click',()=>{if(done)return;player.position.set(690,3,1130);climbFloor=2;jumpHeight=0;jumpVelocity=0;jumpCount=0;moveVX=0;moveVZ=0;notify('SECRET RESERVOIR // PIPE ENTRANCE');});
 devWarpButton.addEventListener('click',()=>{
  if(done)return;
  const target={x:0,z:-65,h:80};
@@ -3796,6 +3798,7 @@ if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5&&
  }
  climbPrevFeet=climbFloor+jumpHeight;
  const floatingNow=inIndustrialWater(player.position.x,player.position.z)&&jumpCount===0;
+ if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
  if(!floatingNow&&jumpHeight<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
  if(testFlight){testFlightHeight+=((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
