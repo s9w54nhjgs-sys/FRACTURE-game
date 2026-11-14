@@ -15,10 +15,11 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V183 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V184 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
+const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
 let scopeActive=false,scopeFocusX=0,scopeFocusZ=0;
@@ -2190,7 +2191,7 @@ const industrialRustMat=new THREE.MeshStandardMaterial({color:0x74564a,metalness
 const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness:.48,roughness:.88});
 const industrialCylinderGeo=new THREE.CylinderGeometry(1,1,1,10);
 const canalWaterSurfaces=[],canalRipples=[];
-const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
+
 // Distant giant silhouettes must remain visible inside the secret biome.
 const reservoirFogDensity=.0013,normalFogDensity=.009;
 function reservoirWet(x,z,feet){const d=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z);return d<226&&feet>elevatedReservoir.waterY-4&&feet<elevatedReservoir.waterY+2;}
