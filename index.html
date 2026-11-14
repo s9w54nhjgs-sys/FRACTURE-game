@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V178 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V179 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2298,10 +2298,27 @@ function createStreamedTerrain(key){
    const seam=new THREE.MeshStandardMaterial({color:0x536b79,metalness:.75,roughness:.48});
    const R=282,tx=ox+125,tz=oz+100,cy=334;
    // Cut away the upper spherical cap to reveal the interior water surface.
-   const shell=new THREE.Mesh(new THREE.SphereGeometry(R,40,22,0,Math.PI*2,.54,Math.PI-.54),metal);
+   // Jagged, torn-open crown: varying polar angle per azimuth creates a genuine broken silhouette.
+   const verts=[],indices=[],segments=56,rings=25;
+   for(let j=0;j<=rings;j++)for(let i=0;i<=segments;i++){
+    const a=i/segments*Math.PI*2;
+    const jag=.50+.105*Math.sin(a*7+1.2)+.065*Math.sin(a*13-1.1)+.032*Math.sin(a*23);
+    const phi=jag+(Math.PI-jag)*j/rings;
+    verts.push(R*Math.sin(phi)*Math.cos(a),R*Math.cos(phi),R*Math.sin(phi)*Math.sin(a));
+   }
+   for(let j=0;j<rings;j++)for(let i=0;i<segments;i++){const k=j*(segments+1)+i;indices.push(k,k+segments+1,k+1,k+1,k+segments+1,k+segments+2);}
+   const tornGeo=new THREE.BufferGeometry();tornGeo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));tornGeo.setIndex(indices);tornGeo.computeVertexNormals();
+   const shell=new THREE.Mesh(tornGeo,metal);
    shell.position.set(tx,cy,tz);group.add(shell);
    const lipY=cy+R*Math.cos(.54),lipR=R*Math.sin(.54);
-   const lip=new THREE.Mesh(new THREE.TorusGeometry(lipR,4,9,64),seam);lip.rotation.x=Math.PI/2;lip.position.set(tx,lipY,tz);group.add(lip);
+   // Torn edge has uneven height: do not place a smooth circular lip over the damage.
+   for(let i=0;i<56;i++){const a=i*Math.PI*2/56,b=(i+1)*Math.PI*2/56;
+    const jag=q=>.50+.105*Math.sin(q*7+1.2)+.065*Math.sin(q*13-1.1)+.032*Math.sin(q*23);
+    const pa=jag(a),pb=jag(b);
+    const va=new THREE.Vector3(tx+R*Math.sin(pa)*Math.cos(a),cy+R*Math.cos(pa),tz+R*Math.sin(pa)*Math.sin(a));
+    const vb=new THREE.Vector3(tx+R*Math.sin(pb)*Math.cos(b),cy+R*Math.cos(pb),tz+R*Math.sin(pb)*Math.sin(b));
+    const delta=vb.clone().sub(va),edge=new THREE.Mesh(new THREE.CylinderGeometry(3,3,delta.length(),6),seam);edge.position.copy(va.add(vb).multiplyScalar(.5));edge.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());group.add(edge);
+   }
    for(const phi of [.72,1.05,1.4,1.85,2.25]){
     const rr=R*Math.sin(phi),yy=cy+R*Math.cos(phi);
     const band=new THREE.Mesh(new THREE.TorusGeometry(rr,2.2,7,56),seam);band.rotation.x=Math.PI/2;band.position.set(tx,yy,tz);group.add(band);
@@ -2316,7 +2333,9 @@ function createStreamedTerrain(key){
    // Tangible access scaffold and ring walkway.
    for(let a=0;a<Math.PI*2;a+=Math.PI/6){
     const x=tx+Math.cos(a)*lipR,z=tz+Math.sin(a)*lipR;
-    structure(x,lipY/2,z,8,lipY,8,seam,true);
+    structure(x,lipY/2,z,10,lipY,10,seam,true);
+    // Service ledges on supports give real climbable collision surfaces.
+    for(let h=45;h<lipY;h+=45)platform(x,z,h,18,18);
    }
    // Elevated pipe from ground to reservoir rim: 8 climbable/slideable ramp sections.
    const p0={x:ox-360,z:tz+30,y:2},p1={x:tx-lipR-8,z:tz+30,y:lipY-6};
@@ -2327,12 +2346,16 @@ function createStreamedTerrain(key){
     const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,12,1,true),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
     pipeShell.position.set(midX,midY,p0.z);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,0).normalize());group.add(pipeShell);
     const floor=new THREE.Mesh(new THREE.BoxGeometry(L,1.5,17),metal);floor.position.copy(pipeShell.position);floor.rotation.z=Math.atan2(dy,dx);group.add(floor);
-    ramps.push({ax,az:p0.z,bx,bz:p0.z,ah:ay,bh:by,w:9,slide:true});
+    const route={ax,az:p0.z,bx,bz:p0.z,ah:ay,bh:by,width:12,slide:true,streamKey:key};ramps.push(route);climbRamps.push(route);
+    // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
+    // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
    }
    // Broken ground-connected pipeline, deliberately open at its low end.
    const broken=new THREE.Mesh(new THREE.CylinderGeometry(19,19,150,12,1,true),seam);
    broken.rotation.z=Math.PI/2;broken.position.set(p0.x-65,9,p0.z);group.add(broken);
    for(let j=0;j<6;j++)structure(p0.x-140+j*22,1,p0.z-14,10,2,3,seam,true);
+   // Broken pipe approach remains traversable from the ground.
+   platform(p0.x-70,p0.z,2,150,16);
    // Bucket-wheel excavator: vast cantilever lattice, tracked base and toothed wheel.
    const rod=(a,b,r=1.5)=>{const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),d=w.clone().sub(v),m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),6),seam);m.position.copy(v.add(w).multiplyScalar(.5));m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());group.add(m);return m;};
    const ex=tx+280,ez=tz-265;
@@ -2483,7 +2506,9 @@ function createStreamedTerrain(key){
  }
  scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders});
 }
+createStreamedTerrain('4,0'); // Load the monumental landmark immediately and keep it resident.
 function evictStreamedTerrain(key){
+ if(key==='4,0')return; // Mega landmark and its walkable collision never unload.
  const entry=streamedTerrain.get(key);if(!entry)return;
  // Never remove the player's supporting platforms mid-air.
  const feet=climbFloor+jumpHeight;
@@ -2534,7 +2559,7 @@ function planChunks(t){
  chunkPending.sort((a,b)=>(chunkCache.get(a)?.score??99)-(chunkCache.get(b)?.score??99));
  // Keep recently visited chunks warm for turns and rapid direction changes.
  for(const [key,entry] of chunkCache){
-  if(t-entry.lastSeen>12000){
+  if(t-entry.lastSeen>12000&&key!=='4,0'){
    evictStreamedTerrain(key);
    if(streamedTerrain.has(key))continue;
    entry.loaded=false;chunkCache.delete(key);
