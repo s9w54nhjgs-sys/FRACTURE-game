@@ -2303,6 +2303,13 @@ function createStreamedTerrain(key){
   if(cx===4&&cz===4){
    const metal=new THREE.MeshStandardMaterial({color:0xa0b3bb,metalness:.65,roughness:.44,side:THREE.DoubleSide});
    const seam=new THREE.MeshStandardMaterial({color:0x536b79,metalness:.75,roughness:.48});
+   // One physical shell, one shader: darken inward-facing fragments by depth without z-fighting.
+   metal.onBeforeCompile=shader=>{
+    shader.vertexShader=shader.vertexShader.replace('#include <common>','#include <common>\nvarying float vTankHeight;');
+    shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvTankHeight=position.y;');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <common>','#include <common>\nvarying float vTankHeight;');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nif(!gl_FrontFacing){float depth=clamp((155.0-vTankHeight)/420.0,0.0,1.0);diffuseColor.rgb=mix(diffuseColor.rgb,vec3(0.005,0.018,0.034),depth*0.94); }');
+   };
    const R=282,tx=ox+125,tz=oz+100,cy=334;
    // Cut away the upper spherical cap to reveal the interior water surface.
    // Jagged, torn-open crown: varying polar angle per azimuth creates a genuine broken silhouette.
