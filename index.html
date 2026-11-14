@@ -2376,6 +2376,9 @@ function createStreamedTerrain(key){
    const exitArch=new THREE.Mesh(new THREE.TorusGeometry(18,2.2,8,32,Math.PI),new THREE.MeshBasicMaterial({color:0x6af6df,side:THREE.DoubleSide}));exitArch.position.set(entryX,waterY,entryZ);exitArch.rotation.y=Math.PI/2;group.add(exitArch);
    // Flowing lower half of the tube: translucent water ribbon with animated texture-free ripples.
    const streamMaterial=new THREE.MeshBasicMaterial({color:0x4bbed3,transparent:true,opacity:.45,depthWrite:false,side:THREE.DoubleSide});
+   // Industrial outlet retention pool: shallow catch basin and splash landing.
+   const basin=new THREE.Mesh(new THREE.CylinderGeometry(43,43,3,32),new THREE.MeshStandardMaterial({color:0x283e49,metalness:.4,roughness:.7}));basin.position.set(p0.x,0,p0.z);group.add(basin);
+   const basinWater=new THREE.Mesh(new THREE.CircleGeometry(40,40),new THREE.MeshBasicMaterial({color:0x64aebd,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide}));basinWater.rotation.x=-Math.PI/2;basinWater.position.set(p0.x,2.4,p0.z);group.add(basinWater);
    const n=24;
    for(let i=0;i<n;i++){
     const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,az=p0.z+(p1.z-p0.z)*a,bz=p0.z+(p1.z-p0.z)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
@@ -3706,6 +3709,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
  // Cylinder-constrained movement: track the centerline and its bowl-shaped cross-section.
+ let waterslideProgress=-1,waterslideExitUntil=0;
  const pipeDistance=(p,x,z)=>{const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/l2));return Math.hypot(x-p.ax-dx*u,z-p.az-dz*u);};
  const activePipe=climbRamps.find(p=>p.pipeWalk&&pipeDistance(p,player.position.x,player.position.z)<p.pipeRadius+1&&Math.abs(climbFloor+jumpHeight-(p.ah+(p.bh-p.ah)*Math.max(0,Math.min(1,(player.position.x-p.ax)/(p.bx-p.ax)))))<24);
  if(activePipe&&!testFlight){
@@ -3805,6 +3809,19 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  // Hard floor projection onto the tube, including segment transitions.
  const tubeHere=climbRamps.find(p=>p.pipeWalk&&pipeDistance(p,player.position.x,player.position.z)<14);
  if(tubeHere&&!testFlight&&jumpCount===0){const pdx=tubeHere.bx-tubeHere.ax,pdz=tubeHere.bz-tubeHere.az;const u=Math.max(0,Math.min(1,((player.position.x-tubeHere.ax)*pdx+(player.position.z-tubeHere.az)*pdz)/(pdx*pdx+pdz*pdz)));const lateral=Math.max(-13,Math.min(13,((player.position.z-tubeHere.az)*pdx-(player.position.x-tubeHere.ax)*pdz)/Math.hypot(pdx,pdz)));climbFloor=tubeHere.ah+(tubeHere.bh-tubeHere.ah)*u+15-Math.sqrt(Math.max(0,225-lateral*lateral));jumpHeight=0;jumpVelocity=0;}
+ // Waterline intake -> guided downhill ride. Keeps the player on the cylinder rather than falling through its mouth.
+ if(!testFlight&&waterslideProgress<0&&Math.hypot(player.position.x-898,player.position.z-1130)<22&&Math.abs(climbFloor+jumpHeight-489)<15){waterslideProgress=1;notify('WATERSLIDE // CURRENT ENGAGED');}
+ if(waterslideProgress>=0&&!testFlight){
+  waterslideProgress=Math.max(0,waterslideProgress-dt*.085);
+  const p=climbRamps.filter(p=>p.pipeWalk);const first=p[0],last=p[p.length-1];
+  if(first&&last){const a=first,b=last,u=waterslideProgress;
+   player.position.x=a.ax+(b.bx-a.ax)*u;player.position.z=a.az+(b.bz-a.az)*u;
+   climbFloor=a.ah+(b.bh-a.ah)*u;jumpHeight=0;jumpCount=0;jumpVelocity=0;
+   moveVX=(a.ax-b.bx)*.085;moveVZ=(a.az-b.bz)*.085;
+   fallPeak=climbFloor;landingSkidUntil=0;
+  }
+  if(waterslideProgress===0){waterslideProgress=-1;waterslideExitUntil=t+1600;climbFloor=4;jumpHeight=0;jumpCount=0;jumpVelocity=0;moveVX=0;moveVZ=0;notify('OUTLET // INDUSTRIAL RETENTION POOL');}
+ }
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
@@ -3843,7 +3860,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }
  climbPrevFeet=climbFloor+jumpHeight;
- const floatingNow=inIndustrialWater(player.position.x,player.position.z)&&jumpCount===0;
+ const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
  if(!floatingNow&&jumpHeight<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
