@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V173 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V174 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2150,6 +2150,7 @@ distantSkyline.instanceMatrix.needsUpdate=true;distantSkyline.computeBoundingSph
 // A single uninterrupted distant ground plane avoids newly appearing tile edges.
 // V148: non-overlapping outer floor strips. The original 740m deck owns the center.
 // Avoid coplanar surfaces and depth-buffer flicker on mobile GPUs.
+const canalAbyssEndMaterial=new THREE.MeshBasicMaterial({color:0x061923,side:THREE.DoubleSide});
 const outerFloor=new THREE.Group();
 const centerWidth=740,outerSpan=4000,sideWidth=(outerSpan-centerWidth)/2;
 function addOuterFloor(w,d,x,z){
@@ -2162,6 +2163,14 @@ addOuterFloor(sideWidth,outerSpan,(centerWidth+sideWidth)/2,0);
 addOuterFloor(centerWidth,sideWidth,0,-(centerWidth+sideWidth)/2);
 addOuterFloor(centerWidth,sideWidth,0,(centerWidth+sideWidth)/2);
 scene.add(outerFloor);
+// V174: permanent opaque deep-water basin prevents the sky showing through streamed gaps.
+const abyssGeo=new THREE.BoxGeometry(1250,2,46),abyssMat=new THREE.MeshBasicMaterial({color:0x020c16,side:THREE.DoubleSide});
+for(let cz=-1;cz<=1;cz++){
+ const lane=cz*250+205;
+ const bottom=new THREE.Mesh(abyssGeo,abyssMat);bottom.position.set(1125,-42,lane);scene.add(bottom);
+ const capGeo=new THREE.BoxGeometry(3,43,46);
+ for(const x of [500,1750]){const cap=new THREE.Mesh(capGeo,canalAbyssEndMaterial);cap.position.set(x,-20,lane);scene.add(cap);}
+}
 // V151 industrial vertical slice: structural scenery and matching climb collision.
 // The original city's bridge, roof, movement and rebirth logic are untouched.
 const industrialPipeMat=new THREE.MeshStandardMaterial({color:0x62717a,metalness:.8,roughness:.48});
@@ -2955,11 +2964,12 @@ const beeBillboard=new THREE.InstancedMesh(new THREE.PlaneGeometry(.22,.38),beeB
 beeBillboard.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeBillboard.frustumCulled=false;beeBillboard.count=0;scene.add(beeBillboard);
 const beeCling=new THREE.InstancedMesh(new THREE.SphereGeometry(.2,5,4),new THREE.MeshBasicMaterial({color:0xb41b60,transparent:true,opacity:.92}),12);
 beeCling.instanceMatrix.setUsage(THREE.DynamicDrawUsage);beeCling.frustumCulled=false;beeCling.count=0;scene.add(beeCling);
-const canalWormGeo=new THREE.CylinderGeometry(.095,.15,1,5,5);
+const canalWormGeo=new THREE.SphereGeometry(.18,6,5);
 const canalWormMat=new THREE.MeshStandardMaterial({color:0x74203e,emissive:0x33000e,roughness:.4});
-const canalWorms=[];for(let cx=2;cx<=6;cx++)for(let cz=-1;cz<=1;cz++)for(let j=0;j<3;j++)canalWorms.push({x:cx*250+45+j*65,z:cz*250+205,phase:cx*2+cz*4+j*1.7,lastHit:0});
-const wormMesh=new THREE.InstancedMesh(canalWormGeo,canalWormMat,canalWorms.length*8);wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);wormMesh.frustumCulled=false;wormMesh.count=0;scene.add(wormMesh);
+const canalWorms=[];for(let cx=2;cx<=6;cx++)for(let cz=-1;cz<=1;cz++)for(let j=0;j<3;j++)canalWorms.push({x:cx*250+45+j*65,z:cz*250+205,phase:cx*2+cz*4+j*1.7,lastHit:0,solitary:j===0,school:j!==0,homeX:cx*250+45+j*65,homeZ:cz*250+205});
+const wormMesh=new THREE.InstancedMesh(canalWormGeo,canalWormMat,canalWorms.length*18);wormMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);wormMesh.frustumCulled=false;wormMesh.count=0;scene.add(wormMesh);
 let inWaterLast=false,waterSplashLast=-1e5,waterWormAfflictionUntil=0;
+let canalBobEntry=0,canalBobVelocity=0,canalLastWet=false;
 const canalWormNotice=document.createElement('div');canalWormNotice.style.cssText='position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 144px);z-index:810;pointer-events:none;background:#2d0a1ce6;color:#ff8cb6;border:1px solid #b84265;border-radius:9px;padding:6px 9px;font:700 11px monospace;display:none';document.body.appendChild(canalWormNotice);
 const beeStatus=document.createElement('div');beeStatus.style.cssText='position:fixed;left:12px;bottom:calc(env(safe-area-inset-bottom) + 104px);z-index:810;pointer-events:none;background:#25081edb;color:#ff9bc9;border:1px solid #b74285;border-radius:9px;padding:7px 10px;font:700 11px monospace;display:none';beeStatus.textContent='BEEHIVE';document.body.appendChild(beeStatus);
 let beeAffliction=null;
@@ -2993,14 +3003,15 @@ function updateBeehives(t){
  for(const m of canalWaterSurfaces)if(m.parent)m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.12;
  for(const r of canalRipples)if(r.parent){r.position.x+=.016;if(r.position.x>Math.floor(r.position.x/250)*250+249)r.position.x-=240;r.material.opacity=.24+.14*Math.sin(t*.002+r.position.z);}
  let wormCount=0;
- for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<310||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<310);if(!near)continue;
+ for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<520||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<520);if(!near)continue;
   const phase=t*.0018+w.phase,wx=w.x+Math.sin(phase*.53)*32,wz=w.z+Math.sin(phase)*14;
-  const hunting=wet&&Math.hypot(player.position.x-wx,player.position.z-wz)<90;
+  const hunting=wet&&Math.abs(player.position.z-w.homeZ)<150&&Math.abs(player.position.x-w.homeX)<500;
   if(hunting){const step=Math.min(1,(t-(w.lastMove||t))/1000*27/Math.max(1,Math.hypot(dx,dz)));w.x+=(player.position.x-w.x)*step;w.z+=(player.position.z-w.z)*step;}
   w.lastMove=t;
-  for(let j=0;j<8;j++){const k=j/7,yy=(hunting&&Math.hypot(player.position.x-wx,player.position.z-wz)<9?.5+Math.sin(phase*8-k*13)*1.1:-1.2-(.5+.5*Math.sin(phase*.65+w.phase))*11);
-   beeDummy.position.set(wx-Math.cos(phase)*k*4+Math.sin(phase*4-k*9)*.5,yy+Math.sin(phase*3-k*6)*.6,wz-Math.sin(phase)*k*4+Math.cos(phase*3-k*8)*.7);
-   beeDummy.rotation.set(Math.PI/2+Math.sin(phase*3-k*6)*.28,0,phase);beeDummy.scale.set(.85,.9,1);beeDummy.updateMatrix();wormMesh.setMatrixAt(wormCount++,beeDummy.matrix);
+  for(let j=0;j<18;j++){const k=j/17,yy=(hunting&&Math.hypot(player.position.x-wx,player.position.z-wz)<9?.5+Math.sin(phase*8-k*13)*1.1:-1.2-(.5+.5*Math.sin(phase*.65+w.phase))*11);
+   const schoolOffset=w.school?Math.sin(phase*.38+w.phase)*2.5:0;
+   beeDummy.position.set(wx-Math.cos(phase)*k*8+Math.sin(phase*4-k*12)*.7+schoolOffset,yy+Math.sin(phase*3-k*9)*.85,wz-Math.sin(phase)*k*8+Math.cos(phase*3-k*11)*.9);
+   beeDummy.rotation.set(0,0,0);beeDummy.scale.setScalar((.8+.45*Math.sin(k*Math.PI))*(1+.17*Math.sin(phase*4-k*12)));beeDummy.updateMatrix();wormMesh.setMatrixAt(wormCount++,beeDummy.matrix);
   }
   if(wet&&Math.hypot(player.position.x-wx,player.position.z-wz)<7&&t-w.lastHit>=800){w.lastHit=t;waterWormAfflictionUntil=Math.max(waterWormAfflictionUntil,t+120000);applyBeeDamage(20,t);notify('CANAL FILARIA // 20 DAMAGE');}
  }
@@ -3536,7 +3547,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  // V83: forward glide gains speed smoothly; air steering remains available.
  const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
- const glideSpeed=(glideFlight?32.2:6.2)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .65:1);
+ const glideSpeed=(glideFlight?32.2:6.2)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
@@ -3594,8 +3605,11 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
   const speed=Math.hypot(moveVX,moveVZ);
   if(jumpHeight<=.42){
    if(wasAirborne&&t-waterSplashLast>250){waterSplash(player.position.x,player.position.z,speed);waterSplashLast=t;
+    canalBobEntry=t;canalBobVelocity=Math.min(2.25,Math.max(.3,Math.abs(jumpVelocity)*.065+speed*.012));
     if(glideFlightActive||glideWasActive){landingSkidStart=t;landingSkidUntil=t+1260;}}
-   jumpHeight=.42+Math.sin(t*.0026)*.09;climbFloor=0;jumpVelocity=0;jumpCount=0;gliding=false;glideFlightActive=false;
+   const plunge=canalBobVelocity*Math.exp(-Math.max(0,t-canalBobEntry)/750)*Math.abs(Math.sin(Math.max(0,t-canalBobEntry)*.009));
+   jumpHeight=-.45+Math.sin(t*.0021)*.24+Math.sin(t*.0031+1.2)*.13-plunge;
+   climbFloor=0;jumpVelocity=0;jumpCount=0;gliding=false;glideFlightActive=false;
   }
  }
  if(jumpHeight===0&&climbFloor===0){resolveFallDamage(0,t);if(landingStrike){shockRing(player.position.x,player.position.z,landingStrikePower>1?6.5:4.3,t);const radius=landingStrikePower>1?6.5:4.3;impact(player.position.x,.2,player.position.z);for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz);if(d<radius){e.userData.dormant=false;cellDamage+=landingStrikePower>1?3:1;e.userData.hp-=landingStrikePower>1?3:1;e.userData.stagger=t+650;e.userData.knockX=dx/(d||1)*15;e.userData.knockZ=dz/(d||1)*15;enemyDebris(e.position.x,e.position.y,e.position.z,landingStrikePower>1,dx,dz);if(e.userData.hp<=0){dissolveEnemy(e,dx,dz);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z;if(Math.hypot(dx,dz)<radius){u.hp-=landingStrikePower>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,true,dx,dz,0,false,u.type==='pursuer');if(u.hp<=0){dissolveEnemy(u.g,dx,dz,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}landingStrike=false;hitStopUntil=Math.max(hitStopUntil,t+245)}for(const shard of landingDebris){shard.born=t+100;shard.delayed=true}landingDebris.length=0;const bursts=landedJumpCount===2?3:2;for(let k=0;k<bursts;k++)impact(player.position.x,.12,player.position.z);jumpCount=0;jumpVelocity=0;landedJumpCount=0}}
