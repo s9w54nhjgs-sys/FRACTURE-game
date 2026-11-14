@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V172 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V173 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2097,6 +2097,14 @@ const chunkDecor=new Map();
 const streamedTerrain=new Map();
 const terrainTileGeo=new THREE.PlaneGeometry(CHUNK_SIZE,CHUNK_SIZE);
 const terrainTileMat=new THREE.MeshStandardMaterial({color:0x424d4d,metalness:.2,roughness:.95});
+// Cut actual canal openings out of the continuous outer terrain. A translucent overlay alone
+// cannot show depth while an opaque metal floor remains directly beneath it.
+terrainTileMat.onBeforeCompile=shader=>{
+ shader.vertexShader='varying vec3 vCanalWorld;\n'+shader.vertexShader;
+ shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n vCanalWorld=(modelMatrix*vec4(position,1.0)).xyz;');
+ shader.fragmentShader='varying vec3 vCanalWorld;\n'+shader.fragmentShader;
+ shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>', '#include <clipping_planes_fragment>\n if(vCanalWorld.x>500.0&&vCanalWorld.x<1750.0&&vCanalWorld.z>-250.0&&vCanalWorld.z<750.0){float lane=floor(vCanalWorld.z/250.0)*250.0+205.0;if(abs(vCanalWorld.z-lane)<23.0)discard;}');
+};
 const terrainLandmarkGeo=new THREE.BoxGeometry(1,1,1);
 const terrainLandmarkMat=new THREE.MeshStandardMaterial({color:0x33424a,metalness:.4,roughness:.85});
 const terrainDetailMat=new THREE.MeshStandardMaterial({color:0x59646a,metalness:.55,roughness:.75});
@@ -2244,7 +2252,7 @@ function createStreamedTerrain(key){
  const industrialSector=cx>=2&&cx<=6&&cz>=-1&&cz<=1;
  if(industrialSector){
   const ox=cx*250,oz=cz*250;
-  const waterMat=new THREE.MeshPhysicalMaterial({color:0x337f8f,metalness:0,roughness:.12,transparent:true,opacity:.32,depthWrite:false,side:THREE.DoubleSide,clearcoat:.8,clearcoatRoughness:.12});
+  const waterMat=new THREE.MeshPhysicalMaterial({color:0x5aabb7,metalness:0,roughness:.08,transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,clearcoat:.9,clearcoatRoughness:.07});
   const steelMat=new THREE.MeshStandardMaterial({color:0x4c6671,metalness:.78,roughness:.44});
   const signalMat=new THREE.MeshStandardMaterial({color:0x65b7cc,emissive:0x174c5b,emissiveIntensity:.7,metalness:.35});
   function structure(x,y,z,w,h,d,mat=steelMat,solid=true){
@@ -2266,8 +2274,18 @@ function createStreamedTerrain(key){
   // Long water lane, extending seamlessly through each industrial chunk.
   const laneZ=oz+205;
   const flowing=structure(ox+125,.055,laneZ,250,.08,46,waterMat,false);flowing.userData.canalFlow=true;flowing.userData.canalBase=flowing.position.y;canalWaterSurfaces.push(flowing);
-  structure(ox+125,-31,laneZ,250,2,46,canalDeepMat,false);
-  for(const bank of [-1,1])structure(ox+125,-15,laneZ+bank*23,250,30,2,canalWallMat,false);
+  structure(ox+125,-42,laneZ,250,2,46,canalDeepMat,false);
+  // Subsurface layers create depth haze without costly full-screen refraction.
+  for(let layer=0;layer<5;layer++){
+   const depth=-3-layer*7;
+   const fogPlane=new THREE.Mesh(new THREE.PlaneGeometry(250,46),new THREE.MeshBasicMaterial({color:layer<2?0x1c5665:0x061b2a,transparent:true,opacity:.11+layer*.055,depthWrite:false,side:THREE.DoubleSide}));
+   fogPlane.rotation.x=-Math.PI/2;fogPlane.position.set(ox+125,depth,laneZ);group.add(fogPlane);
+  }
+  for(const bank of [-1,1]){
+   structure(ox+125,-20,laneZ+bank*23,250,42,2,canalWallMat,false);
+   structure(ox+125,.55,laneZ+bank*24,250,1.1,2.4,industrialRustMat,false);
+   for(let x=ox+15;x<ox+250;x+=32)structure(x,-13,laneZ+bank*22.8,1.3,25,1.4,industrialDarkMat,false);
+  }
   for(const edgeX of [ox+36,ox+214]){const rz=laneZ+(edgeX===ox+36?-1:1)*21;const ramp=new THREE.Mesh(new THREE.BoxGeometry(16,1,18),canalIslandMat);ramp.position.set(edgeX,.5,rz);ramp.rotation.x=edgeX===ox+36?-.09:.09;group.add(ramp);ramps.push({ax:edgeX,az:laneZ,bx:edgeX,bz:rz+(edgeX===ox+36?-8:8),ah:.4,bh:4,w:15});}
   if((cx+cz+10)%3===0){structure(ox+126,.6,laneZ,26,1.2,18,canalIslandMat,false);platform(ox+126,laneZ,1.2,26,18);}
   // Surface current lines: small repeating strips that drift with the water, not static glass.
