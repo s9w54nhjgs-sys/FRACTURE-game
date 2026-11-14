@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V185 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V186 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2371,18 +2371,18 @@ function createStreamedTerrain(key){
     for(let h=45;h<lipY;h+=45)platform(x,z,h,18,18);
    }
    // Elevated pipe from ground to reservoir rim: 8 climbable/slideable ramp sections.
-   const p0={x:ox-360,z:tz+30,y:2},p1={x:entryX,z:entryZ,y:entryY};
+   const p0={x:entryX-1500,z:tz+30,y:17},p1={x:entryX,z:entryZ,y:entryY}; // 1500m approach reduces pitch to ~18 degrees.
    // Exit intake at the water surface: half-round aperture, separate from the upper entry.
    const exitArch=new THREE.Mesh(new THREE.TorusGeometry(18,2.2,8,32,Math.PI),new THREE.MeshBasicMaterial({color:0x6af6df,side:THREE.DoubleSide}));exitArch.position.set(entryX,waterY,entryZ);exitArch.rotation.y=Math.PI/2;group.add(exitArch);
-   const n=8;
+   const n=24;
    for(let i=0;i<n;i++){
     const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
     const dx=bx-ax,dy=by-ay,L=Math.hypot(dx,dy),midX=(ax+bx)/2,midY=(ay+by)/2;
     const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,12,1,true),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
     pipeShell.position.set(midX,midY,p0.z);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,0).normalize());group.add(pipeShell);
     // Cylindrical tube only: a narrow curved trough follows the pipe, no flat box floor.
-    const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,16,1,true,Math.PI*.60,Math.PI*.80),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
-    const route={ax,az:p0.z,bx,bz:p0.z,ah:ay-10,bh:by-10,width:14,slide:false,pipeWalk:true,pipeRadius:15,streamKey:key};ramps.push(route);climbRamps.push(route);
+    const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,24,1,true,Math.PI*.60,Math.PI*.80),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
+    const route={ax,az:p0.z,bx,bz:p0.z,ah:ay-11,bh:by-11,width:13,slide:false,pipeWalk:true,pipeRadius:15,streamKey:key};ramps.push(route);climbRamps.push(route);
     // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
     // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
    }
@@ -3699,6 +3699,17 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
+ // Cylinder-constrained movement: track the centerline and its bowl-shaped cross-section.
+ const activePipe=climbRamps.find(p=>p.pipeWalk&&player.position.x>=Math.min(p.ax,p.bx)-2&&player.position.x<=Math.max(p.ax,p.bx)+2&&Math.abs(player.position.z-p.az)<p.pipeRadius+1&&Math.abs(climbFloor+jumpHeight-(p.ah+(p.bh-p.ah)*Math.max(0,Math.min(1,(player.position.x-p.ax)/(p.bx-p.ax)))))<24);
+ if(activePipe&&!testFlight){
+  const u=Math.max(0,Math.min(1,(player.position.x-activePipe.ax)/(activePipe.bx-activePipe.ax)));
+  const centerY=activePipe.ah+(activePipe.bh-activePipe.ah)*u;
+  const lateral=Math.max(-12,Math.min(12,player.position.z-activePipe.az));
+  const bowl=15-Math.sqrt(Math.max(0,225-lateral*lateral));
+  if(jumpCount===0){climbFloor=centerY+bowl;jumpHeight=0;jumpVelocity=0;}
+  // Input is always able to overcome downhill drift while climbing.
+  landingSkidUntil=0;
+ }
  const slope=climbRamps.find(p=>{if(!p.slide)return false;const dx=p.bx-p.ax,dz=p.bz-p.az,l2=dx*dx+dz*dz,u=Math.max(0,Math.min(1,((player.position.x-p.ax)*dx+(player.position.z-p.az)*dz)/l2));return Math.hypot(player.position.x-p.ax-dx*u,player.position.z-p.az-dz*u)<p.width+2;});
  if(slope&&!testFlight&&jumpCount===0){const dx=slope.bx-slope.ax,dz=slope.bz-slope.az,l=Math.hypot(dx,dz)||1,drop=slope.ah-slope.bh;const sign=drop>=0?1:-1,accel=Math.abs(drop/l)*23;moveVX+=dx/l*sign*accel*dt;moveVZ+=dz/l*sign*accel*dt;landingSkidUntil=Math.max(landingSkidUntil,t+350);}
  const skidActive=t<landingSkidUntil&&jumpCount===0&&!climbRamps.some(p=>p.pipeWalk&&Math.abs(player.position.z-p.az)<p.width&&player.position.x>=Math.min(p.ax,p.bx)-3&&player.position.x<=Math.max(p.ax,p.bx)+3);const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
@@ -3782,6 +3793,9 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
    }
   }
  }
+ // Hard floor projection onto the tube, including segment transitions.
+ const tubeHere=climbRamps.find(p=>p.pipeWalk&&player.position.x>=Math.min(p.ax,p.bx)-1&&player.position.x<=Math.max(p.ax,p.bx)+1&&Math.abs(player.position.z-p.az)<14);
+ if(tubeHere&&!testFlight&&jumpCount===0){const u=Math.max(0,Math.min(1,(player.position.x-tubeHere.ax)/(tubeHere.bx-tubeHere.ax)));const lateral=Math.max(-13,Math.min(13,player.position.z-tubeHere.az));climbFloor=tubeHere.ah+(tubeHere.bh-tubeHere.ah)*u+15-Math.sqrt(Math.max(0,225-lateral*lateral));jumpHeight=0;jumpVelocity=0;}
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
