@@ -2957,7 +2957,8 @@ function hitBeehive(power,t){
  return false;
 }
 function applyBeeDamage(amount,t){if(done)return;const absorbed=Math.min(shield,amount);shield-=absorbed;hp=Math.max(0,hp-(amount-absorbed));$('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);glassUntil=t;glassDuration=650;drawDamageGlass(amount>=20,amount>absorbed);if(hp<=0)finish(false);}
-function waterSplash(x,z,speed){for(let i=0;i<Math.min(28,10+Math.floor(speed*.35));i++){const angle=Math.random()*Math.PI*2,r=Math.random()*1.7;const m=new THREE.Mesh(sparkGeometry,new THREE.MeshBasicMaterial({color:0x91d6df,transparent:true,opacity:.8}));m.position.set(x+Math.cos(angle)*r,.35,z+Math.sin(angle)*r);scene.add(m);sparks.push({m,born:performance.now(),vx:Math.cos(angle)*(2+speed*.18),vy:3+Math.random()*6,vz:Math.sin(angle)*(2+speed*.18)});}}
+const canalSplashMaterial=new THREE.MeshBasicMaterial({color:0x91d6df,transparent:true,opacity:.8});
+function waterSplash(x,z,speed){for(let i=0;i<Math.min(28,10+Math.floor(speed*.35));i++){const angle=Math.random()*Math.PI*2,r=Math.random()*1.7;const m=new THREE.Mesh(sparkGeometry,canalSplashMaterial);m.position.set(x+Math.cos(angle)*r,.35,z+Math.sin(angle)*r);scene.add(m);sparks.push({m,born:performance.now(),vx:Math.cos(angle)*(2+speed*.18),vy:3+Math.random()*6,vz:Math.sin(angle)*(2+speed*.18)});}}
 function updateBeehives(t){
  let count=0;
  const wet=inIndustrialWater(player.position.x,player.position.z)&&climbFloor+jumpHeight<3.3;
@@ -3584,7 +3585,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
    for(let k=0;k<count&&sparks.length<90;k++){
     const side=(Math.random()-.5)*1.8,mag=speed||1;
     const sx=player.position.x+moveVZ/mag*side,sz=player.position.z-moveVX/mag*side;
-    const m=new THREE.Mesh(sparkGeometry,sparkMaterial);m.position.set(sx,.14+climbFloor,sz);scene.add(m);
+    const watery=inIndustrialWater(sx,sz);const m=new THREE.Mesh(sparkGeometry,watery?canalSplashMaterial:sparkMaterial);m.position.set(sx,.14+climbFloor,sz);scene.add(m);
     sparks.push({m,born:t,life:300+Math.random()*320,vx:-moveVX/mag*(3+Math.random()*7)+(Math.random()-.5)*4,vy:2+Math.random()*5,vz:-moveVZ/mag*(3+Math.random()*7)+(Math.random()-.5)*4,gravity:10});
    }
   }
