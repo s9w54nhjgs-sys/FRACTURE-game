@@ -1481,6 +1481,7 @@ function aerialSlash(power,now){
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
 function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;
+ if(now<legacyEchoUntil)power=Math.max(power,1.6);
  if(hitBeehive(power,now)){lastAttack=now;return;}
  if(power>1)pendingCasingEject='charge'; // Only charged attacks eject molten shards.
  if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
@@ -1494,6 +1495,27 @@ const attackButton=$('charge');$('attack').addEventListener('pointerdown',e=>{e.
 attackButton.addEventListener('pointerdown',e=>{e.preventDefault();if(done||charging)return;charging=true;chargeStart=performance.now();chargeSpikeLatchAt=chargeStart;chargeSpikeReleaseAt=-10000;chargeLevel=0;playChargeSpikeLock();impact(player.position.x,player.position.y+.2,player.position.z,0xb5d7f1);attackButton.setPointerCapture(e.pointerId)});
 function releaseAttack(){if(!charging)return;charging=false;chargeSpikeReleaseAt=performance.now();const held=performance.now()-chargeStart;chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='';attack(held>=650?3:1)}
 attackButton.addEventListener('pointerup',releaseAttack);attackButton.addEventListener('pointercancel',()=>{charging=false;chargeSpikeReleaseAt=performance.now();chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='' });
+// V176: active LEGACY CELL combat skill; cooldown persists for this match.
+let legacyCooldownUntil=0,legacySpeedUntil=0,legacyEchoUntil=0;
+const legacyButton=document.createElement('button');
+legacyButton.textContent='LEGACY ✦';
+Object.assign(legacyButton.style,{position:'fixed',right:'13px',bottom:'calc(env(safe-area-inset-bottom) + 220px)',zIndex:'12',padding:'9px 12px',borderRadius:'12px',border:'1px solid #9b8bff',background:'#271d49df',color:'#e6dfff',fontWeight:'800',fontSize:'12px',touchAction:'manipulation'});
+document.body.appendChild(legacyButton);
+function legacySkill(){
+ const now=performance.now();if(done||window.fractureMenuOpen)return;
+ if(now<legacyCooldownUntil){notify('LEGACY // '+Math.ceil((legacyCooldownUntil-now)/1000)+'s');return;}
+ const ability=window.fractureActiveAbility?.();if(!ability){notify('LEGACY // CELL DATA NOT READY');return;}
+ legacyCooldownUntil=now+18000;
+ const name=ability.name,x=player.position.x,z=player.position.z;
+ if(name==='閃光歩法'){legacySpeedUntil=now+6000;dashCharges=Math.min(2,dashCharges+1);updateDashDisplay();shockRing(x,z,7,now);}
+ else if(name==='装甲共鳴'){shield=Math.min(100,shield+24);$('shield').textContent=Math.round(shield);shockRing(x,z,8,now);}
+ else if(name==='重力干渉'){shockRing(x,z,13,now);for(const e of enemies)if(Math.hypot(e.position.x-x,e.position.z-z)<13)e.userData.stagger=now+4000;}
+ else if(name==='磁界追跡'){let target=null,best=27;for(const e of enemies){const d=Math.hypot(e.position.x-x,e.position.z-z);if(d<best){best=d;target=e;}}if(target){target.userData.hp-=3;impact(target.position.x,target.position.y,target.position.z);if(target.userData.hp<=0){dissolveEnemy(target,0,0);enemies.splice(enemies.indexOf(target),1);kills++;$('kills').textContent=kills;}}shockRing(x,z,5,now);}
+ else if(name==='残響射撃'){legacyEchoUntil=now+8000;shockRing(x,z,7,now);}
+ else if(name==='虚空の爪'){aerialSlash(2,now);shockRing(x,z,6,now);}
+ notify('LEGACY // '+name);
+}
+legacyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();legacySkill()});
 function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  if(beehiveDebuffLevel(now)>=.66&&dashChain>=1&&now<dashChainUntil){notify('BEEHIVE // DOUBLE DASH DISABLED');return;}
  dashChain=now<dashChainUntil?Math.min(2,dashChain+1):1;dashChainUntil=now+850;
@@ -3565,7 +3587,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  // V83: forward glide gains speed smoothly; air steering remains available.
  const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
- const glideSpeed=(glideFlight?32.2:6.2)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
+ const glideSpeed=(glideFlight?32.2:6.2)*(t<legacySpeedUntil?1.4:1)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
