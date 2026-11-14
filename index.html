@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V175 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V176 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1481,6 +1481,7 @@ function aerialSlash(power,now){
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
 function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;
+ if(now<legacyEchoUntil)power=Math.max(power,1.6);
  if(hitBeehive(power,now)){lastAttack=now;return;}
  if(power>1)pendingCasingEject='charge'; // Only charged attacks eject molten shards.
  if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
@@ -1494,6 +1495,27 @@ const attackButton=$('charge');$('attack').addEventListener('pointerdown',e=>{e.
 attackButton.addEventListener('pointerdown',e=>{e.preventDefault();if(done||charging)return;charging=true;chargeStart=performance.now();chargeSpikeLatchAt=chargeStart;chargeSpikeReleaseAt=-10000;chargeLevel=0;playChargeSpikeLock();impact(player.position.x,player.position.y+.2,player.position.z,0xb5d7f1);attackButton.setPointerCapture(e.pointerId)});
 function releaseAttack(){if(!charging)return;charging=false;chargeSpikeReleaseAt=performance.now();const held=performance.now()-chargeStart;chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='';attack(held>=650?3:1)}
 attackButton.addEventListener('pointerup',releaseAttack);attackButton.addEventListener('pointercancel',()=>{charging=false;chargeSpikeReleaseAt=performance.now();chargeLevel=0;attackButton.textContent='CHARGE';attackButton.style.background='' });
+// V176: active LEGACY CELL combat skill; cooldown persists for this match.
+let legacyCooldownUntil=0,legacySpeedUntil=0,legacyEchoUntil=0;
+const legacyButton=document.createElement('button');
+legacyButton.textContent='LEGACY ✦';
+Object.assign(legacyButton.style,{position:'fixed',right:'13px',bottom:'calc(env(safe-area-inset-bottom) + 220px)',zIndex:'12',padding:'9px 12px',borderRadius:'12px',border:'1px solid #9b8bff',background:'#271d49df',color:'#e6dfff',fontWeight:'800',fontSize:'12px',touchAction:'manipulation'});
+document.body.appendChild(legacyButton);
+function legacySkill(){
+ const now=performance.now();if(done||window.fractureMenuOpen)return;
+ if(now<legacyCooldownUntil){notify('LEGACY // '+Math.ceil((legacyCooldownUntil-now)/1000)+'s');return;}
+ const ability=window.fractureActiveAbility?.();if(!ability){notify('LEGACY // CELL DATA NOT READY');return;}
+ legacyCooldownUntil=now+18000;
+ const name=ability.name,x=player.position.x,z=player.position.z;
+ if(name==='閃光歩法'){legacySpeedUntil=now+6000;dashCharges=Math.min(2,dashCharges+1);updateDashDisplay();shockRing(x,z,7,now);}
+ else if(name==='装甲共鳴'){shield=Math.min(100,shield+24);$('shield').textContent=Math.round(shield);shockRing(x,z,8,now);}
+ else if(name==='重力干渉'){shockRing(x,z,13,now);for(const e of enemies)if(Math.hypot(e.position.x-x,e.position.z-z)<13)e.userData.stagger=now+4000;}
+ else if(name==='磁界追跡'){let target=null,best=27;for(const e of enemies){const d=Math.hypot(e.position.x-x,e.position.z-z);if(d<best){best=d;target=e;}}if(target){target.userData.hp-=3;impact(target.position.x,target.position.y,target.position.z);if(target.userData.hp<=0){dissolveEnemy(target,0,0);enemies.splice(enemies.indexOf(target),1);kills++;$('kills').textContent=kills;}}shockRing(x,z,5,now);}
+ else if(name==='残響射撃'){legacyEchoUntil=now+8000;shockRing(x,z,7,now);}
+ else if(name==='虚空の爪'){aerialSlash(2,now);shockRing(x,z,6,now);}
+ notify('LEGACY // '+name);
+}
+legacyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();legacySkill()});
 function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  if(beehiveDebuffLevel(now)>=.66&&dashChain>=1&&now<dashChainUntil){notify('BEEHIVE // DOUBLE DASH DISABLED');return;}
  dashChain=now<dashChainUntil?Math.min(2,dashChain+1):1;dashChainUntil=now+850;
@@ -2287,6 +2309,8 @@ function createStreamedTerrain(key){
   // No horizontal haze sheets: they looked like stacked glass. Depth comes from dark walls and abyss floor.
   for(const bank of [-1,1]){
    structure(ox+125,-20,laneZ+bank*23,250,42,2,canalWallMat,false);
+   // Above-water retaining lip blocks walking straight through the reservoir wall.
+   structure(ox+125,1.8,laneZ+bank*23,250,3.6,2.5,canalWallMat,true);
    structure(ox+125,.55,laneZ+bank*24,250,1.1,2.4,industrialRustMat,false);
    for(let x=ox+15;x<ox+250;x+=32)structure(x,-13,laneZ+bank*22.8,1.3,25,1.4,industrialDarkMat,false);
   }
@@ -2995,24 +3019,32 @@ function updateBeehives(t){
  if(wet&&!inWaterLast){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
  if(wet&&t<dashUntil&&t-waterSplashLast>110){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
  inWaterLast=wet;
- for(const m of canalWaterSurfaces)if(m.parent)m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.12;
+ for(const m of canalWaterSurfaces)if(m.parent){m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.18+Math.sin(t*.0027+m.position.z*.13)*.09;m.rotation.z=Math.sin(t*.0011+m.position.x*.007)*.003;}
  for(const r of canalRipples)if(r.parent){r.position.x+=.016;if(r.position.x>Math.floor(r.position.x/250)*250+249)r.position.x-=240;r.material.opacity=.24+.14*Math.sin(t*.002+r.position.z);}
  let wormCount=0;
  for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<520||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<520);if(!near)continue;
-  const phase=t*.0018+w.phase,wx=w.x+Math.sin(phase*.53)*32,wz=w.z+Math.sin(phase)*14;
+  const phase=t*.0018+w.phase;
+  const targetX=wet?player.position.x:w.homeX+Math.sin(phase*.45)*35;
+  const targetZ=wet?player.position.z:w.homeZ+Math.cos(phase*.55)*12;
+  const turnTarget=Math.atan2(targetZ-w.z,targetX-w.x);
+  w.heading??=turnTarget;
+  w.heading+=Math.atan2(Math.sin(turnTarget-w.heading),Math.cos(turnTarget-w.heading))*Math.min(.07,Math.max(.01,(t-(w.lastMove||t))*.00013));
+  const wx=w.x,wz=w.z;
   const hunting=wet&&Math.abs(player.position.z-w.homeZ)<150&&Math.abs(player.position.x-w.homeX)<500;
-  if(hunting){const step=Math.min(1,(t-(w.lastMove||t))/1000*18/Math.max(1,Math.hypot(dx,dz)));w.x+=(player.position.x-w.x)*step;w.z+=(player.position.z-w.z)*step;}
+  const travel=Math.min(.65,Math.max(0,(t-(w.lastMove||t))/1000)* (hunting?18:6));
+  w.x+=Math.cos(w.heading)*travel;w.z+=Math.sin(w.heading)*travel;
+  if(!inIndustrialWater(w.x,w.z)){w.x=wx;w.z=wz;w.heading+=.14;}
   w.lastMove=t;
   // Organic filaria: overlapping ellipsoids form a continuous, pulsating worm body.
   // Schooling specimens share a loose moving center; solitary ones wander independently.
-  const tailAngle=phase*.75+(w.solitary?Math.sin(phase*.34):0);
+  const tailAngle=w.heading;
   const bodyLength=12.5;
   const depth=hunting&&Math.hypot(player.position.x-wx,player.position.z-wz)<11?.15:-2.2-(.5+.5*Math.sin(phase*.52+w.phase))*14;
   for(let j=0;j<26;j++){
    const k=j/25,angle=tailAngle+k*2.2;
    const schoolOffset=w.school?Math.sin(phase*.38+w.phase)*2.5:0;
-   const bodyX=wx-Math.cos(tailAngle)*k*bodyLength+Math.sin(phase*3-k*10)*1.05+schoolOffset;
-   const bodyZ=wz-Math.sin(tailAngle)*k*bodyLength+Math.cos(phase*2.8-k*10)*.85;
+   const bodyX=wx-Math.cos(tailAngle)*k*bodyLength-Math.sin(tailAngle)*Math.sin(phase*3-k*10)*1.05+schoolOffset;
+   const bodyZ=wz-Math.sin(tailAngle)*k*bodyLength+Math.cos(tailAngle)*Math.sin(phase*3-k*10)*1.05;
    const bodyY=depth+Math.sin(phase*2.7-k*10)*1.15;
    const pulse=1+.23*Math.sin(t*.013-k*19+w.phase);
    const taper=Math.max(.16,Math.sin(Math.PI*(.08+.86*k)));
@@ -3555,7 +3587,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  // V83: forward glide gains speed smoothly; air steering remains available.
  const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
- const glideSpeed=(glideFlight?32.2:6.2)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
+ const glideSpeed=(glideFlight?32.2:6.2)*(t<legacySpeedUntil?1.4:1)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
@@ -3663,13 +3695,13 @@ if(rampFloor>0&&feet<rampFloor&&climbPrevFeet>=rampFloor-2.5&&
  resolveFallDamage(rampFloor,t);
  climbFloor=rampFloor;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
 }
- if(jumpCount===0){
+ if(jumpCount===0&&!inIndustrialWater(player.position.x,player.position.z)){
   if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
   else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
   else if(deck>=climbFloor-.85)climbFloor=deck;
- }else if(landingDeck>climbFloor+.08 || (jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&feet<=sweptDeck+.25&&climbPrevFeet>=sweptDeck-.5&&sweptDeck>=climbFloor-.2)){
+ }else if(!inIndustrialWater(player.position.x,player.position.z)&&(landingDeck>climbFloor+.08 || (jumpCount>0&&jumpVelocity<=0&&sweptDeck>0&&feet<=sweptDeck+.25&&climbPrevFeet>=sweptDeck-.5&&sweptDeck>=climbFloor-.2))){
   resolveFallDamage(Math.max(landingDeck,sweptDeck),t);climbFloor=Math.max(landingDeck,sweptDeck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
- }else if(jumpVelocity<=0&&feet<=climbFloor+.01){
+ }else if(!inIndustrialWater(player.position.x,player.position.z)&&jumpVelocity<=0&&feet<=climbFloor+.01){
   // V76: preserve the actual support deck; never reset to world zero while standing on a platform.
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }
@@ -3737,4 +3769,4 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
 streamGroundDetails(t);updateChunkStreaming(t);renderer.render(scene,camera)}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=168"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
+</script><script src="./rebirth.js?v=176"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
