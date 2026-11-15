@@ -15,13 +15,13 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V193 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V194 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
 const slideStart={x:575,z:125,y:17},slideEnd={x:elevatedReservoir.x-Math.sqrt(282*282-155*155)-8,z:1130,y:490.5};
-let waterslideProgress=-1,waterslideExitUntil=0,slideCooldown=0,portalCooldown=0,slideIntake=0,waterDepth=1.2,waterImpactAt=0,waterImpactDepth=0,slideLandingGrace=0,waterWetLast=false;
+let waterslideProgress=-1,waterslideExitUntil=0,slideCooldown=0,portalCooldown=0,slideIntake=0,waterDepth=1.2,waterImpactAt=0,waterImpactDepth=0,slideLandingGrace=0,waterWetLast=false,waterPlungeUntil=0;
 const vortexCenter={x:slideEnd.x+47,z:slideEnd.z,y:elevatedReservoir.waterY};
 const industrialPortalLocation={x:640,z:133,y:2};
 const slideVector=new THREE.Vector3(slideEnd.x-slideStart.x,slideEnd.y-slideStart.y,slideEnd.z-slideStart.z);
@@ -3794,7 +3794,11 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  // before integrating gravity. This preserves world-space height across the edge.
  if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.85){jumpHeight+=climbFloor;climbFloor=0;}
  gliding=jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;jumpVelocity=Math.max(glideActive?-5:-34,jumpVelocity-gravity*dt);jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);
- if(Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226&&climbFloor+jumpHeight<=elevatedReservoir.waterY+6&&climbFloor+jumpHeight>elevatedReservoir.waterY-75){
+ // Detect the descending crossing BEFORE the generic ground solver can land the player.
+ const tankDist=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z);
+ const waterCrossing=waterslideProgress<0&&!testFlight&&tankDist<226&&jumpCount>0&&jumpVelocity<0&&climbFloor+jumpHeight<=elevatedReservoir.waterY+1.5&&climbPrevFeet>=elevatedReservoir.waterY-2;
+ if(waterCrossing){const drop=Math.max(0,fallPeak-elevatedReservoir.waterY);waterImpactAt=t;waterImpactDepth=Math.min(10,Math.max(2,2+drop*.027));waterPlungeUntil=t+6500;waterSplash(player.position.x,player.position.z,Math.max(8,Math.hypot(moveVX,moveVZ)));waterSplashLast=t;climbFloor=elevatedReservoir.waterY;jumpHeight=-1.25;jumpVelocity=0;jumpCount=0;fallPeak=elevatedReservoir.waterY;fallGlideUsed=false;gliding=false;glideFlightActive=false;notify('DEEP WATER // '+waterImpactDepth.toFixed(1)+'m PLUNGE');}
+ if(false&&Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226&&climbFloor+jumpHeight<=elevatedReservoir.waterY+6&&climbFloor+jumpHeight>elevatedReservoir.waterY-75){
   const wasAirborne=jumpCount>0&&jumpVelocity<0;
   const speed=Math.hypot(moveVX,moveVZ);
   if(climbFloor+jumpHeight<=elevatedReservoir.waterY+6){
@@ -3837,7 +3841,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
    if(u===0){waterslideProgress=-1;slideJustFinished=true;slideCooldown=t+3500;waterslideExitUntil=t+2800;slideLandingGrace=t+4000;climbFloor=22;jumpHeight=0;jumpCount=0;jumpVelocity=0;fallPeak=22;climbPrevFeet=22;moveVX=moveVZ=0;notify('INDUSTRIAL RESERVOIR // SAFE ARRIVAL');}
   }
  }
- if(waterslideProgress<0){
+ if(waterslideProgress<0&&!(waterPlungeUntil>t&&Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226)){
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
@@ -3883,11 +3887,11 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
- if(!floatingNow&&jumpHeight<0&&waterslideProgress<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
+ if(!floatingNow&&jumpHeight<0&&waterslideProgress<0&&t>waterPlungeUntil){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  // Buoyancy is a persistent state, not an airborne-only one-frame correction.
  const reservoirInside=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226;
- if(waterslideProgress<0&&!testFlight&&reservoirInside&&jumpCount===0&&climbFloor>elevatedReservoir.waterY-30&&climbFloor<elevatedReservoir.waterY+6){const age=Math.max(0,(t-waterImpactAt)/1000);const depth=waterImpactAt>0?waterImpactDepth*Math.exp(-age/2.2)*(1-Math.exp(-age*5)):0;climbFloor=elevatedReservoir.waterY;jumpHeight=-1.25-depth+Math.sin(t*.0021)*.14;fallPeak=elevatedReservoir.waterY;climbPrevFeet=climbFloor+jumpHeight;}
- if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
+ if(waterslideProgress<0&&!testFlight&&reservoirInside&&jumpCount===0&&(t<waterPlungeUntil||climbFloor>elevatedReservoir.waterY-30&&climbFloor<elevatedReservoir.waterY+6)){const age=Math.max(0,(t-waterImpactAt)/1000);const depth=waterImpactAt>0?waterImpactDepth*Math.exp(-age/2.2)*(1-Math.exp(-age*5)):0;climbFloor=elevatedReservoir.waterY;jumpHeight=-1.25-depth+Math.sin(t*.0021)*.14;fallPeak=elevatedReservoir.waterY;climbPrevFeet=climbFloor+jumpHeight;}
+ if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0&&t>waterPlungeUntil){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
  if(testFlight){testFlightHeight+=((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
  player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*(floatingNow?.19:.08);
  if(floatingNow){player.rotation.z=Math.sin(t*.0019)*.14;player.rotation.x=Math.sin(t*.0026+1.2)*.12;}else{player.rotation.z*=.87;player.rotation.x*=.87;}
