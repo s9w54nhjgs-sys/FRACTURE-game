@@ -15,13 +15,13 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V192 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V193 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
 const slideStart={x:575,z:125,y:17},slideEnd={x:elevatedReservoir.x-Math.sqrt(282*282-155*155)-8,z:1130,y:490.5};
-let waterslideProgress=-1,waterslideExitUntil=0,slideCooldown=0,portalCooldown=0,slideIntake=0,waterDepth=1.2,waterImpactAt=0,waterImpactDepth=0,slideLandingGrace=0;
+let waterslideProgress=-1,waterslideExitUntil=0,slideCooldown=0,portalCooldown=0,slideIntake=0,waterDepth=1.2,waterImpactAt=0,waterImpactDepth=0,slideLandingGrace=0,waterWetLast=false;
 const vortexCenter={x:slideEnd.x+47,z:slideEnd.z,y:elevatedReservoir.waterY};
 const industrialPortalLocation={x:640,z:133,y:2};
 const slideVector=new THREE.Vector3(slideEnd.x-slideStart.x,slideEnd.y-slideStart.y,slideEnd.z-slideStart.z);
@@ -2349,7 +2349,9 @@ function createStreamedTerrain(key){
    for(let h=80;h<570;h+=45){const rr=Math.sqrt(Math.max(0,R*R-(h-cy)*(h-cy)));for(let k=0;k<24;k++){const a=k*Math.PI/12;colliders.push({x:tx+Math.cos(a)*rr,z:tz+Math.sin(a)*rr,w:11,d:11,top:h+20,bottom:h-20,decorativeShell:true});}}
    // A single water surface, INSIDE the tank, not on the ground.
    const waterY=cy+155,waterR=Math.sqrt(R*R-155*155)+3;
-   const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,48),new THREE.MeshPhysicalMaterial({color:0x3b99a8,transparent:true,opacity:.42,roughness:.18,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
+   const tankWater=new THREE.Mesh(new THREE.CircleGeometry(waterR,96),new THREE.MeshPhysicalMaterial({color:0x3b99a8,transparent:true,opacity:.42,roughness:.18,metalness:0,depthWrite:false,side:THREE.DoubleSide}));
+   // Vertex-level funnel, stitched directly into the reservoir water plane.
+   const funnelPos=tankWater.geometry.attributes.position;for(let vi=0;vi<funnelPos.count;vi++){const wx=tx+funnelPos.getX(vi),wz=tz-funnelPos.getY(vi),d=Math.hypot(wx-vortexCenter.x,wz-vortexCenter.z);const f=Math.max(0,1-d/35);funnelPos.setZ(vi,-16*f*f*(3-2*f));}funnelPos.needsUpdate=true;tankWater.geometry.computeVertexNormals();
    // Vertical depth gradient, not stacked horizontal panes. Interior ribs fade into darkness.
    const depthGradient=new THREE.ShaderMaterial({transparent:true,side:THREE.BackSide,depthWrite:false,uniforms:{},vertexShader:'varying float vHeight; void main(){vHeight=position.y;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:'varying float vHeight; void main(){float deep=clamp((155.0-vHeight)/380.0,0.0,1.0);vec3 c=mix(vec3(.10,.36,.43),vec3(.005,.014,.034),pow(deep,1.3));gl_FragColor=vec4(c,.18+.76*deep);}'});
    // Do not draw a second coplanar shell: it caused GPU z-fighting.
@@ -2365,10 +2367,12 @@ function createStreamedTerrain(key){
    // The intake is a whirlpool in the reservoir, not a collision-trigger ring.
    const vortex=new THREE.Group();vortex.position.set(vortexCenter.x,waterY+.18,vortexCenter.z);group.add(vortex);
    const swirlGeo=new THREE.BufferGeometry();const swirlPts=[];for(let arm=0;arm<5;arm++){for(let k=0;k<100;k++){const u=k/99,ang=u*Math.PI*5+arm*Math.PI*2/5,rad=1.1+u*18;swirlPts.push(Math.cos(ang)*rad,-(1-u)*3,Math.sin(ang)*rad);}}swirlGeo.setAttribute('position',new THREE.Float32BufferAttribute(swirlPts,3));for(let arm=0;arm<5;arm++){const strip=new THREE.Line(swirlGeo,new THREE.LineBasicMaterial({color:0x9bffff,transparent:true,opacity:.65}));strip.geometry=swirlGeo.clone();strip.geometry.setDrawRange(arm*100,100);vortex.add(strip);}
+   // Raised foam spray and rotating vortex particles (local to the funnel).
+   const sprayCount=110,sprayGeo=new THREE.TetrahedronGeometry(.42,0),sprayMat=new THREE.MeshBasicMaterial({color:0xc0f9ff,transparent:true,opacity:.78,depthWrite:false});const spray=new THREE.InstancedMesh(sprayGeo,sprayMat,sprayCount);spray.instanceMatrix.setUsage(THREE.DynamicDrawUsage);spray.frustumCulled=false;vortex.add(spray);vortex.userData.spray=spray;vortex.userData.sprayDummy=new THREE.Object3D();
    const vortexMat=new THREE.MeshBasicMaterial({color:0x79ecf4,transparent:true,opacity:.8,depthWrite:false,side:THREE.DoubleSide});
    for(let i=0;i<4;i++){const ring=new THREE.Mesh(new THREE.TorusGeometry(6+i*3.8,.36,6,48),vortexMat);ring.rotation.x=-Math.PI/2;ring.position.y=-i*.18;vortex.add(ring);}
    const vortexCore=new THREE.Mesh(new THREE.ConeGeometry(7,9,32,1,true),new THREE.MeshBasicMaterial({color:0x0b354a,transparent:true,opacity:.68,side:THREE.DoubleSide,depthWrite:false}));vortexCore.rotation.x=Math.PI;vortexCore.position.y=-4;vortex.add(vortexCore);
-   vortex.userData.vortex=true;vortex.userData.vortexCore=vortexCore;canalWaterSurfaces.push(vortex);
+   vortex.userData.vortex=true;vortex.userData.vortexCore=vortexCore;vortex.userData.canalBase=waterY+.18;canalWaterSurfaces.push(vortex);
    const entryLamp=new THREE.PointLight(0x79e5ef,1.2,80);entryLamp.position.set(entryX,entryY+8,entryZ);group.add(entryLamp);
    // Remove a shell patch around the pipeline opening (not just paint a circle).
    const pos=tornGeo.getAttribute('position'),index=tornGeo.getIndex(),kept=[];
@@ -3159,14 +3163,14 @@ function hitBeehive(power,t){
 }
 function applyBeeDamage(amount,t){if(done)return;const absorbed=Math.min(shield,amount);shield-=absorbed;hp=Math.max(0,hp-(amount-absorbed));$('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);glassUntil=t;glassDuration=650;drawDamageGlass(amount>=20,amount>absorbed);if(hp<=0)finish(false);}
 const canalSplashMaterial=new THREE.MeshBasicMaterial({color:0x91d6df,transparent:true,opacity:.8});
-function waterSplash(x,z,speed){for(let i=0;i<Math.min(44,18+Math.floor(speed*.6));i++){const angle=Math.random()*Math.PI*2,r=Math.random()*1.7;const m=new THREE.Mesh(sparkGeometry,canalSplashMaterial);m.scale.setScalar(2.2+Math.random()*2.5);m.position.set(x+Math.cos(angle)*r,.35,z+Math.sin(angle)*r);scene.add(m);sparks.push({m,born:performance.now(),vx:Math.cos(angle)*(2+speed*.18),vy:3+Math.random()*6,vz:Math.sin(angle)*(2+speed*.18)});}}
+function waterSplash(x,z,speed){for(let i=0;i<Math.min(44,18+Math.floor(speed*.6));i++){const angle=Math.random()*Math.PI*2,r=Math.random()*1.7;const m=new THREE.Mesh(sparkGeometry,canalSplashMaterial);m.scale.setScalar(2.2+Math.random()*2.5);m.position.set(x+Math.cos(angle)*r,(Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z)<232?elevatedReservoir.waterY:.35),z+Math.sin(angle)*r);scene.add(m);sparks.push({m,born:performance.now(),vx:Math.cos(angle)*(2+speed*.18),vy:3+Math.random()*6,vz:Math.sin(angle)*(2+speed*.18)});}}
 function updateBeehives(t){
  let count=0;
  const wet=inIndustrialWater(player.position.x,player.position.z);
  if(wet&&!inWaterLast){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
  if(wet&&t<dashUntil&&t-waterSplashLast>110){waterSplash(player.position.x,player.position.z,Math.hypot(moveVX,moveVZ));waterSplashLast=t;}
  inWaterLast=wet;
- for(const m of canalWaterSurfaces)if(m.parent){m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.18+Math.sin(t*.0027+m.position.z*.13)*.09;m.rotation.z=Math.sin(t*.0011+m.position.x*.007)*.003;}
+ for(const m of canalWaterSurfaces)if(m.parent){if(m.userData.vortex)continue;m.position.y=m.userData.canalBase+Math.sin(t*.0018+m.position.x*.02)*.18+Math.sin(t*.0027+m.position.z*.13)*.09;m.rotation.z=Math.sin(t*.0011+m.position.x*.007)*.003;}
  for(const r of canalRipples)if(r.parent){r.position.x+=.016;if(r.position.x>Math.floor(r.position.x/250)*250+249)r.position.x-=240;r.material.opacity=.24+.14*Math.sin(t*.002+r.position.z);}
  let wormCount=0;
  for(const w of canalWorms){const dx=player.position.x-w.x,dz=player.position.z-w.z;const near=Math.hypot(dx,dz)<520||(scopeActive&&Math.hypot(scopeFocusX-w.x,scopeFocusZ-w.z)<520);if(!near)continue;
@@ -3875,11 +3879,14 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  }
  slideJustFinished=false;
  const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
- for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;}}
+ for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
- if(!floatingNow&&jumpHeight<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
+ if(!floatingNow&&jumpHeight<0&&waterslideProgress<0){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
+ // Buoyancy is a persistent state, not an airborne-only one-frame correction.
+ const reservoirInside=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226;
+ if(waterslideProgress<0&&!testFlight&&reservoirInside&&jumpCount===0&&climbFloor>elevatedReservoir.waterY-30&&climbFloor<elevatedReservoir.waterY+6){const age=Math.max(0,(t-waterImpactAt)/1000);const depth=waterImpactAt>0?waterImpactDepth*Math.exp(-age/2.2)*(1-Math.exp(-age*5)):0;climbFloor=elevatedReservoir.waterY;jumpHeight=-1.25-depth+Math.sin(t*.0021)*.14;fallPeak=elevatedReservoir.waterY;climbPrevFeet=climbFloor+jumpHeight;}
  if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
  if(testFlight){testFlightHeight+=((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
  player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*(floatingNow?.19:.08);
