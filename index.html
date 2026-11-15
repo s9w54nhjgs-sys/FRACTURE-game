@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V194 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V195 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -34,6 +34,9 @@ const scopeButton=document.getElementById('scopeTest');
 scopeButton.addEventListener('pointerdown',e=>e.stopPropagation());
 scopeButton.addEventListener('click',e=>{e.stopPropagation();scopeActive=!scopeActive;scopeButton.classList.toggle('active',scopeActive);document.getElementById('scopeReticle').classList.toggle('active',scopeActive);scopeButton.textContent=scopeActive?'SCOPE OFF':'SCOPE ×5';});scene.add(camera); // Camera-mounted flyby meshes are included in scene graph.
 const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
+// Screen-space underwater color absorption + strong edge vignetting.
+const underwaterVeil=document.createElement('div');underwaterVeil.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 43%,rgba(1,25,50,.30) 0%,rgba(0,12,34,.70) 45%,rgba(0,3,19,.97) 100%);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterVeil);
+const underwaterTint=document.createElement('div');underwaterTint.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:rgba(4,43,86,.42);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterTint);
 // OPEN OVERCAST SKY: procedural daytime cloud field, replacing the geodesic dome.
 scene.background=new THREE.Color(0x87949d);
 scene.fog=new THREE.FogExp2(0x8b98a0,.0032);
@@ -905,6 +908,8 @@ function updateExploration(t,dt){
  $('extract').textContent=next?'中継器を起動：'+relaysActive+'/3　｜　素材 '+loot+'/3':'脱出地点が開放！　素材 '+loot+'/3';
 }
 const player=new THREE.Group();const playerRig=new THREE.Group();player.add(playerRig);
+// Underwater bubbles follow the player while immersed, with instancing for mobile.
+const bubbleCount=48,bubbleDummy=new THREE.Object3D(),bubbleGeometry=new THREE.SphereGeometry(.13,6,5),bubbleMaterial=new THREE.MeshBasicMaterial({color:0xa2eaff,transparent:true,opacity:.64,depthWrite:false});const playerBubbles=new THREE.InstancedMesh(bubbleGeometry,bubbleMaterial,bubbleCount);playerBubbles.instanceMatrix.setUsage(THREE.DynamicDrawUsage);playerBubbles.frustumCulled=false;playerBubbles.visible=false;scene.add(playerBubbles);
 // V52: pooled shield fracture shell and metallic impact splinters.
 const shieldFracture=new THREE.Group();playerRig.add(shieldFracture);
 const fractureMat=new THREE.MeshBasicMaterial({color:0x72edff,transparent:true,opacity:0,wireframe:true,depthWrite:false});
@@ -3163,7 +3168,22 @@ function hitBeehive(power,t){
 }
 function applyBeeDamage(amount,t){if(done)return;const absorbed=Math.min(shield,amount);shield-=absorbed;hp=Math.max(0,hp-(amount-absorbed));$('shield').textContent=Math.round(shield);$('hp').textContent=Math.round(hp);glassUntil=t;glassDuration=650;drawDamageGlass(amount>=20,amount>absorbed);if(hp<=0)finish(false);}
 const canalSplashMaterial=new THREE.MeshBasicMaterial({color:0x91d6df,transparent:true,opacity:.8});
-function waterSplash(x,z,speed){for(let i=0;i<Math.min(44,18+Math.floor(speed*.6));i++){const angle=Math.random()*Math.PI*2,r=Math.random()*1.7;const m=new THREE.Mesh(sparkGeometry,canalSplashMaterial);m.scale.setScalar(2.2+Math.random()*2.5);m.position.set(x+Math.cos(angle)*r,(Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z)<232?elevatedReservoir.waterY:.35),z+Math.sin(angle)*r);scene.add(m);sparks.push({m,born:performance.now(),vx:Math.cos(angle)*(2+speed*.18),vy:3+Math.random()*6,vz:Math.sin(angle)*(2+speed*.18)});}}
+const splashRingGeo=new THREE.TorusGeometry(1,.075,5,40),splashRingMat=new THREE.MeshBasicMaterial({color:0xc1f6ff,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide});
+const splashRings=[];
+function waterSplash(x,z,speed){
+ const isTank=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z)<232;
+ const y=isTank?elevatedReservoir.waterY:.35;
+ const now=performance.now();
+ // Expanding circular surface ripples, with mist-like droplets instead of oversized sparks.
+ for(let j=0;j<3;j++){const ring=new THREE.Mesh(splashRingGeo,splashRingMat.clone());ring.rotation.x=-Math.PI/2;ring.position.set(x,y+.12+j*.05,z);ring.scale.setScalar(.6+j*.55);scene.add(ring);splashRings.push({mesh:ring,born:now+j*85});}
+ const count=Math.min(38,15+Math.floor(speed*.42));
+ for(let i=0;i<count;i++){const angle=Math.random()*Math.PI*2,r=Math.random()*2.3;
+ const m=new THREE.Mesh(new THREE.SphereGeometry(.075+Math.random()*.12,5,4),canalSplashMaterial);
+ m.position.set(x+Math.cos(angle)*r,y+.15,z+Math.sin(angle)*r);scene.add(m);
+ sparks.push({m,born:now,life:550+Math.random()*430,vx:Math.cos(angle)*(2+Math.random()*6+speed*.09),vy:2+Math.random()*8,vz:Math.sin(angle)*(2+Math.random()*6+speed*.09),gravity:14});
+ }
+}
+
 function updateBeehives(t){
  let count=0;
  const wet=inIndustrialWater(player.position.x,player.position.z);
@@ -3743,7 +3763,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
  // V188: dedicated slide animation; ordinary ground physics never owns the trough.
- if(waterslideProgress<0&&t>slideCooldown&&!testFlight&&reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight)&&Math.hypot(player.position.x-vortexCenter.x,player.position.z-vortexCenter.z)<19){waterslideProgress=1;slideIntake=2.2;moveVX=moveVZ=0;jumpCount=0;jumpVelocity=0;notify('VORTEX // DEEP SUCTION');}
+ if(waterslideProgress<0&&t>slideCooldown&&!testFlight&&reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight)&&Math.hypot(player.position.x-vortexCenter.x,player.position.z-vortexCenter.z)<19){waterslideProgress=1;slideIntake=3.4;moveVX=moveVZ=0;jumpCount=0;jumpVelocity=0;notify('VORTEX // DEEP SUCTION');}
  if(waterslideProgress>=0&&!testFlight){moveVX=moveVZ=0;landingSkidUntil=0;}
  const skidActive=t<landingSkidUntil&&jumpCount===0&&!climbRamps.some(p=>p.pipeWalk&&Math.abs(player.position.z-p.az)<p.width&&player.position.x>=Math.min(p.ax,p.bx)-3&&player.position.x<=Math.max(p.ax,p.bx)+3);const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
@@ -3833,9 +3853,9 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  }
  // Animation track: move from tank to outlet at dash-like speed, immune to slope collision.
  if(waterslideProgress>=0&&!testFlight){
-  if(slideIntake>0){slideIntake=Math.max(0,slideIntake-dt);const u=1-slideIntake/2.2;const spiral=Math.min(1,u/.68),exit=Math.max(0,(u-.68)/.32);const radius=19*(1-spiral)*(1-spiral);const angle=u*Math.PI*7;player.position.x=vortexCenter.x+Math.cos(angle)*radius+(slideEnd.x-vortexCenter.x)*exit*exit;player.position.z=vortexCenter.z+Math.sin(angle)*radius+(slideEnd.z-vortexCenter.z)*exit*exit;climbFloor=vortexCenter.y-1-13*spiral-8*exit;jumpHeight=0;jumpCount=0;jumpVelocity=0;moveVX=moveVZ=0;fallPeak=climbFloor;climbPrevFeet=climbFloor;player.rotation.y=angle;}
+  if(slideIntake>0){slideIntake=Math.max(0,slideIntake-dt);const u=1-slideIntake/3.4;const spiral=Math.min(1,u/.68),exit=Math.max(0,(u-.68)/.32);const radius=19*(1-spiral)*(1-spiral);const angle=u*Math.PI*7;player.position.x=vortexCenter.x+Math.cos(angle)*radius+(slideEnd.x-vortexCenter.x)*exit*exit;player.position.z=vortexCenter.z+Math.sin(angle)*radius+(slideEnd.z-vortexCenter.z)*exit*exit;climbFloor=vortexCenter.y-1-13*spiral-8*exit;jumpHeight=0;jumpCount=0;jumpVelocity=0;moveVX=moveVZ=0;fallPeak=climbFloor;climbPrevFeet=climbFloor;player.rotation.y=angle;}
   else if(jumpHeld||jumpCount>0){waterslideProgress=-1;slideCooldown=t+2000;jumpCount=1;jumpVelocity=3.5;notify('SLIDE EXIT // GLIDE READY');}
-  else{waterslideProgress=Math.max(0,waterslideProgress-dt*34/slideLength);
+  else{waterslideProgress=Math.max(0,waterslideProgress-dt*42.5/slideLength);
    const u=waterslideProgress;player.position.x=slideStart.x+slideVector.x*u;player.position.z=slideStart.z+slideVector.z*u;
    climbFloor=slideStart.y+slideVector.y*u-11;jumpHeight=0;jumpCount=0;jumpVelocity=0;fallPeak=climbFloor;climbPrevFeet=climbFloor;
    if(u===0){waterslideProgress=-1;slideJustFinished=true;slideCooldown=t+3500;waterslideExitUntil=t+2800;slideLandingGrace=t+4000;climbFloor=22;jumpHeight=0;jumpCount=0;jumpVelocity=0;fallPeak=22;climbPrevFeet=22;moveVX=moveVZ=0;notify('INDUSTRIAL RESERVOIR // SAFE ARRIVAL');}
@@ -3883,6 +3903,15 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  }
  slideJustFinished=false;
  const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
+ // Waterline is measured in world space, not inferred from the jump state.
+ const waterRegion=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226;
+ const submerged=waterRegion&&player.position.y<elevatedReservoir.waterY-.15;
+ const intakeSubmerged=waterslideProgress>=0&&slideIntake>0;
+ const underwaterStrength=intakeSubmerged?Math.min(1,(1-slideIntake/3.4)*2.5):submerged?Math.min(1,.5+(elevatedReservoir.waterY-player.position.y)*.13):0;
+ underwaterVeil.style.opacity=underwaterStrength.toFixed(3);underwaterTint.style.opacity=underwaterStrength.toFixed(3);
+ playerBubbles.visible=underwaterStrength>.12;
+ if(playerBubbles.visible){for(let i=0;i<bubbleCount;i++){const phase=(t*.00047+i*.61803398875)%1,ang=i*2.399963;const radius=.3+(i%7)*.12;bubbleDummy.position.set(player.position.x+Math.cos(ang)*radius+Math.sin(t*.001+i)*.14,player.position.y+.2+phase*4.2,player.position.z+Math.sin(ang)*radius);bubbleDummy.scale.setScalar(.55+(i%5)*.19);bubbleDummy.updateMatrix();playerBubbles.setMatrixAt(i,bubbleDummy.matrix);}playerBubbles.instanceMatrix.needsUpdate=true;}
+ for(let i=splashRings.length-1;i>=0;i--){const ring=splashRings[i],age=t-ring.born;if(age>1150){scene.remove(ring.mesh);ring.mesh.material.dispose();splashRings.splice(i,1);}else if(age>=0){ring.mesh.scale.setScalar(.6+age*.012);ring.mesh.material.opacity=.55*(1-age/1150);}}
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
