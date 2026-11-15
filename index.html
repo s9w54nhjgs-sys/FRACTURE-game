@@ -15,14 +15,15 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V189 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V190 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
 const elevatedReservoir={x:1125,z:1100,cy:334,radius:282,waterY:489};
 const slideStart={x:575,z:125,y:17},slideEnd={x:elevatedReservoir.x-Math.sqrt(282*282-155*155)-8,z:1130,y:490.5};
 let waterslideProgress=-1,waterslideExitUntil=0,slideCooldown=0,portalCooldown=0;
-const slideVector=new THREE.Vector3(slideEnd.x-slideStart.x,slideEnd.y-slideStart.y,slideEnd.z-slideStart.z);const slideLength=slideVector.length();
+const slideVector=new THREE.Vector3(slideEnd.x-slideStart.x,slideEnd.y-slideStart.y,slideEnd.z-slideStart.z);
+let slideJustFinished=false;const slideLength=slideVector.length();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
 let scopeActive=false,scopeFocusX=0,scopeFocusZ=0;
@@ -2399,6 +2400,9 @@ function createStreamedTerrain(key){
     // Cylindrical tube only: a narrow curved trough follows the pipe, no flat box floor.
     const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,24,1,true,-Math.PI/2,Math.PI),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
     const flow=new THREE.Mesh(new THREE.CylinderGeometry(14.4,14.4,L,24,1,true,-Math.PI/2,Math.PI),streamMaterial);flow.position.copy(pipeShell.position);flow.quaternion.copy(pipeShell.quaternion);group.add(flow);
+    // Continuous inclined waterbed; visual support for the guided slide, not a collision AABB.
+    const waterbed=new THREE.Mesh(new THREE.BoxGeometry(24,0.6,L+1.5),new THREE.MeshStandardMaterial({color:0x2c7f91,metalness:.12,roughness:.34,transparent:true,opacity:.82,side:THREE.DoubleSide}));
+    waterbed.position.set(midX,midY-11.5,midZ);waterbed.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(dx,dy,dz).normalize());group.add(waterbed);
     // V188: decorative-only trough; slide movement uses a separate state machine.
     // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
     // Walkable floor is resolved by climbRamps; a solid pipe-sized AABB would block its interior.
@@ -3726,7 +3730,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const desiredVX=(glideFlight||mag>.05)?(Math.cos(yaw)*steerX+Math.sin(yaw)*steerY)*glideSpeed:0;
  const desiredVZ=(glideFlight||mag>.05)?(-Math.sin(yaw)*steerX+Math.cos(yaw)*steerY)*glideSpeed:0;
  // V188: dedicated slide animation; ordinary ground physics never owns the trough.
- if(waterslideProgress<0&&t>slideCooldown&&!testFlight&&Math.hypot(player.position.x-slideEnd.x,player.position.z-slideEnd.z)<37&&Math.abs(climbFloor+jumpHeight-slideEnd.y)<34){waterslideProgress=1;moveVX=moveVZ=0;notify('WATER CURRENT // ENGAGED');}
+ if(waterslideProgress<0&&t>slideCooldown&&!testFlight&&reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight)&&player.position.x<slideEnd.x+38&&player.position.x>slideEnd.x-17&&Math.abs(player.position.z-slideEnd.z)<23&&Math.abs(climbFloor+jumpHeight-slideEnd.y)<12){waterslideProgress=1;moveVX=moveVZ=0;jumpCount=0;jumpVelocity=0;notify('WATER CURRENT // ENGAGED');}
  if(waterslideProgress>=0&&!testFlight){moveVX=moveVZ=0;landingSkidUntil=0;}
  const skidActive=t<landingSkidUntil&&jumpCount===0&&!climbRamps.some(p=>p.pipeWalk&&Math.abs(player.position.z-p.az)<p.width&&player.position.x>=Math.min(p.ax,p.bx)-3&&player.position.x<=Math.max(p.ax,p.bx)+3);const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
@@ -3814,10 +3818,11 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
   if(jumpHeld||jumpCount>0){waterslideProgress=-1;slideCooldown=t+2000;jumpCount=1;jumpVelocity=3.5;notify('SLIDE EXIT // GLIDE READY');}
   else{waterslideProgress=Math.max(0,waterslideProgress-dt*34/slideLength);
    const u=waterslideProgress;player.position.x=slideStart.x+slideVector.x*u;player.position.z=slideStart.z+slideVector.z*u;
-   climbFloor=slideStart.y+slideVector.y*u-10;jumpHeight=0;jumpCount=0;jumpVelocity=0;fallPeak=climbFloor;climbPrevFeet=climbFloor;
-   if(u===0){waterslideProgress=-1;slideCooldown=t+3500;waterslideExitUntil=t+1400;climbFloor=22;jumpHeight=0;moveVX=moveVZ=0;notify('INDUSTRIAL RESERVOIR // ARRIVED');}
+   climbFloor=slideStart.y+slideVector.y*u-11;jumpHeight=0;jumpCount=0;jumpVelocity=0;fallPeak=climbFloor;climbPrevFeet=climbFloor;
+   if(u===0){waterslideProgress=-1;slideJustFinished=true;slideCooldown=t+3500;waterslideExitUntil=t+1400;climbFloor=22;jumpHeight=0;moveVX=moveVZ=0;notify('INDUSTRIAL RESERVOIR // ARRIVED');}
   }
  }
+ if(waterslideProgress<0){
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
@@ -3856,6 +3861,8 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
   resolveFallDamage(Math.max(0,deck),t);climbFloor=Math.max(0,deck);jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
  }
  climbPrevFeet=climbFloor+jumpHeight;
+ }
+ slideJustFinished=false;
  const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-575,player.position.z-125)<13&&climbFloor<30){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
