@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V195 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V196 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -37,6 +37,9 @@ const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-per
 // Screen-space underwater color absorption + strong edge vignetting.
 const underwaterVeil=document.createElement('div');underwaterVeil.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 43%,rgba(1,25,50,.30) 0%,rgba(0,12,34,.70) 45%,rgba(0,3,19,.97) 100%);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterVeil);
 const underwaterTint=document.createElement('div');underwaterTint.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:rgba(4,43,86,.42);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterTint);
+// Lightweight lens droplets after surfacing; no expensive framebuffer postprocessing.
+const waterLens=document.createElement('div');waterLens.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .12s linear;background:radial-gradient(ellipse 12px 22px at 18% 19%,rgba(183,228,247,.30) 0%,rgba(137,202,233,.12) 55%,transparent 70%),radial-gradient(ellipse 8px 17px at 72% 31%,rgba(190,235,255,.29) 0%,transparent 75%),radial-gradient(ellipse 16px 26px at 85% 76%,rgba(174,220,245,.26) 0%,transparent 75%),radial-gradient(ellipse 7px 14px at 34% 84%,rgba(183,228,247,.28) 0%,transparent 75%)';document.body.appendChild(waterLens);
+let wasFullyUnderwater=false,waterLensUntil=0;
 // OPEN OVERCAST SKY: procedural daytime cloud field, replacing the geodesic dome.
 scene.background=new THREE.Color(0x87949d);
 scene.fog=new THREE.FogExp2(0x8b98a0,.0032);
@@ -3905,11 +3908,16 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
  // Waterline is measured in world space, not inferred from the jump state.
  const waterRegion=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226;
- const submerged=waterRegion&&player.position.y<elevatedReservoir.waterY-.15;
- const intakeSubmerged=waterslideProgress>=0&&slideIntake>0;
- const underwaterStrength=intakeSubmerged?Math.min(1,(1-slideIntake/3.4)*2.5):submerged?Math.min(1,.5+(elevatedReservoir.waterY-player.position.y)*.13):0;
+ // Use current simulated feet, not last frame's player.position.y. Only the FULL body under water gets the underwater filter.
+ const simulatedFeet=climbFloor+jumpHeight;
+ const fullySubmerged=waterRegion&&simulatedFeet+2.65<elevatedReservoir.waterY-.15;
+ const intakeSubmerged=waterslideProgress>=0&&slideIntake>0&&simulatedFeet+2.65<elevatedReservoir.waterY-.15;
+ const underwaterStrength=fullySubmerged?Math.min(1,.58+(elevatedReservoir.waterY-simulatedFeet-2.65)*.12):0;
+ if(wasFullyUnderwater&&!fullySubmerged&&waterslideProgress<0)waterLensUntil=t+2400;
+ wasFullyUnderwater=fullySubmerged;
  underwaterVeil.style.opacity=underwaterStrength.toFixed(3);underwaterTint.style.opacity=underwaterStrength.toFixed(3);
- playerBubbles.visible=underwaterStrength>.12;
+ waterLens.style.opacity=t<waterLensUntil?Math.min(.85,(waterLensUntil-t)/1100).toFixed(3):'0';
+ playerBubbles.visible=fullySubmerged;
  if(playerBubbles.visible){for(let i=0;i<bubbleCount;i++){const phase=(t*.00047+i*.61803398875)%1,ang=i*2.399963;const radius=.3+(i%7)*.12;bubbleDummy.position.set(player.position.x+Math.cos(ang)*radius+Math.sin(t*.001+i)*.14,player.position.y+.2+phase*4.2,player.position.z+Math.sin(ang)*radius);bubbleDummy.scale.setScalar(.55+(i%5)*.19);bubbleDummy.updateMatrix();playerBubbles.setMatrixAt(i,bubbleDummy.matrix);}playerBubbles.instanceMatrix.needsUpdate=true;}
  for(let i=splashRings.length-1;i>=0;i--){const ring=splashRings[i],age=t-ring.born;if(age>1150){scene.remove(ring.mesh);ring.mesh.material.dispose();splashRings.splice(i,1);}else if(age>=0){ring.mesh.scale.setScalar(.6+age*.012);ring.mesh.material.opacity=.55*(1-age/1150);}}
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
