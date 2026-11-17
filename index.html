@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V200 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V201 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -33,10 +33,11 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.f
 // Mirror the tank across the submarine dock: dock(640,133), tank(1125,1100), observatory(155,-834).
 // World-space array is persistent: no chunk streaming/pop-in or sector gate can hide it.
 const radioArrayCenter={x:155,z:-834};
-const radioArray=new THREE.Group();scene.add(radioArray);
+const radioArray=new THREE.Group();scene.add(radioArray);const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
 const radioSteel=new THREE.MeshStandardMaterial({color:0x8799a5,metalness:.74,roughness:.42,side:THREE.DoubleSide});
 const radioDark=new THREE.MeshStandardMaterial({color:0x364956,metalness:.69,roughness:.58,side:THREE.DoubleSide});
 const radioWhite=new THREE.MeshStandardMaterial({color:0xb4c9d2,metalness:.55,roughness:.48,side:THREE.DoubleSide});
+const radioCentralPrism=new THREE.Mesh(new THREE.IcosahedronGeometry(24,1),new THREE.MeshBasicMaterial({color:0xb8ffff}));radioCentralPrism.position.set(radioArrayCenter.x,280,radioArrayCenter.z);scene.add(radioCentralPrism);const radioCentralLight=new THREE.PointLight(0x5cdfff,12,420);radioCentralPrism.add(radioCentralLight);
 const radioRod=(parent,a,b,r,mat=radioDark)=>{const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),d=w.clone().sub(v);const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),8),mat);mesh.position.copy(v.add(w).multiplyScalar(.5));mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());parent.add(mesh);};
 for(let i=0;i<5;i++){
  const angle=-Math.PI/2+i*Math.PI*2/5,ax=radioArrayCenter.x+490*Math.cos(angle),az=radioArrayCenter.z+490*Math.sin(angle);
@@ -52,6 +53,8 @@ for(let i=0;i<5;i++){
  const focus=new THREE.Mesh(new THREE.SphereGeometry(11,12,8),radioSteel);focus.position.y=125;cradle.add(focus);
  for(let k=0;k<8;k++){const ang=k*Math.PI/4;radioRod(cradle,[Math.cos(ang)*203,20,Math.sin(ang)*203],[0,125,0],2.7);}
  for(let k=0;k<12;k++){const ang=k*Math.PI/6;radioRod(cradle,[0,18,0],[Math.cos(ang)*208,20,Math.sin(ang)*208],1.8,radioDark);}
+ const prism=new THREE.Mesh(new THREE.OctahedronGeometry(15,0),new THREE.MeshBasicMaterial({color:0x94faff}));prism.position.set(0,83,0);cradle.add(prism);prism.add(new THREE.PointLight(0x6cddff,8,160));radioPrisms.push(prism);
+ const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.5,3,1,8),new THREE.MeshBasicMaterial({color:0x5edaff,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(beam);radioBeams.push(beam);
 }
 
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
@@ -3587,7 +3590,31 @@ function updateIndustrialAerials(t){
   industrialEyes[k].count=counts[k];industrialEyes[k].visible=counts[k]>0;
  }
 }
-function update(t){requestAnimationFrame(update);updateIndustrialAerials(t);updateBeehives(t);
+function updateRadioArray(t){
+ radioCentralPrism.rotation.y=t*.0005;
+ const center=radioCentralPrism.position;
+ for(let i=0;i<5;i++){
+  const p=radioPrisms[i];p.rotation.y=t*.0007+i;
+  const origin=p.getWorldPosition(new THREE.Vector3()),delta=center.clone().sub(origin),beam=radioBeams[i];
+  beam.position.copy(origin).addScaledVector(delta,.5);beam.scale.y=delta.length();beam.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.normalize());beam.material.opacity=.36+Math.sin(t*.004+i)*.13;
+  if(!radioEvents[i]&&player.position.distanceTo(origin)<25){
+   radioEvents[i]=true;radioEventUntil[i]=t+180000;
+   if(i===0){for(let j=0;j<6;j++){const e=special('pursuer',player.position.x+Math.cos(j)*28,player.position.z+Math.sin(j)*28);e.alert=true;e.mode='chase';}notify('PRISM 1 // PURSUER RELEASE');}
+   if(i===1){for(let j=0;j<13;j++){const a=j*2.4;special('swarm',700+Math.cos(a)*(90+j*12),150+Math.sin(a)*(90+j*12));}notify('PRISM 2 // INDUSTRIAL FOG / 13 HOSTILES');}
+   if(i===2){for(let j=0;j<4;j++){const a=j*Math.PI/2,m=new THREE.Mesh(new THREE.ConeGeometry(5,29,7),radioDark);m.position.set(1125+Math.cos(a)*110,482,1100+Math.sin(a)*110);m.rotation.z=Math.PI/2;scene.add(m);radioTankBees.push(m);}notify('PRISM 3 // TANK INFESTATION');}
+   if(i===3){radioBombardUntil=t+32000;notify('PRISM 4 // AERIAL BOMBARDMENT');}
+   if(i===4){radioRevealUntil=t+180000;notify('PRISM 5 // POSITION REVEALED 03:00');}
+   if(Math.random()<.035){radioLifeBonus++;notify('RARE PRISM // EXTRA LIFE +1 (RESERVE)');}
+  }
+ }
+ if(t<radioBombardUntil&&t-radioBombardLast>300){radioBombardLast=t;const m=new THREE.Mesh(new THREE.ConeGeometry(5,13,6),radioDark);m.position.set(640+(Math.random()-.5)*1100,260,133+(Math.random()-.5)*900);scene.add(m);radioBombs.push(m);}
+ for(let i=radioBombs.length-1;i>=0;i--){const m=radioBombs[i];m.position.y-=5.5;if(m.position.y<4){impact(m.position.x,3,m.position.z);scene.remove(m);radioBombs.splice(i,1);}}
+ for(let i=0;i<radioTankBees.length;i++){const a=t*.0005+i*Math.PI/2,m=radioTankBees[i];m.position.x=1125+Math.cos(a)*110;m.position.z=1100+Math.sin(a)*110;}
+ if(t>radioCoreCooldown&&player.position.distanceTo(center)<34){
+  radioCoreCooldown=t+10000;radioLaunchUntil=t+2800;const a=Math.random()*Math.PI*2;radioLaunchVX=Math.cos(a)*160;radioLaunchVZ=Math.sin(a)*160;climbFloor=Math.max(climbFloor,270);jumpHeight=40;jumpVelocity=90;jumpCount=1;gliding=false;glideFlightActive=false;glideInterrupted=true;fallPeak=climbFloor+jumpHeight;notify('CORE // SUPERSONIC EJECTION / NO GLIDE');
+ }
+}
+function update(t){requestAnimationFrame(update);updateRadioArray(t);updateIndustrialAerials(t);updateBeehives(t);
  for(let i=cellWarpRings.length-1;i>=0;i--){
   const w=cellWarpRings[i],p=(t-w.born)/w.life;
   if(p<0)continue;
@@ -3792,7 +3819,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  }
  if(s.spinX&&!s.slimy){s.m.rotation.x+=s.spinX*step;s.m.rotation.z+=s.spinZ*step}s.m.position.z+=s.vz*step;if(s.slimy){const fade=Math.max(.02,1-age);s.m.scale.x*=Math.pow(fade,.025);s.m.scale.z*=Math.pow(fade,.025)}else s.m.scale.setScalar(Math.max(.01,1-age))}}const dt=t<hitStopUntil?0:Math.min((t-last)/1000,.05);last=t;updateExploration(t,dt);if(!done){let mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0);if(autoRun&&Math.hypot(mx,my)<.1)my=-1;const mag=Math.hypot(mx,my);if(mag>.05){mx/=Math.max(1,mag);my/=Math.max(1,mag)}
  // V83: forward glide gains speed smoothly; air steering remains available.
- const glideFlight=!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
+ const glideFlight=t>=radioLaunchUntil&&!glideInterrupted&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
  const glideSpeed=(testFlight?25:glideFlight?32.2:6.2)*(t<legacySpeedUntil?1.4:1)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
@@ -3804,7 +3831,8 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  const skidActive=t<landingSkidUntil&&jumpCount===0&&!climbRamps.some(p=>p.pipeWalk&&Math.abs(player.position.z-p.az)<p.width&&player.position.x>=Math.min(p.ax,p.bx)-3&&player.position.x<=Math.max(p.ax,p.bx)+3);const response=glideFlight?2.8:(skidActive?(inIndustrialWater(player.position.x,player.position.z)?.43:.65):(mag>.05?4.1:2.2));
  const blend=1-Math.exp(-response*dt);
  moveVX+=(desiredVX-moveVX)*blend;moveVZ+=(desiredVZ-moveVZ)*blend;
- if(dt>0&&waterslideProgress<0){const nx=player.position.x+moveVX*dt,nz=player.position.z+moveVZ*dt;
+ if(t<radioLaunchUntil&&dt>0){player.position.x+=radioLaunchVX*dt;player.position.z+=radioLaunchVZ*dt;}
+ if(dt>0&&waterslideProgress<0&&t>=radioLaunchUntil){const nx=player.position.x+moveVX*dt,nz=player.position.z+moveVZ*dt;
  // A glide hits a wall only if the COMPLETE forward sweep is blocked.
  // On a diagonal, retain tangential movement instead of killing both axes.
  const sx=player.position.x,sz=player.position.z;
@@ -3988,7 +4016,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
- if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
+ if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
  if(!floatingNow&&jumpHeight<0&&waterslideProgress<0&&t>waterPlungeUntil){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  // Buoyancy is a persistent state, not an airborne-only one-frame correction.
  const reservoirInside=reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight);
