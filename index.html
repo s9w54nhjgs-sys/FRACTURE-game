@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V197 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V198 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2499,6 +2499,23 @@ function createStreamedTerrain(key){
    for(const k of [-1,1])pipe([ax+k*8,88,az],[ax+k*13,112,az],1.3);
    structure(ax,106,az,76,2,76,steelMat,false); // visible dish support, no phantom player wall
   }
+  // Five large Nevada-style radio telescopes at the opposite industrial perimeter.
+  // Distributed over two outer chunks so the array does not intersect the tank.
+  if((cx===5&&cz===1)||(cx===6&&cz===1)){
+   const locations=cx===5?[[ox+62,oz+72,-.28],[ox+186,oz+86,.20],[ox+115,oz+202,-.46]]:[[ox+74,oz+76,.35],[ox+189,oz+184,-.12]];
+   const dishMetal=new THREE.MeshStandardMaterial({color:0x93aab4,metalness:.72,roughness:.38,side:THREE.DoubleSide});
+   const supportMat=new THREE.MeshStandardMaterial({color:0x3a505e,metalness:.73,roughness:.58});
+   for(const [ax,az,tilt] of locations){
+    const base=new THREE.Mesh(new THREE.CylinderGeometry(12,16,7,12),supportMat);base.position.set(ax,3.5,az);group.add(base);
+    const tower=new THREE.Mesh(new THREE.CylinderGeometry(5,8,53,12),supportMat);tower.position.set(ax,33,az);group.add(tower);
+    const mount=new THREE.Group();mount.position.set(ax,66,az);mount.rotation.z=tilt;mount.rotation.x=-.35;group.add(mount);
+    const dish=new THREE.Mesh(new THREE.SphereGeometry(39,32,12,0,Math.PI*2,0,Math.PI*.48),dishMetal);dish.scale.y=.5;dish.position.y=12;mount.add(dish);
+    const rim=new THREE.Mesh(new THREE.TorusGeometry(39,1.15,7,40),supportMat);rim.rotation.x=Math.PI/2;rim.position.y=12;mount.add(rim);
+    const focus=new THREE.Mesh(new THREE.SphereGeometry(3,8,6),signalMat);focus.position.y=37;mount.add(focus);
+    for(let k=0;k<4;k++){const a=k*Math.PI/2;const v=new THREE.Vector3(Math.cos(a)*35,12,Math.sin(a)*35),d=new THREE.Vector3(0,37,0).sub(v);const arm=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,d.length(),6),supportMat);arm.position.copy(v.addScaledVector(d,.5));arm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());mount.add(arm);}
+    colliders.push({x:ax,z:az,w:23,d:23,top:67,bottom:0});
+   }
+  }
   // Expand the existing submarine dock into a working industrial terminal.
   if(dockSlice){
    for(const x of [560,610,670,720]){
@@ -3179,7 +3196,7 @@ const canalSplashMaterial=new THREE.MeshBasicMaterial({color:0x91d6df,transparen
 const splashRingGeo=new THREE.TorusGeometry(1,.075,5,40),splashRingMat=new THREE.MeshBasicMaterial({color:0xc1f6ff,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide});
 const splashRings=[];
 // Pooled whitewater wake: fast spray near the rider and expanding foam rings.
-const slideWakeCount=90,slideWakeDummy=new THREE.Object3D(),slideWakeGeo=new THREE.SphereGeometry(.18,5,4),slideWakeMat=new THREE.MeshBasicMaterial({color:0xd2f8ff,transparent:true,opacity:.78,depthWrite:false});const slideWake=new THREE.InstancedMesh(slideWakeGeo,slideWakeMat,slideWakeCount);slideWake.instanceMatrix.setUsage(THREE.DynamicDrawUsage);slideWake.frustumCulled=false;slideWake.visible=false;scene.add(slideWake);let slideWakeLastRing=0;
+const slideWakeCount=90,slideWakeDummy=new THREE.Object3D(),slideWakeGeo=new THREE.SphereGeometry(.18,5,4),slideWakeMat=new THREE.MeshBasicMaterial({color:0xd2f8ff,transparent:true,opacity:.78,depthWrite:false});const slideWake=new THREE.InstancedMesh(slideWakeGeo,slideWakeMat,slideWakeCount);slideWake.instanceMatrix.setUsage(THREE.DynamicDrawUsage);slideWake.frustumCulled=false;slideWake.visible=false;scene.add(slideWake);let slideWakeLastRing=0,slideLensSprayAt=0;
 function waterSplash(x,z,speed){
  const isTank=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z)<232;
  const y=isTank?elevatedReservoir.waterY:.35;
@@ -3916,10 +3933,30 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  slideFlowTime.value=t*.001;
  const slidingRapids=waterslideProgress>=0&&slideIntake<=0;
  slideWake.visible=slidingRapids;
- if(slidingRapids){const tangentX=slideVector.x/slideLength,tangentZ=slideVector.z/slideLength;for(let i=0;i<slideWakeCount;i++){const phase=(t*.0017+i*.61803398875)%1,side=Math.sin(i*2.39996)*(.8+phase*8),behind=phase*19-5;slideWakeDummy.position.set(player.position.x-tangentX*behind+tangentZ*side,climbFloor+1+Math.sin(phase*12+i)*(.7+phase*3.6),player.position.z-tangentZ*behind-tangentX*side);slideWakeDummy.scale.setScalar(.45+(i%6)*.19);slideWakeDummy.updateMatrix();slideWake.setMatrixAt(i,slideWakeDummy.matrix);}slideWake.instanceMatrix.needsUpdate=true;
- if(t-slideWakeLastRing>175){slideWakeLastRing=t;const ring=new THREE.Mesh(splashRingGeo,splashRingMat.clone());ring.rotation.x=-Math.PI/2;ring.position.set(player.position.x,climbFloor+.8,player.position.z);ring.scale.setScalar(1.5);scene.add(ring);splashRings.push({mesh:ring,born:t});}
- if(t-waterLensDashAt>350){waterLensUntil=Math.max(waterLensUntil,t+180);}
+ if(slidingRapids){
+ const tangentX=slideVector.x/slideLength,tangentZ=slideVector.z/slideLength;
+ // Camera-facing plume: particles originate at the rider and fan toward the lens.
+ const towardCamera=new THREE.Vector3().subVectors(camera.position,player.position);
+ if(towardCamera.lengthSq()<.1)towardCamera.set(-tangentX,2,-tangentZ);
+ towardCamera.normalize();
+ const sideVector=new THREE.Vector3(-towardCamera.z,0,towardCamera.x).normalize();
+ for(let i=0;i<slideWakeCount;i++){
+  const phase=(t*.00115+i*.61803398875)%1;
+  const angle=i*2.399963+t*.003;
+  const radial=Math.sin(angle)*(.7+phase*3.3);
+  const reach=phase*11;
+  slideWakeDummy.position.set(
+   player.position.x+towardCamera.x*reach+sideVector.x*radial,
+   climbFloor+1.5+Math.sin(angle)*(.4+phase*2.1)+towardCamera.y*reach+phase*2.7,
+   player.position.z+towardCamera.z*reach+sideVector.z*radial);
+  slideWakeDummy.scale.setScalar(.35+(i%6)*.17);
+  slideWakeDummy.updateMatrix();slideWake.setMatrixAt(i,slideWakeDummy.matrix);
  }
+ slideWake.instanceMatrix.needsUpdate=true;
+ // Droplets hit the camera in irregular pulses, not as circular world-space rings.
+ if(t-slideLensSprayAt>230){slideLensSprayAt=t;waterLensUntil=Math.max(waterLensUntil,t+780);}
+ }
+
  // Waterline is measured in world space, not inferred from the jump state.
  const waterRegion=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226;
  // Use current simulated feet, not last frame's player.position.y. Only the FULL body under water gets the underwater filter.
