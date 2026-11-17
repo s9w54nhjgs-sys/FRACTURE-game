@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V199 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V200 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -30,6 +30,30 @@ const slideFlowTime={value:0};
 const slideRapidMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{uTime:slideFlowTime},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:`uniform float uTime;varying vec2 vUv;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}void main(){vec2 p=vec2(vUv.x*8.,vUv.y*17.+uTime*2.6);float n=noise(p*2.4+vec2(sin(p.y*.6),0.));float sw=sin(p.y*8.+sin(p.x*3.+uTime*2.)*2.+n*5.);float foam=smoothstep(.46,.85,n*.75+sw*.22+noise(p*5.)*.35);vec3 water=mix(vec3(.015,.24,.34),vec3(.12,.57,.68),n);water=mix(water,vec3(.73,.96,.99),foam*.85);gl_FragColor=vec4(water,.88);}`});
 let slideJustFinished=false;const slideLength=slideVector.length();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
+// Mirror the tank across the submarine dock: dock(640,133), tank(1125,1100), observatory(155,-834).
+// World-space array is persistent: no chunk streaming/pop-in or sector gate can hide it.
+const radioArrayCenter={x:155,z:-834};
+const radioArray=new THREE.Group();scene.add(radioArray);
+const radioSteel=new THREE.MeshStandardMaterial({color:0x8799a5,metalness:.74,roughness:.42,side:THREE.DoubleSide});
+const radioDark=new THREE.MeshStandardMaterial({color:0x364956,metalness:.69,roughness:.58,side:THREE.DoubleSide});
+const radioWhite=new THREE.MeshStandardMaterial({color:0xb4c9d2,metalness:.55,roughness:.48,side:THREE.DoubleSide});
+const radioRod=(parent,a,b,r,mat=radioDark)=>{const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),d=w.clone().sub(v);const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,d.length(),8),mat);mesh.position.copy(v.add(w).multiplyScalar(.5));mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());parent.add(mesh);};
+for(let i=0;i<5;i++){
+ const angle=-Math.PI/2+i*Math.PI*2/5,ax=radioArrayCenter.x+490*Math.cos(angle),az=radioArrayCenter.z+490*Math.sin(angle);
+ const root=new THREE.Group();root.position.set(ax,0,az);radioArray.add(root);
+ // 5.5x former 78m dish diameter: 429m aperture, with a monumental Nevada/VLA-style foundation.
+ const footing=new THREE.Mesh(new THREE.CylinderGeometry(93,108,18,16),radioDark);footing.position.y=9;root.add(footing);
+ const pedestal=new THREE.Mesh(new THREE.CylinderGeometry(65,83,92,16),radioSteel);pedestal.position.y=64;root.add(pedestal);
+ const hub=new THREE.Mesh(new THREE.BoxGeometry(144,28,110),radioDark);hub.position.y=119;root.add(hub);
+ for(const x of [-55,55])for(const z of [-42,42])radioRod(root,[x,19,z],[x*.68,118,z*.7],7);
+ const cradle=new THREE.Group();cradle.position.y=155;cradle.rotation.z=[-.26,.17,-.12,.25,-.2][i];cradle.rotation.x=-.4;root.add(cradle);
+ const dish=new THREE.Mesh(new THREE.SphereGeometry(214.5,48,20,0,Math.PI*2,0,Math.PI*.47),radioWhite);dish.scale.y=.46;dish.position.y=20;cradle.add(dish);
+ const rim=new THREE.Mesh(new THREE.TorusGeometry(214.5,3.8,9,64),radioDark);rim.rotation.x=Math.PI/2;rim.position.y=20;cradle.add(rim);
+ const focus=new THREE.Mesh(new THREE.SphereGeometry(11,12,8),radioSteel);focus.position.y=125;cradle.add(focus);
+ for(let k=0;k<8;k++){const ang=k*Math.PI/4;radioRod(cradle,[Math.cos(ang)*203,20,Math.sin(ang)*203],[0,125,0],2.7);}
+ for(let k=0;k<12;k++){const ang=k*Math.PI/6;radioRod(cradle,[0,18,0],[Math.cos(ang)*208,20,Math.sin(ang)*208],1.8,radioDark);}
+}
+
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
 let scopeActive=false,scopeFocusX=0,scopeFocusZ=0;
 const scopeRay=new THREE.Vector3(),scopeAim=new THREE.Vector3();
@@ -2499,23 +2523,6 @@ function createStreamedTerrain(key){
    for(const k of [-1,1])pipe([ax+k*8,88,az],[ax+k*13,112,az],1.3);
    structure(ax,106,az,76,2,76,steelMat,false); // visible dish support, no phantom player wall
   }
-  // Five large Nevada-style radio telescopes at the opposite industrial perimeter.
-  // Distributed over two outer chunks so the array does not intersect the tank.
-  if((cx===5&&cz===1)||(cx===6&&cz===1)){
-   const locations=cx===5?[[ox+62,oz+72,-.28],[ox+186,oz+86,.20],[ox+115,oz+202,-.46]]:[[ox+74,oz+76,.35],[ox+189,oz+184,-.12]];
-   const dishMetal=new THREE.MeshStandardMaterial({color:0x93aab4,metalness:.72,roughness:.38,side:THREE.DoubleSide});
-   const supportMat=new THREE.MeshStandardMaterial({color:0x3a505e,metalness:.73,roughness:.58});
-   for(const [ax,az,tilt] of locations){
-    const base=new THREE.Mesh(new THREE.CylinderGeometry(12,16,7,12),supportMat);base.position.set(ax,3.5,az);group.add(base);
-    const tower=new THREE.Mesh(new THREE.CylinderGeometry(5,8,53,12),supportMat);tower.position.set(ax,33,az);group.add(tower);
-    const mount=new THREE.Group();mount.position.set(ax,66,az);mount.rotation.z=tilt;mount.rotation.x=-.35;group.add(mount);
-    const dish=new THREE.Mesh(new THREE.SphereGeometry(39,32,12,0,Math.PI*2,0,Math.PI*.48),dishMetal);dish.scale.y=.5;dish.position.y=12;mount.add(dish);
-    const rim=new THREE.Mesh(new THREE.TorusGeometry(39,1.15,7,40),supportMat);rim.rotation.x=Math.PI/2;rim.position.y=12;mount.add(rim);
-    const focus=new THREE.Mesh(new THREE.SphereGeometry(3,8,6),signalMat);focus.position.y=37;mount.add(focus);
-    for(let k=0;k<4;k++){const a=k*Math.PI/2;const v=new THREE.Vector3(Math.cos(a)*35,12,Math.sin(a)*35),d=new THREE.Vector3(0,37,0).sub(v);const arm=new THREE.Mesh(new THREE.CylinderGeometry(.9,.9,d.length(),6),supportMat);arm.position.copy(v.addScaledVector(d,.5));arm.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),d.normalize());mount.add(arm);}
-    colliders.push({x:ax,z:az,w:23,d:23,top:67,bottom:0});
-   }
-  }
   // Expand the existing submarine dock into a working industrial terminal.
   if(dockSlice){
    for(const x of [560,610,670,720]){
@@ -2862,7 +2869,7 @@ const crownPortal=document.createElement('button');crownPortal.textContent='PORT
 crownPortal.remove(); // Physical portals below replace the debug teleport.
  industryWarpButton.addEventListener('click',()=>{
  if(done)return;
- const target={x:1405,z:398,h:0};
+ const target={x:radioArrayCenter.x,z:radioArrayCenter.z,h:0};
  player.position.x=target.x;player.position.z=target.z;
  climbFloor=0;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=0;
  fallPeak=0;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;
@@ -2874,8 +2881,8 @@ crownPortal.remove(); // Physical portals below replace the debug teleport.
  else{const entry=chunkCache.get(key);entry.loaded=true;entry.lastSeen=performance.now();}
  createStreamedTerrain(key);
  // Preload the five-dish array chunks before the first camera frame.
- for(const coords of [[5,1],[6,1]]){const k=coords.join(',');if(!chunkCache.has(k))chunkCache.set(k,{key:k,loaded:true,lastSeen:performance.now(),score:0});createStreamedTerrain(k);}
- notify('DEV WARP: パラボラ観測所へ移動');
+ for(const coords of [[0,-4],[1,-4],[0,-3],[1,-3]]){const k=coords.join(',');if(!chunkCache.has(k))chunkCache.set(k,{key:k,loaded:true,lastSeen:performance.now(),score:0});createStreamedTerrain(k);}
+ notify('DEV WARP: 巨大電波望遠鏡群 / SUB DOCK 対称位置');
 });
 // Two world-space portals: entry in the industrial zone and arrival on the half-restored crown.
 const portalGeo=new THREE.TorusGeometry(12,1.7,10,32);const portalMat=new THREE.MeshBasicMaterial({color:0x8ff7ff});
@@ -3198,7 +3205,7 @@ const canalSplashMaterial=new THREE.MeshBasicMaterial({color:0x91d6df,transparen
 const splashRingGeo=new THREE.TorusGeometry(1,.075,5,40),splashRingMat=new THREE.MeshBasicMaterial({color:0xc1f6ff,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide});
 const splashRings=[];
 // Pooled whitewater wake: fast spray near the rider and expanding foam rings.
-const slideWakeCount=90,slideWakeDummy=new THREE.Object3D(),slideWakeGeo=new THREE.SphereGeometry(.18,5,4),slideWakeMat=new THREE.MeshBasicMaterial({color:0xd2f8ff,transparent:true,opacity:.78,depthWrite:false});const slideWake=new THREE.InstancedMesh(slideWakeGeo,slideWakeMat,slideWakeCount);slideWake.instanceMatrix.setUsage(THREE.DynamicDrawUsage);slideWake.frustumCulled=false;slideWake.visible=false;scene.add(slideWake);let slideWakeLastRing=0,slideLensSprayAt=0;
+const slideWakeCount=44,slideWakeDummy=new THREE.Object3D(),slideWakeGeo=new THREE.SphereGeometry(.18,5,4),slideWakeMat=new THREE.MeshBasicMaterial({color:0xd2f8ff,transparent:true,opacity:.78,depthWrite:false});const slideWake=new THREE.InstancedMesh(slideWakeGeo,slideWakeMat,slideWakeCount);slideWake.instanceMatrix.setUsage(THREE.DynamicDrawUsage);slideWake.frustumCulled=false;slideWake.visible=false;scene.add(slideWake);let slideWakeLastRing=0,slideLensSprayAt=0;
 function waterSplash(x,z,speed){
  const isTank=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z)<232;
  const y=isTank?elevatedReservoir.waterY:.35;
