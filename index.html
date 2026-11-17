@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V201 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V202 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -33,7 +33,7 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.f
 // Mirror the tank across the submarine dock: dock(640,133), tank(1125,1100), observatory(155,-834).
 // World-space array is persistent: no chunk streaming/pop-in or sector gate can hide it.
 const radioArrayCenter={x:155,z:-834};
-const radioArray=new THREE.Group();scene.add(radioArray);const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
+const radioArray=new THREE.Group();scene.add(radioArray);const radioWalkways=[],radioGasPads=[],radioCarriers=[];let radioPadCooldown=0,radioBeeSwarmActive=false,radioBombTick=0;const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
 const radioSteel=new THREE.MeshStandardMaterial({color:0x8799a5,metalness:.74,roughness:.42,side:THREE.DoubleSide});
 const radioDark=new THREE.MeshStandardMaterial({color:0x364956,metalness:.69,roughness:.58,side:THREE.DoubleSide});
 const radioWhite=new THREE.MeshStandardMaterial({color:0xb4c9d2,metalness:.55,roughness:.48,side:THREE.DoubleSide});
@@ -51,9 +51,13 @@ for(let i=0;i<5;i++){
  const dish=new THREE.Mesh(new THREE.SphereGeometry(214.5,48,20,0,Math.PI*2,0,Math.PI*.47),radioWhite);dish.scale.y=.46;dish.position.y=20;cradle.add(dish);
  const rim=new THREE.Mesh(new THREE.TorusGeometry(214.5,3.8,9,64),radioDark);rim.rotation.x=Math.PI/2;rim.position.y=20;cradle.add(rim);
  const focus=new THREE.Mesh(new THREE.SphereGeometry(11,12,8),radioSteel);focus.position.y=125;cradle.add(focus);
+ for(let k=0;k<4;k++){const a=k*Math.PI/2,A=new THREE.Vector3(Math.cos(a)*203,20,Math.sin(a)*203),B=new THREE.Vector3(0,125,0),v=B.clone().sub(A);const walk=new THREE.Mesh(new THREE.BoxGeometry(11,2,v.length()),radioSteel);walk.position.copy(A).add(B).multiplyScalar(.5);walk.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),v.normalize());cradle.add(walk);radioWalkways.push({cradle,A,B,width:8});}
  for(let k=0;k<8;k++){const ang=k*Math.PI/4;radioRod(cradle,[Math.cos(ang)*203,20,Math.sin(ang)*203],[0,125,0],2.7);}
  for(let k=0;k<12;k++){const ang=k*Math.PI/6;radioRod(cradle,[0,18,0],[Math.cos(ang)*208,20,Math.sin(ang)*208],1.8,radioDark);}
  const prism=new THREE.Mesh(new THREE.OctahedronGeometry(15,0),new THREE.MeshBasicMaterial({color:0x94faff}));prism.position.set(0,83,0);cradle.add(prism);prism.add(new THREE.PointLight(0x6cddff,8,160));radioPrisms.push(prism);
+ const padX=ax+Math.cos(angle)*230,padZ=az+Math.sin(angle)*230,pad=new THREE.Group();pad.position.set(padX,0,padZ);scene.add(pad);
+ const tank=new THREE.Mesh(new THREE.CylinderGeometry(12,13,6,16),radioDark);tank.position.y=-1;pad.add(tank);const ring=new THREE.Mesh(new THREE.TorusGeometry(12,1.5,7,24),radioSteel);ring.rotation.x=Math.PI/2;ring.position.y=1;pad.add(ring);
+ const plume=new THREE.Mesh(new THREE.CylinderGeometry(2,9,155,12,1,true),new THREE.MeshBasicMaterial({color:0x91e9ff,transparent:true,opacity:.18,depthWrite:false,side:THREE.DoubleSide,blending:THREE.AdditiveBlending}));plume.position.y=78;pad.add(plume);radioGasPads.push({x:padX,z:padZ,plume,index:i});
  const beam=new THREE.Mesh(new THREE.CylinderGeometry(1.5,3,1,8),new THREE.MeshBasicMaterial({color:0x5edaff,transparent:true,opacity:.55,depthWrite:false,blending:THREE.AdditiveBlending}));scene.add(beam);radioBeams.push(beam);
 }
 
@@ -1593,6 +1597,8 @@ const climbDecks=[];
 const climbSteel=new THREE.MeshStandardMaterial({color:0x53616b,metalness:.78,roughness:.43});
 const climbEdge=new THREE.MeshBasicMaterial({color:0x31798b});
 const climbRamps=[];
+// Radio support beams share the normal landing/ramp solver, not visual-only geometry.
+for(const w of radioWalkways){w.cradle.updateWorldMatrix(true,false);const a=w.cradle.localToWorld(w.A.clone()),b=w.cradle.localToWorld(w.B.clone());climbRamps.push({ax:a.x,az:a.z,ah:a.y+1,bx:b.x,bz:b.z,bh:b.y+1,width:w.width,radioWalk:true});}
 function addClimbDeck(x,z,h,w=11,d=11){
  const deck=new THREE.Mesh(new THREE.BoxGeometry(w,.55,d),climbSteel);
  deck.position.set(x,h-.68,z);scene.add(deck);
@@ -3590,6 +3596,7 @@ function updateIndustrialAerials(t){
   industrialEyes[k].count=counts[k];industrialEyes[k].visible=counts[k]>0;
  }
 }
+const radioLarvaeDummy=new THREE.Object3D(),radioLarvae=new THREE.InstancedMesh(new THREE.CapsuleGeometry(.22,1.1,3,5),new THREE.MeshStandardMaterial({color:0x5b203b,emissive:0x210714,roughness:.7}),720);radioLarvae.instanceMatrix.setUsage(THREE.DynamicDrawUsage);radioLarvae.frustumCulled=false;radioLarvae.visible=false;scene.add(radioLarvae);
 function updateRadioArray(t){
  radioCentralPrism.rotation.y=t*.0005;
  const center=radioCentralPrism.position;
@@ -3601,15 +3608,28 @@ function updateRadioArray(t){
    radioEvents[i]=true;radioEventUntil[i]=t+180000;
    if(i===0){for(let j=0;j<6;j++){const e=special('pursuer',player.position.x+Math.cos(j)*28,player.position.z+Math.sin(j)*28);e.alert=true;e.mode='chase';}notify('PRISM 1 // PURSUER RELEASE');}
    if(i===1){for(let j=0;j<13;j++){const a=j*2.4;special('swarm',700+Math.cos(a)*(90+j*12),150+Math.sin(a)*(90+j*12));}notify('PRISM 2 // INDUSTRIAL FOG / 13 HOSTILES');}
-   if(i===2){for(let j=0;j<4;j++){const a=j*Math.PI/2,m=new THREE.Mesh(new THREE.ConeGeometry(5,29,7),radioDark);m.position.set(1125+Math.cos(a)*110,482,1100+Math.sin(a)*110);m.rotation.z=Math.PI/2;scene.add(m);radioTankBees.push(m);}notify('PRISM 3 // TANK INFESTATION');}
-   if(i===3){radioBombardUntil=t+32000;notify('PRISM 4 // AERIAL BOMBARDMENT');}
+   if(i===2){radioBeeSwarmActive=true;for(let j=0;j<4;j++){const a=j*Math.PI/2,g=new THREE.Group();for(let k=0;k<22;k++){const taper=Math.max(.16,Math.sin((k+1)/23*Math.PI)),segment=new THREE.Mesh(new THREE.SphereGeometry(1.5,7,6),canalWormMat);segment.position.set(0,Math.sin(k*.55)*1.7,-k*2.5);segment.scale.set(taper*2.8,taper*2.2,2.2);g.add(segment);}g.position.set(1125+Math.cos(a)*110,478,1100+Math.sin(a)*110);scene.add(g);radioTankBees.push(g);}notify('PRISM 3 // WATER BEE BLOOM');}
+   if(i===3){radioBombardUntil=t+48000;radioBombTick=t;notify('PRISM 4 // TEN SUBMARINES / CARPET BOMBARDMENT');}
    if(i===4){radioRevealUntil=t+180000;notify('PRISM 5 // POSITION REVEALED 03:00');}
    if(Math.random()<.035){radioLifeBonus++;notify('RARE PRISM // EXTRA LIFE +1 (RESERVE)');}
   }
  }
- if(t<radioBombardUntil&&t-radioBombardLast>300){radioBombardLast=t;const m=new THREE.Mesh(new THREE.ConeGeometry(5,13,6),radioDark);m.position.set(640+(Math.random()-.5)*1100,260,133+(Math.random()-.5)*900);scene.add(m);radioBombs.push(m);}
- for(let i=radioBombs.length-1;i>=0;i--){const m=radioBombs[i];m.position.y-=5.5;if(m.position.y<4){impact(m.position.x,3,m.position.z);scene.remove(m);radioBombs.splice(i,1);}}
- for(let i=0;i<radioTankBees.length;i++){const a=t*.0005+i*Math.PI/2,m=radioTankBees[i];m.position.x=1125+Math.cos(a)*110;m.position.z=1100+Math.sin(a)*110;}
+ // Five ground gas pads cycle every 5.2s, 1.7s high-pressure burst.
+ for(const pad of radioGasPads){const cycle=(t*.001+pad.index*.57)%5.2,active=cycle<1.7;pad.plume.visible=active;pad.plume.material.opacity=active?.12+.1*Math.sin(t*.024)**2:0;
+  if(active&&t>radioPadCooldown&&Math.hypot(player.position.x-pad.x,player.position.z-pad.z)<13&&climbFloor+jumpHeight<15){
+   radioPadCooldown=t+2400;jumpCount=1;jumpVelocity=112;jumpHeight=2;climbFloor=0;fallPeak=2;glideInterrupted=false;notify('GAS GEYSER // GLIDE TO THE SUPPORT ARM');
+  }
+ }
+ // Ten carrier submarines in a broad high-altitude formation; continuously moving and bombing.
+ if(t<radioBombardUntil){
+  if(radioCarriers.length===0){for(let i=0;i<10;i++){const g=new THREE.Group(),hull=new THREE.Mesh(new THREE.CylinderGeometry(13,13,180,10),radioDark);hull.rotation.x=Math.PI/2;g.add(hull);for(const dz of [-75,75]){const cap=new THREE.Mesh(new THREE.ConeGeometry(13,35,10),radioSteel);cap.rotation.x=dz>0?Math.PI/2:-Math.PI/2;cap.position.z=dz;g.add(cap);}g.scale.set(2.8,2.8,2.8);scene.add(g);radioCarriers.push(g);}}
+  for(let i=0;i<10;i++){const ship=radioCarriers[i],row=Math.floor(i/5),col=i%5;ship.visible=true;ship.position.set(240+col*260+(t-(radioBombardUntil-48000))*.027,1050+row*110, -500+row*300+col*48);ship.rotation.y=-Math.PI/2;}
+  if(t-radioBombTick>125){radioBombTick=t;for(let i=0;i<10;i++){const ship=radioCarriers[i],m=new THREE.Mesh(new THREE.ConeGeometry(2.3,17,5),radioSteel);m.position.set(ship.position.x+(Math.random()-.5)*24,ship.position.y-45,ship.position.z+(Math.random()-.5)*38);m.rotation.z=Math.PI;scene.add(m);radioBombs.push({m,vy:110+Math.random()*45});}}
+ }else{for(const ship of radioCarriers)ship.visible=false;}
+ for(let i=radioBombs.length-1;i>=0;i--){const b=radioBombs[i];b.m.position.y-=b.vy*Math.min(.05,(t-(updateRadioArray.prev||t))/1000||.016);if(b.m.position.y<0){if(Math.hypot(player.position.x-b.m.position.x,player.position.z-b.m.position.z)<12&&climbFloor+jumpHeight<28)applyBeeDamage(22,t);impact(b.m.position.x,2,b.m.position.z);scene.remove(b.m);radioBombs.splice(i,1);}}
+ updateRadioArray.prev=t;
+ for(let i=0;i<radioTankBees.length;i++){const a=t*.00042+i*Math.PI/2,m=radioTankBees[i];m.position.x=1125+Math.cos(a)*110;m.position.z=1100+Math.sin(a)*110;m.position.y=478+Math.sin(t*.001+i)*4;m.rotation.y=-a;}
+ if(radioBeeSwarmActive){radioLarvae.visible=true;const dummy=radioLarvaeDummy;for(let i=0;i<radioLarvae.count;i++){const a=i*2.399963+t*.00025*(i%2?1:-1),radius=Math.sqrt((i+.5)/radioLarvae.count)*210;dummy.position.set(1125+Math.cos(a)*radius,487.8-2.5*Math.sin(t*.006+i*.7)**2,1100+Math.sin(a)*radius);dummy.rotation.set(Math.sin(t*.008+i)*.7,a,Math.cos(t*.009+i)*.8);dummy.scale.set(.7+Math.sin(t*.011+i)*.18,.55,2.2);dummy.updateMatrix();radioLarvae.setMatrixAt(i,dummy.matrix);}radioLarvae.instanceMatrix.needsUpdate=true;}
  if(t>radioCoreCooldown&&player.position.distanceTo(center)<34){
   radioCoreCooldown=t+10000;radioLaunchUntil=t+2800;const a=Math.random()*Math.PI*2;radioLaunchVX=Math.cos(a)*160;radioLaunchVZ=Math.sin(a)*160;climbFloor=Math.max(climbFloor,270);jumpHeight=40;jumpVelocity=90;jumpCount=1;gliding=false;glideFlightActive=false;glideInterrupted=true;fallPeak=climbFloor+jumpHeight;notify('CORE // SUPERSONIC EJECTION / NO GLIDE');
  }
