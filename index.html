@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V196 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V197 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -25,6 +25,9 @@ let waterslideProgress=-1,waterslideExitUntil=0,slideCooldown=0,portalCooldown=0
 const vortexCenter={x:slideEnd.x+47,z:slideEnd.z,y:elevatedReservoir.waterY};
 const industrialPortalLocation={x:640,z:133,y:2};
 const slideVector=new THREE.Vector3(slideEnd.x-slideStart.x,slideEnd.y-slideStart.y,slideEnd.z-slideStart.z);
+const slideFlowTime={value:0};
+// Turbulent animated water texture generated in the shader; no external texture or frame uploads.
+const slideRapidMat=new THREE.ShaderMaterial({transparent:true,depthWrite:false,side:THREE.DoubleSide,uniforms:{uTime:slideFlowTime},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:`uniform float uTime;varying vec2 vUv;float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}void main(){vec2 p=vec2(vUv.x*8.,vUv.y*17.+uTime*2.6);float n=noise(p*2.4+vec2(sin(p.y*.6),0.));float sw=sin(p.y*8.+sin(p.x*3.+uTime*2.)*2.+n*5.);float foam=smoothstep(.46,.85,n*.75+sw*.22+noise(p*5.)*.35);vec3 water=mix(vec3(.015,.24,.34),vec3(.12,.57,.68),n);water=mix(water,vec3(.73,.96,.99),foam*.85);gl_FragColor=vec4(water,.88);}`});
 let slideJustFinished=false;const slideLength=slideVector.length();
 const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.fog=new THREE.FogExp2(0x34434b,.009);
 const camera=new THREE.PerspectiveCamera(78,innerWidth/innerHeight,.1,6500);
@@ -39,7 +42,7 @@ const underwaterVeil=document.createElement('div');underwaterVeil.style.cssText=
 const underwaterTint=document.createElement('div');underwaterTint.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:rgba(4,43,86,.42);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterTint);
 // Lightweight lens droplets after surfacing; no expensive framebuffer postprocessing.
 const waterLens=document.createElement('div');waterLens.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;transition:opacity .12s linear;background:radial-gradient(ellipse 12px 22px at 18% 19%,rgba(183,228,247,.30) 0%,rgba(137,202,233,.12) 55%,transparent 70%),radial-gradient(ellipse 8px 17px at 72% 31%,rgba(190,235,255,.29) 0%,transparent 75%),radial-gradient(ellipse 16px 26px at 85% 76%,rgba(174,220,245,.26) 0%,transparent 75%),radial-gradient(ellipse 7px 14px at 34% 84%,rgba(183,228,247,.28) 0%,transparent 75%)';document.body.appendChild(waterLens);
-let wasFullyUnderwater=false,waterLensUntil=0;
+let wasFullyUnderwater=false,waterLensUntil=0,waterLensDashAt=-1e5;
 // OPEN OVERCAST SKY: procedural daytime cloud field, replacing the geodesic dome.
 scene.background=new THREE.Color(0x87949d);
 scene.fog=new THREE.FogExp2(0x8b98a0,.0032);
@@ -1538,6 +1541,8 @@ function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
  dashChain=now<dashChainUntil?Math.min(2,dashChain+1):1;dashChainUntil=now+850;
  dashCharges--;dashRechargeAt.push(now+2400);lastDash=now;
  dashUntil=now+(dashChain===2?390:300);dashBurstUntil=now+180;
+ // Dash blasts droplets off the camera immediately.
+ waterLensDashAt=now;waterLensUntil=Math.min(waterLensUntil,now+230);waterLens.style.transform='translateX(18px) scale(1.05)';
  dashInvulnerableUntil=now+(dashChain===2?270:210);updateDashDisplay();
  if(dashChain===2){pendingCasingEject='dash';shockRing(player.position.x,player.position.z,3.3,now);impact(player.position.x,player.position.y,player.position.z);notify('DOUBLE DASH // OVERDRIVE')}
  let mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0);
@@ -2421,7 +2426,7 @@ function createStreamedTerrain(key){
     const tubeFloor=new THREE.Mesh(new THREE.CylinderGeometry(14.8,14.8,L,24,1,true,-Math.PI/2,Math.PI),new THREE.MeshStandardMaterial({color:0x536e79,metalness:.65,roughness:.57,side:THREE.DoubleSide}));tubeFloor.position.copy(pipeShell.position);tubeFloor.quaternion.copy(pipeShell.quaternion);group.add(tubeFloor);
     const flow=new THREE.Mesh(new THREE.CylinderGeometry(14.4,14.4,L,24,1,true,-Math.PI/2,Math.PI),streamMaterial);flow.position.copy(pipeShell.position);flow.quaternion.copy(pipeShell.quaternion);group.add(flow);
     // Continuous inclined waterbed; visual support for the guided slide, not a collision AABB.
-    const waterbed=new THREE.Mesh(new THREE.BoxGeometry(24,0.6,L+1.5),new THREE.MeshStandardMaterial({color:0x2c7f91,metalness:.12,roughness:.34,transparent:true,opacity:.82,side:THREE.DoubleSide}));
+    const waterbed=new THREE.Mesh(new THREE.BoxGeometry(24,0.6,L+1.5),slideRapidMat);
     waterbed.position.set(midX,midY-11.5,midZ);waterbed.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(dx,dy,dz).normalize());group.add(waterbed);
     // V188: decorative-only trough; slide movement uses a separate state machine.
     // Narrow walkable sections of the tube have the same vertical profile as their render mesh.
@@ -3173,6 +3178,8 @@ function applyBeeDamage(amount,t){if(done)return;const absorbed=Math.min(shield,
 const canalSplashMaterial=new THREE.MeshBasicMaterial({color:0x91d6df,transparent:true,opacity:.8});
 const splashRingGeo=new THREE.TorusGeometry(1,.075,5,40),splashRingMat=new THREE.MeshBasicMaterial({color:0xc1f6ff,transparent:true,opacity:.55,depthWrite:false,side:THREE.DoubleSide});
 const splashRings=[];
+// Pooled whitewater wake: fast spray near the rider and expanding foam rings.
+const slideWakeCount=90,slideWakeDummy=new THREE.Object3D(),slideWakeGeo=new THREE.SphereGeometry(.18,5,4),slideWakeMat=new THREE.MeshBasicMaterial({color:0xd2f8ff,transparent:true,opacity:.78,depthWrite:false});const slideWake=new THREE.InstancedMesh(slideWakeGeo,slideWakeMat,slideWakeCount);slideWake.instanceMatrix.setUsage(THREE.DynamicDrawUsage);slideWake.frustumCulled=false;slideWake.visible=false;scene.add(slideWake);let slideWakeLastRing=0;
 function waterSplash(x,z,speed){
  const isTank=Math.hypot(x-elevatedReservoir.x,z-elevatedReservoir.z)<232;
  const y=isTank?elevatedReservoir.waterY:.35;
@@ -3906,6 +3913,13 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  }
  slideJustFinished=false;
  const floatingNow=(inIndustrialWater(player.position.x,player.position.z)||t<waterslideExitUntil)&&jumpCount===0;
+ slideFlowTime.value=t*.001;
+ const slidingRapids=waterslideProgress>=0&&slideIntake<=0;
+ slideWake.visible=slidingRapids;
+ if(slidingRapids){const tangentX=slideVector.x/slideLength,tangentZ=slideVector.z/slideLength;for(let i=0;i<slideWakeCount;i++){const phase=(t*.0017+i*.61803398875)%1,side=Math.sin(i*2.39996)*(.8+phase*8),behind=phase*19-5;slideWakeDummy.position.set(player.position.x-tangentX*behind+tangentZ*side,climbFloor+1+Math.sin(phase*12+i)*(.7+phase*3.6),player.position.z-tangentZ*behind-tangentX*side);slideWakeDummy.scale.setScalar(.45+(i%6)*.19);slideWakeDummy.updateMatrix();slideWake.setMatrixAt(i,slideWakeDummy.matrix);}slideWake.instanceMatrix.needsUpdate=true;
+ if(t-slideWakeLastRing>175){slideWakeLastRing=t;const ring=new THREE.Mesh(splashRingGeo,splashRingMat.clone());ring.rotation.x=-Math.PI/2;ring.position.set(player.position.x,climbFloor+.8,player.position.z);ring.scale.setScalar(1.5);scene.add(ring);splashRings.push({mesh:ring,born:t});}
+ if(t-waterLensDashAt>350){waterLensUntil=Math.max(waterLensUntil,t+180);}
+ }
  // Waterline is measured in world space, not inferred from the jump state.
  const waterRegion=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226;
  // Use current simulated feet, not last frame's player.position.y. Only the FULL body under water gets the underwater filter.
@@ -3916,7 +3930,8 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  if(wasFullyUnderwater&&!fullySubmerged&&waterslideProgress<0)waterLensUntil=t+2400;
  wasFullyUnderwater=fullySubmerged;
  underwaterVeil.style.opacity=underwaterStrength.toFixed(3);underwaterTint.style.opacity=underwaterStrength.toFixed(3);
- waterLens.style.opacity=t<waterLensUntil?Math.min(.85,(waterLensUntil-t)/1100).toFixed(3):'0';
+ waterLens.style.opacity=t<waterLensUntil?Math.min(.85,(waterLensUntil-t)/(t-waterLensDashAt<260?230:1100)).toFixed(3):'0';
+ if(t-waterLensDashAt>260)waterLens.style.transform='none';
  playerBubbles.visible=fullySubmerged;
  if(playerBubbles.visible){for(let i=0;i<bubbleCount;i++){const phase=(t*.00047+i*.61803398875)%1,ang=i*2.399963;const radius=.3+(i%7)*.12;bubbleDummy.position.set(player.position.x+Math.cos(ang)*radius+Math.sin(t*.001+i)*.14,player.position.y+.2+phase*4.2,player.position.z+Math.sin(ang)*radius);bubbleDummy.scale.setScalar(.55+(i%5)*.19);bubbleDummy.updateMatrix();playerBubbles.setMatrixAt(i,bubbleDummy.matrix);}playerBubbles.instanceMatrix.needsUpdate=true;}
  for(let i=splashRings.length-1;i>=0;i--){const ring=splashRings[i],age=t-ring.born;if(age>1150){scene.remove(ring.mesh);ring.mesh.material.dispose();splashRings.splice(i,1);}else if(age>=0){ring.mesh.scale.setScalar(.6+age*.012);ring.mesh.material.opacity=.55*(1-age/1150);}}
