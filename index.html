@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V207 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V208 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3627,7 +3627,7 @@ const radioBombDummy=new THREE.Object3D(),radioBombMesh=new THREE.InstancedMesh(
 function updateRadioArray(t){
  radioCentralPrism.rotation.y=t*.0005;
  revealGlass.visible=t<radioRevealUntil;
- if(revealGlass.visible){const pulse=Math.pow(.5+.5*Math.sin(t*.011),3),flash=Math.sin(t*.0031)> .92?1:0;revealCore.rotation.y=t*.00075;revealCore.rotation.z=Math.sin(t*.001)*.12;revealGlassMaterial.emissiveIntensity=2.4+7*pulse+5*flash;revealGlassMaterial.opacity=.24+.33*pulse;revealEdges.material.opacity=.42+.58*pulse;revealHalo.material.opacity=.23+.75*pulse;revealHalo.scale.set(14+14*pulse,16+18*pulse,1);revealGlass.rotation.y=t*.00018;}
+ if(revealGlass.visible){const pulse=Math.pow(.5+.5*Math.sin(t*.0055),3),flash=Math.sin(t*.0031)> .92?1:0;revealCore.rotation.y=t*.00075;revealCore.rotation.z=Math.sin(t*.001)*.12;revealGlassMaterial.emissiveIntensity=2.4+7*pulse+5*flash;revealGlassMaterial.opacity=.24+.33*pulse;revealEdges.material.opacity=.42+.58*pulse;revealHalo.material.opacity=.23+.75*pulse;revealHalo.scale.set(14+14*pulse,16+18*pulse,1);revealGlass.rotation.y=t*.00018;}
  const center=radioCentralPrism.position;
  for(let i=0;i<5;i++){
   const p=radioPrisms[i];p.rotation.y=t*.0007+i;
