@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V208 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V209 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2188,9 +2188,12 @@ const terrainLandmarkMat=new THREE.MeshStandardMaterial({color:0x33424a,metalnes
 const terrainDetailMat=new THREE.MeshStandardMaterial({color:0x59646a,metalness:.55,roughness:.75});
 function terrainHash(x,z,n){let v=(Math.imul(x+1024,73856093)^Math.imul(z+1024,19349663)^Math.imul(n+1,83492791))>>>0;v^=v>>>16;v=Math.imul(v,2246822519);return ((v^(v>>>13))>>>0)/4294967295;}
 function outerChunk(cx,cz){return !(Math.abs((cx+.5)*CHUNK_SIZE)<500&&Math.abs((cz+.5)*CHUNK_SIZE)<500);}
+function infectionTier(x,z){if(x>-490)return 0;const d=Math.hypot(x+1450,z+900);return d<390?3:d<790?2:d<1320?1:0;}
 function terrainBuildings(cx,cz){
+ const tier=infectionTier((cx+.5)*CHUNK_SIZE,(cz+.5)*CHUNK_SIZE);
+ if(tier===3)return []; // The core has no remaining artificial buildings.
  const x=(cx+.5)*CHUNK_SIZE,z=(cz+.5)*CHUNK_SIZE,out=[];
- for(let i=0;i<5;i++){
+ for(let i=0;i<(tier===2?2:5);i++){
   const px=x+(terrainHash(cx,cz,10+i*3)-.5)*195,pz=z+(terrainHash(cx,cz,11+i*3)-.5)*195;
   out.push({x:px,z:pz,h:12+terrainHash(cx,cz,12+i*3)*36,w:8+terrainHash(cx,cz,30+i)*9,d:8+terrainHash(cx,cz,40+i)*9});
  }
@@ -2627,6 +2630,90 @@ function createStreamedTerrain(key){
    platform(a.x,a.z,h,8,8);platform(b.x,b.z,h,8,8);
   }
  }
+
+// V209: Industrial density stays east of the radio observatory; all structures
+// and pipes use the same per-chunk collision registry as the existing scenery.
+if(industrialSector&&cx>=2&&cx<=6&&cz>=-1&&cz<=1&&!(cx===2&&cz===0)){
+ const ox=cx*250+125,oz=cz*250+125;
+ const metal=industrialPipeMat,wall=industrialDarkMat;
+ const addSolid=(x,y,z,w,h,d,mat=wall)=>{
+  box(x,y,z,w,h,d,mat);
+  colliders.push({x,z,w,d,top:y+h/2,bottom:y-h/2});
+ };
+ const tube=(a,b,r)=>{
+  const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),delta=w.clone().sub(v);
+  const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,delta.length(),10),metal);
+  mesh.position.copy(v).add(w).multiplyScalar(.5);
+  mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());group.add(mesh);
+  // Segment-aligned approximate blocking volumes; not a giant single box for elbows.
+  const steps=Math.max(1,Math.ceil(delta.length()/12));
+  for(let j=0;j<steps;j++){const p=v.clone().addScaledVector(delta,(j+.5)/steps);
+   colliders.push({x:p.x,z:p.z,w:2*r+2,d:2*r+2,top:p.y+Math.max(r,delta.length()/steps*.5),bottom:p.y-Math.max(r,delta.length()/steps*.5)});
+  }
+ };
+ for(let k=0;k<3;k++){
+  const x=ox-76+(k%2)*92,z=oz-68+Math.floor(k/2)*100;
+  const rad=15+(k%2)*7,h=26+k*9;
+  const tank=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,h,12),industrialRustMat);
+  tank.position.set(x,h/2,z);group.add(tank);
+  colliders.push({x,z,w:rad*1.65,d:rad*1.65,top:h,bottom:0});
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(rad+2,7,12),metal);roof.position.set(x,h+3,z);group.add(roof);
+  for(let j=0;j<4;j++){const a=j*Math.PI/2;const sx=x+Math.cos(a)*(rad+5),sz=z+Math.sin(a)*(rad+5);
+   tube([sx,8,sz],[sx,23,sz],2.6);
+  }
+  tube([x+rad,17,z],[x+rad+27,17,z],4.8);
+  tube([x,12,z+rad],[x,12,z+rad+26],3.4);
+ }
+ for(let k=0;k<3;k++){
+  const x=ox-90+k*65,z=oz+82+(k%2)*19,h=35+(k%3)*16;
+  addSolid(x,h/2,z,37,h,28);
+  addSolid(x,h+2,z,42,4,33,metal);
+ }
+ // Crossed elevated trunk pipes with distinct heights, plus short vertical manifolds.
+ for(let j=0;j<3;j++){
+  const y=14+j*11;
+  tube([ox-106,y,oz-24+j*25],[ox+106,y,oz+50-j*23],5.2+j*1.1);
+  tube([ox-80+j*42,9,oz-106],[ox+52-j*12,25+j*6,oz+106],4.5+j*.8);
+ }
+}
+// V209: Continuous BRIDGE -> organic-crystal gradient in western free chunks.
+// Tier 3 is pure alien geology with no building geometry or artificial pathways.
+const tier=infectionTier((cx+.5)*250,(cz+.5)*250);
+if(tier){
+ const ox=cx*250+125,oz=cz*250+125;
+ const flesh=new THREE.MeshStandardMaterial({color:0x23192e,roughness:.88,metalness:.08,flatShading:true});
+ const crystal=new THREE.MeshStandardMaterial({color:0x53366c,emissive:0x250d3b,emissiveIntensity:.8,metalness:.32,roughness:.27,flatShading:true});
+ const base=new THREE.MeshStandardMaterial({color:0x292438,roughness:.98,flatShading:true});
+ const seed=(n)=>terrainHash(cx,cz,n);
+ const count=tier===1?5:tier===2?9:14;
+ for(let i=0;i<count;i++){
+  const x=ox+(seed(210+i*3)-.5)*190,z=oz+(seed(211+i*3)-.5)*190;
+  const radius=(tier===1?5:tier===2?10:17)+seed(212+i*3)*(tier===3?18:9);
+  const height=(tier===1?15:tier===2?48:95)+seed(260+i)* (tier===3?125:40);
+  const root=new THREE.Mesh(new THREE.CylinderGeometry(radius*.32,radius,height,6,1),flesh);
+  root.position.set(x,height*.47,z);root.rotation.z=(seed(300+i)-.5)*.32;group.add(root);
+  colliders.push({x,z,w:radius*1.4,d:radius*1.4,top:height*.8,bottom:0});
+  const spike=new THREE.Mesh(new THREE.ConeGeometry(radius*.72,height*.72,5),crystal);
+  spike.position.set(x+radius*.25,height*.92,z);spike.rotation.z=(seed(350+i)-.5)*.6;group.add(spike);
+  const mound=new THREE.Mesh(new THREE.ConeGeometry(radius*1.6,Math.min(32,height*.28),7),base);
+  mound.position.set(x,Math.min(32,height*.28)*.48,z);group.add(mound);
+  if(i%3===0){const h=14+tier*9;
+   // Broad, flat organic shelf, registered with the normal climb-deck solver.
+   const shelf=new THREE.Mesh(terrainLandmarkGeo,flesh);shelf.position.set(x,h-.5,z);shelf.scale.set(radius*2.3,1,radius*2.1);group.add(shelf);
+   const p={x,z,h,w:radius*2.3,d:radius*2.1,legacy:true,streamKey:key};climbDecks.push(p);platforms.push(p);
+  }
+ }
+ if(tier===3){
+  // Continuous rocky terrain: no skyline buildings in this inner biome.
+  const floor=new THREE.Mesh(new THREE.CylinderGeometry(175,175,5,12),base);
+  floor.position.set(ox,-2,oz);group.add(floor);
+  if(Math.hypot(ox+1450,oz+900)<185){
+   const core=new THREE.Mesh(new THREE.IcosahedronGeometry(95,1),crystal);
+   core.position.set(-1450,180,-900);group.add(core);
+   colliders.push({x:-1450,z:-900,w:130,d:130,top:240,bottom:105});
+  }
+ }
+}
  scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders});
 }
 createStreamedTerrain('4,4'); // The secret reservoir landmark stays resident.
