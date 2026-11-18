@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V204 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V205 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -33,7 +33,7 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.f
 // Mirror the tank across the submarine dock: dock(640,133), tank(1125,1100), observatory(155,-834).
 // World-space array is persistent: no chunk streaming/pop-in or sector gate can hide it.
 const radioArrayCenter={x:155,z:-834};
-const radioArray=new THREE.Group();scene.add(radioArray);let radioWaterBeeLast=0;const radioWalkways=[],radioGasPads=[],radioCarriers=[];let radioPadCooldown=0,radioBeeSwarmActive=false,radioBombTick=0,radioPadLast=-1;const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
+const radioArray=new THREE.Group();scene.add(radioArray);let radioWaterBeeLast=0;const radioWalkways=[],radioGasPads=[],radioCarriers=[];let radioPadCooldown=0,radioBeeSwarmActive=false,radioBombTick=0,radioPadLast=-1,radioBombStart=0,radioBombAnchorX=0,radioBombAnchorZ=0;const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
 const radioSteel=new THREE.MeshStandardMaterial({color:0x8799a5,metalness:.74,roughness:.42,side:THREE.DoubleSide});
 const radioDark=new THREE.MeshStandardMaterial({color:0x364956,metalness:.69,roughness:.58,side:THREE.DoubleSide});
 const radioWhite=new THREE.MeshStandardMaterial({color:0xb4c9d2,metalness:.55,roughness:.48,side:THREE.DoubleSide});
@@ -3628,7 +3628,7 @@ function updateRadioArray(t){
    if(i===0){for(let j=0;j<6;j++){const e=special('pursuer',player.position.x+Math.cos(j)*28,player.position.z+Math.sin(j)*28);e.alert=true;e.mode='chase';}notify('PRISM 1 // PURSUER RELEASE');}
    if(i===1){for(let j=0;j<13;j++){const a=j*2.4;special('swarm',700+Math.cos(a)*(90+j*12),150+Math.sin(a)*(90+j*12));}notify('PRISM 2 // INDUSTRIAL FOG / 13 HOSTILES');}
    if(i===2){radioBeeSwarmActive=true;for(let j=0;j<4;j++){const a=j*Math.PI/2,g=new THREE.Group();for(let k=0;k<22;k++){const taper=Math.max(.16,Math.sin((k+1)/23*Math.PI)),segment=new THREE.Mesh(new THREE.SphereGeometry(1.5,7,6),canalWormMat);segment.position.set(0,Math.sin(k*.55)*1.7,-k*2.5);segment.scale.set(taper*2.8,taper*2.2,2.2);g.add(segment);}g.position.set(1125+Math.cos(a)*110,478,1100+Math.sin(a)*110);scene.add(g);radioTankBees.push({mesh:g,heading:a,phase:j*1.7,lastHit:0});}notify('PRISM 3 // WATER BEE BLOOM');}
-   if(i===3){radioBombardUntil=t+48000;radioBombTick=t;notify('PRISM 4 // TEN SUBMARINES / CARPET BOMBARDMENT');}
+   if(i===3){radioBombStart=t;radioBombardUntil=t+48000;radioBombTick=t+3000;radioBombAnchorX=player.position.x;radioBombAnchorZ=player.position.z;notify('PRISM 4 // FLEET INBOUND / 3s DESCENT');}
    if(i===4){radioRevealUntil=t+180000;notify('PRISM 5 // POSITION REVEALED 03:00');}
    if(Math.random()<.035){radioLifeBonus++;notify('RARE PRISM // EXTRA LIFE +1 (RESERVE)');}
   }
@@ -3641,7 +3641,7 @@ function updateRadioArray(t){
  }
  // Low-overhead ten-ship formation, close enough to cast a visible silhouette.
  // Bombs are pooled instanced geometry: one draw call rather than hundreds of meshes.
- const bombActive=t<radioBombardUntil,elapsed=Math.max(0,t-(radioBombardUntil-48000));
+ const bombActive=radioBombStart>0&&t>=radioBombStart&&t<radioBombardUntil,elapsed=Math.max(0,t-radioBombStart),descending=elapsed<3000,ascending=elapsed>=45000,carpetActive=bombActive&&!descending&&!ascending;
  if(bombActive){
   if(radioCarriers.length===0){
    const armor=new THREE.MeshStandardMaterial({color:0x141a20,metalness:.52,roughness:.77,flatShading:true,side:THREE.DoubleSide});
@@ -3660,8 +3660,15 @@ function updateRadioArray(t){
     scene.add(g);radioCarriers.push(g);
    }
   }
-  for(let i=0;i<10;i++){const row=Math.floor(i/5),col=i%5,ship=radioCarriers[i];ship.visible=true;ship.position.set(player.position.x-370+col*155+elapsed*.014,370+row*52,player.position.z-270+row*155+col*30);ship.rotation.y=-Math.PI/2;}
-  if(t-radioBombTick>100){radioBombTick=t;for(let i=0;i<10;i++){const ship=radioCarriers[i];for(let j=0;j<2;j++){if(radioBombs.length>=240)break;radioBombs.push({x:ship.position.x+(Math.random()-.5)*70,z:ship.position.z+(Math.random()-.5)*75,y:ship.position.y-20,vy:180+Math.random()*75,hit:false});}}}
+  for(let i=0;i<10;i++){const row=Math.floor(i/5),col=i%5,ship=radioCarriers[i];ship.visible=true;
+   const descent=Math.min(1,elapsed/3000),ascent=ascending?Math.min(1,(elapsed-45000)/3000):0;
+   const easeDown=descent*descent*(3-2*descent),easeUp=ascent*ascent*(3-2*ascent);
+   const cruiseY=370+row*52,skyY=2400+row*230;
+   ship.position.set(radioBombAnchorX-370+col*155+Math.max(0,elapsed-3000)*.014,skyY+(cruiseY-skyY)*easeDown+(skyY-cruiseY)*easeUp,radioBombAnchorZ-270+row*155+col*30);
+   const scale=descending?.15+.85*easeDown:ascending?1-.85*easeUp:1;
+   ship.scale.setScalar(scale);ship.rotation.y=-Math.PI/2;
+  }
+  if(carpetActive&&t-radioBombTick>100){radioBombTick=t;for(let i=0;i<10;i++){const ship=radioCarriers[i];for(let j=0;j<2;j++){if(radioBombs.length>=240)break;radioBombs.push({x:ship.position.x+(Math.random()-.5)*70,z:ship.position.z+(Math.random()-.5)*75,y:ship.position.y-20,vy:180+Math.random()*75,hit:false});}}}
  }else for(const ship of radioCarriers)ship.visible=false;
  const dtBomb=Math.min(.05,Math.max(0,(t-(updateRadioArray.prev||t))/1000));
  let n=0;const bombDummy=radioBombDummy;
