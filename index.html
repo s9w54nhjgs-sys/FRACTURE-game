@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V202 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V203 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -33,7 +33,7 @@ const scene=new THREE.Scene();scene.background=new THREE.Color(0x222d33);scene.f
 // Mirror the tank across the submarine dock: dock(640,133), tank(1125,1100), observatory(155,-834).
 // World-space array is persistent: no chunk streaming/pop-in or sector gate can hide it.
 const radioArrayCenter={x:155,z:-834};
-const radioArray=new THREE.Group();scene.add(radioArray);const radioWalkways=[],radioGasPads=[],radioCarriers=[];let radioPadCooldown=0,radioBeeSwarmActive=false,radioBombTick=0;const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
+const radioArray=new THREE.Group();scene.add(radioArray);const radioWalkways=[],radioGasPads=[],radioCarriers=[];let radioPadCooldown=0,radioBeeSwarmActive=false,radioBombTick=0,radioPadLast=-1;const radioPrisms=[],radioBeams=[],radioBombs=[],radioTankBees=[];let radioEvents=[false,false,false,false,false],radioEventUntil=[0,0,0,0,0],radioLaunchUntil=0,radioLaunchVX=0,radioLaunchVZ=0,radioLifeBonus=0,radioCoreCooldown=0,radioBombardUntil=0,radioBombardLast=0,radioRevealUntil=0;
 const radioSteel=new THREE.MeshStandardMaterial({color:0x8799a5,metalness:.74,roughness:.42,side:THREE.DoubleSide});
 const radioDark=new THREE.MeshStandardMaterial({color:0x364956,metalness:.69,roughness:.58,side:THREE.DoubleSide});
 const radioWhite=new THREE.MeshStandardMaterial({color:0xb4c9d2,metalness:.55,roughness:.48,side:THREE.DoubleSide});
@@ -2876,7 +2876,25 @@ document.body.appendChild(industryWarpButton);
 // Industrial portal sends the player above the broken crown, not to the outlet.
 const crownPortal=document.createElement('button');crownPortal.textContent='PORTAL ⇧ TANK CROWN';Object.assign(crownPortal.style,{position:'fixed',right:'12px',top:'202px',zIndex:'9999',padding:'10px',background:'#163f45e8',color:'#c3ffff',border:'1px solid #6ee7ec',borderRadius:'9px',fontWeight:'bold',fontSize:'11px'});document.body.appendChild(crownPortal);
 crownPortal.remove(); // Physical portals below replace the debug teleport.
- industryWarpButton.addEventListener('click',()=>{
+ // Development-only direct prism navigation. The ordinary traversal route remains intact.
+const prismWarpSelect=document.createElement('select');
+prismWarpSelect.setAttribute('aria-label','Prism test warp');
+Object.assign(prismWarpSelect.style,{position:'fixed',right:'12px',top:'247px',zIndex:'9999',background:'#102e3de8',color:'#a8faff',border:'1px solid #6de7ee',borderRadius:'9px',padding:'9px',fontWeight:'bold',fontSize:'12px',maxWidth:'175px'});
+for(const [value,label] of [['','TEST ⇧ PRISM'],['0','PRISM 1 / 追尾'],['1','PRISM 2 / 霧'],['2','PRISM 3 / 水BEE'],['3','PRISM 4 / 爆撃'],['4','PRISM 5 / 公開'],['core','CENTER / 射出']]){const o=document.createElement('option');o.value=value;o.textContent=label;prismWarpSelect.appendChild(o);}
+document.body.appendChild(prismWarpSelect);
+prismWarpSelect.addEventListener('change',()=>{
+ if(done||prismWarpSelect.value==='')return;
+ const idx=prismWarpSelect.value==='core'?-1:Number(prismWarpSelect.value);
+ const target=idx<0?radioCentralPrism.position.clone():radioPrisms[idx].getWorldPosition(new THREE.Vector3());
+ // Spawn just outside the trigger, so player can move into the prism deliberately.
+ player.position.set(target.x+40,target.y-1,target.z);
+ climbFloor=0;jumpHeight=Math.max(0,target.y-1);jumpVelocity=0;jumpCount=1;
+ fallPeak=jumpHeight;climbPrevFeet=jumpHeight;moveVX=moveVZ=0;gliding=false;glideInterrupted=false;glideFlightActive=false;releaseJump();
+ camera.position.set(player.position.x,player.position.y+7,player.position.z+15);
+ prismWarpSelect.value='';
+ notify('DEV WARP // '+(idx<0?'CORE':'PRISM '+(idx+1)));
+});
+industryWarpButton.addEventListener('click',()=>{
  if(done)return;
  const target={x:radioArrayCenter.x,z:radioArrayCenter.z,h:0};
  player.position.x=target.x;player.position.z=target.z;
@@ -3597,6 +3615,7 @@ function updateIndustrialAerials(t){
  }
 }
 const radioLarvaeDummy=new THREE.Object3D(),radioLarvae=new THREE.InstancedMesh(new THREE.CapsuleGeometry(.22,1.1,3,5),new THREE.MeshStandardMaterial({color:0x5b203b,emissive:0x210714,roughness:.7}),720);radioLarvae.instanceMatrix.setUsage(THREE.DynamicDrawUsage);radioLarvae.frustumCulled=false;radioLarvae.visible=false;scene.add(radioLarvae);
+const radioBombDummy=new THREE.Object3D(),radioBombMesh=new THREE.InstancedMesh(new THREE.ConeGeometry(2.8,23,5),new THREE.MeshBasicMaterial({color:0x9da7ad}),240);radioBombMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);radioBombMesh.frustumCulled=false;radioBombMesh.count=0;scene.add(radioBombMesh);
 function updateRadioArray(t){
  radioCentralPrism.rotation.y=t*.0005;
  const center=radioCentralPrism.position;
@@ -3616,17 +3635,28 @@ function updateRadioArray(t){
  }
  // Five ground gas pads cycle every 5.2s, 1.7s high-pressure burst.
  for(const pad of radioGasPads){const cycle=(t*.001+pad.index*.57)%5.2,active=cycle<1.7;pad.plume.visible=active;pad.plume.material.opacity=active?.12+.1*Math.sin(t*.024)**2:0;
-  if(active&&t>radioPadCooldown&&Math.hypot(player.position.x-pad.x,player.position.z-pad.z)<13&&climbFloor+jumpHeight<15){
-   radioPadCooldown=t+2400;jumpCount=1;jumpVelocity=112;jumpHeight=2;climbFloor=0;fallPeak=2;glideInterrupted=false;notify('GAS GEYSER // GLIDE TO THE SUPPORT ARM');
+  if(active&&t>radioPadCooldown&&Math.hypot(player.position.x-pad.x,player.position.z-pad.z)<16&&climbFloor+jumpHeight>-5&&climbFloor+jumpHeight<170){
+   radioPadCooldown=t+2100;radioPadLast=pad.index;const feet=climbFloor+jumpHeight;climbFloor=0;jumpHeight=Math.max(2,feet);jumpCount=1;jumpVelocity=145;fallPeak=jumpHeight;glideInterrupted=false;notify('GAS GEYSER // AIRBORNE BOOST');
   }
  }
- // Ten carrier submarines in a broad high-altitude formation; continuously moving and bombing.
- if(t<radioBombardUntil){
-  if(radioCarriers.length===0){for(let i=0;i<10;i++){const g=new THREE.Group(),hull=new THREE.Mesh(new THREE.CylinderGeometry(13,13,180,10),radioDark);hull.rotation.x=Math.PI/2;g.add(hull);for(const dz of [-75,75]){const cap=new THREE.Mesh(new THREE.ConeGeometry(13,35,10),radioSteel);cap.rotation.x=dz>0?Math.PI/2:-Math.PI/2;cap.position.z=dz;g.add(cap);}g.scale.set(2.8,2.8,2.8);scene.add(g);radioCarriers.push(g);}}
-  for(let i=0;i<10;i++){const ship=radioCarriers[i],row=Math.floor(i/5),col=i%5;ship.visible=true;ship.position.set(240+col*260+(t-(radioBombardUntil-48000))*.027,1050+row*110, -500+row*300+col*48);ship.rotation.y=-Math.PI/2;}
-  if(t-radioBombTick>240){radioBombTick=t;for(let i=0;i<10;i++){const ship=radioCarriers[i],m=new THREE.Mesh(new THREE.ConeGeometry(2.3,17,5),radioSteel);m.position.set(ship.position.x+(Math.random()-.5)*24,ship.position.y-45,ship.position.z+(Math.random()-.5)*38);m.rotation.z=Math.PI;scene.add(m);radioBombs.push({m,vy:110+Math.random()*45});}}
- }else{for(const ship of radioCarriers)ship.visible=false;}
- for(let i=radioBombs.length-1;i>=0;i--){const b=radioBombs[i],oldY=b.m.position.y;const dtBomb=Math.min(.05,(t-(updateRadioArray.prev||t))/1000||.016);b.m.position.y-=b.vy*dtBomb;const playerY=climbFloor+jumpHeight+1.4,dist=Math.hypot(player.position.x-b.m.position.x,player.position.z-b.m.position.z);if(dist<12&&oldY>=playerY&&b.m.position.y<=playerY&&t>dashInvulnerableUntil)applyBeeDamage(22,t);if(b.m.position.y<0){if(dist<220)impact(b.m.position.x,2,b.m.position.z);scene.remove(b.m);b.m.geometry.dispose();radioBombs.splice(i,1);}}
+ // Low-overhead ten-ship formation, close enough to cast a visible silhouette.
+ // Bombs are pooled instanced geometry: one draw call rather than hundreds of meshes.
+ const bombActive=t<radioBombardUntil,elapsed=Math.max(0,t-(radioBombardUntil-48000));
+ if(bombActive){
+  if(radioCarriers.length===0){for(let i=0;i<10;i++){const g=new THREE.Group(),hull=new THREE.Mesh(new THREE.CylinderGeometry(10,10,105,8),radioDark);hull.rotation.x=Math.PI/2;g.add(hull);const nose=new THREE.Mesh(new THREE.ConeGeometry(10,23,8),radioDark);nose.rotation.x=Math.PI/2;nose.position.z=61;g.add(nose);g.scale.set(2.3,2.3,2.3);scene.add(g);radioCarriers.push(g);}}
+  for(let i=0;i<10;i++){const row=Math.floor(i/5),col=i%5,ship=radioCarriers[i];ship.visible=true;ship.position.set(player.position.x-370+col*155+elapsed*.014,370+row*52,player.position.z-270+row*155+col*30);ship.rotation.y=-Math.PI/2;}
+  if(t-radioBombTick>100){radioBombTick=t;for(let i=0;i<10;i++){const ship=radioCarriers[i];for(let j=0;j<2;j++){if(radioBombs.length>=240)break;radioBombs.push({x:ship.position.x+(Math.random()-.5)*70,z:ship.position.z+(Math.random()-.5)*75,y:ship.position.y-20,vy:180+Math.random()*75,hit:false});}}}
+ }else for(const ship of radioCarriers)ship.visible=false;
+ const dtBomb=Math.min(.05,Math.max(0,(t-(updateRadioArray.prev||t))/1000));
+ let n=0;const bombDummy=radioBombDummy;
+ for(let i=radioBombs.length-1;i>=0;i--){
+  const b=radioBombs[i],oldY=b.y;b.y-=b.vy*dtBomb;
+  const playerY=climbFloor+jumpHeight+1.4,dist=Math.hypot(player.position.x-b.x,player.position.z-b.z);
+  if(!b.hit&&dist<9&&oldY>=playerY&&b.y<=playerY&&t>dashInvulnerableUntil){b.hit=true;applyBeeDamage(22,t);}
+  if(b.y<-5){if(dist<120)impact(b.x,2,b.z);radioBombs.splice(i,1);continue;}
+  bombDummy.position.set(b.x,b.y,b.z);bombDummy.rotation.set(0,0,Math.PI);bombDummy.scale.set(1,1,1);bombDummy.updateMatrix();radioBombMesh.setMatrixAt(n++,bombDummy.matrix);
+ }
+ radioBombMesh.count=n;radioBombMesh.visible=n>0;if(n)radioBombMesh.instanceMatrix.needsUpdate=true;
  updateRadioArray.prev=t;
  for(let i=0;i<radioTankBees.length;i++){const a=t*.00042+i*Math.PI/2,m=radioTankBees[i];m.position.x=1125+Math.cos(a)*110;m.position.z=1100+Math.sin(a)*110;m.position.y=478+Math.sin(t*.001+i)*4;m.rotation.y=-a;}
  if(radioBeeSwarmActive){radioLarvae.visible=true;const dummy=radioLarvaeDummy;for(let i=0;i<radioLarvae.count;i++){const a=i*2.399963+t*.00025*(i%2?1:-1),radius=Math.sqrt((i+.5)/radioLarvae.count)*210;dummy.position.set(1125+Math.cos(a)*radius,487.8-2.5*Math.sin(t*.006+i*.7)**2,1100+Math.sin(a)*radius);dummy.rotation.set(Math.sin(t*.008+i)*.7,a,Math.cos(t*.009+i)*.8);dummy.scale.set(.7+Math.sin(t*.011+i)*.18,.55,2.2);dummy.updateMatrix();radioLarvae.setMatrixAt(i,dummy.matrix);}radioLarvae.instanceMatrix.needsUpdate=true;}
