@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V209 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V210 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2246,6 +2246,12 @@ addOuterFloor(sideWidth,outerSpan,(centerWidth+sideWidth)/2,0);
 addOuterFloor(centerWidth,sideWidth,0,-(centerWidth+sideWidth)/2);
 addOuterFloor(centerWidth,sideWidth,0,(centerWidth+sideWidth)/2);
 scene.add(outerFloor);
+// V210: out-of-bounds scenery, intentionally outside the playable 4km square.
+// The existing world limits remain authoritative; this only supplies visual continuity.
+const borderSea=new THREE.Mesh(new THREE.PlaneGeometry(1900,4700),new THREE.MeshStandardMaterial({color:0x092a38,metalness:.28,roughness:.48,side:THREE.DoubleSide}));
+borderSea.rotation.x=-Math.PI/2;borderSea.position.set(2870,-.45,0);scene.add(borderSea);
+const borderMistMat=new THREE.MeshBasicMaterial({color:0x5a4667,transparent:true,opacity:.18,depthWrite:false,side:THREE.DoubleSide});
+for(let i=0;i<8;i++){const haze=new THREE.Mesh(new THREE.PlaneGeometry(520,240),borderMistMat);haze.position.set(-2110,95,-1750+i*500);haze.rotation.y=Math.PI/2;scene.add(haze);}
 // V178: removed ground-level abyss and canal.
 // V151 industrial vertical slice: structural scenery and matching climb collision.
 // The original city's bridge, roof, movement and rebirth logic are untouched.
@@ -2631,49 +2637,58 @@ function createStreamedTerrain(key){
   }
  }
 
-// V209: Industrial density stays east of the radio observatory; all structures
-// and pipes use the same per-chunk collision registry as the existing scenery.
+// V210: Process plant with meaningful material flow: feed tanks -> manifold ->
+// separator/column -> cooling/processing -> product tanks and loading line.
 if(industrialSector&&cx>=2&&cx<=6&&cz>=-1&&cz<=1&&!(cx===2&&cz===0)){
  const ox=cx*250+125,oz=cz*250+125;
  const metal=industrialPipeMat,wall=industrialDarkMat;
- const addSolid=(x,y,z,w,h,d,mat=wall)=>{
-  box(x,y,z,w,h,d,mat);
-  colliders.push({x,z,w,d,top:y+h/2,bottom:y-h/2});
- };
- const tube=(a,b,r)=>{
+ const solid=(x,y,z,w,h,d,mat=wall)=>{box(x,y,z,w,h,d,mat);colliders.push({x,z,w,d,top:y+h/2,bottom:y-h/2});};
+ const tube=(a,b,r=3.2)=>{
   const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),delta=w.clone().sub(v);
+  if(delta.length()<.01)return;
   const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,delta.length(),10),metal);
   mesh.position.copy(v).add(w).multiplyScalar(.5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());group.add(mesh);
-  // Segment-aligned approximate blocking volumes; not a giant single box for elbows.
-  const steps=Math.max(1,Math.ceil(delta.length()/12));
+  const steps=Math.ceil(delta.length()/8);
   for(let j=0;j<steps;j++){const p=v.clone().addScaledVector(delta,(j+.5)/steps);
-   colliders.push({x:p.x,z:p.z,w:2*r+2,d:2*r+2,top:p.y+Math.max(r,delta.length()/steps*.5),bottom:p.y-Math.max(r,delta.length()/steps*.5)});
+   const half=Math.max(r,delta.length()/steps*.5);
+   colliders.push({x:p.x,z:p.z,w:2*r+1,d:2*r+1,top:p.y+half,bottom:p.y-half});
   }
  };
- for(let k=0;k<3;k++){
-  const x=ox-76+(k%2)*92,z=oz-68+Math.floor(k/2)*100;
-  const rad=15+(k%2)*7,h=26+k*9;
-  const tank=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,h,12),industrialRustMat);
-  tank.position.set(x,h/2,z);group.add(tank);
+ const route=(pts,r)=>{for(let i=1;i<pts.length;i++)tube(pts[i-1],pts[i],r);};
+ const tank=(x,z,rad,h)=>{
+  const shell=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,h,14),industrialRustMat);shell.position.set(x,h/2,z);group.add(shell);
   colliders.push({x,z,w:rad*1.65,d:rad*1.65,top:h,bottom:0});
-  const roof=new THREE.Mesh(new THREE.ConeGeometry(rad+2,7,12),metal);roof.position.set(x,h+3,z);group.add(roof);
-  for(let j=0;j<4;j++){const a=j*Math.PI/2;const sx=x+Math.cos(a)*(rad+5),sz=z+Math.sin(a)*(rad+5);
-   tube([sx,8,sz],[sx,23,sz],2.6);
-  }
-  tube([x+rad,17,z],[x+rad+27,17,z],4.8);
-  tube([x,12,z+rad],[x,12,z+rad+26],3.4);
- }
- for(let k=0;k<3;k++){
-  const x=ox-90+k*65,z=oz+82+(k%2)*19,h=35+(k%3)*16;
-  addSolid(x,h/2,z,37,h,28);
-  addSolid(x,h+2,z,42,4,33,metal);
- }
- // Crossed elevated trunk pipes with distinct heights, plus short vertical manifolds.
- for(let j=0;j<3;j++){
-  const y=14+j*11;
-  tube([ox-106,y,oz-24+j*25],[ox+106,y,oz+50-j*23],5.2+j*1.1);
-  tube([ox-80+j*42,9,oz-106],[ox+52-j*12,25+j*6,oz+106],4.5+j*.8);
+  const roof=new THREE.Mesh(new THREE.ConeGeometry(rad+1,5,14),metal);roof.position.set(x,h+2.5,z);group.add(roof);
+  for(let k=0;k<3;k++){const ring=new THREE.Mesh(new THREE.TorusGeometry(rad+.15,.65,5,14),metal);ring.rotation.x=Math.PI/2;ring.position.set(x,h*(k+1)/4,z);group.add(ring);}
+ };
+ const feedX=ox-75,feedZ=oz-60,productX=ox+72,productZ=oz+54;
+ tank(feedX,feedZ,20,33);tank(feedX,oz+24,16,27);
+ tank(productX,productZ,22,38);
+ // A pump house collects both feed tanks and lifts the process line.
+ solid(ox-30,10,oz-10,23,20,26);
+ route([[feedX+20,10,feedZ],[ox-45,10,feedZ],[ox-45,10,oz-10],[ox-30,10,oz-10]],3.5);
+ route([[feedX+16,9,oz+24],[ox-45,9,oz+24],[ox-45,9,oz-10]],3.1);
+ // Elevated pipe rack is straight, supported and connected to the separator.
+ for(const x of [ox-10,ox+30,ox+67]){solid(x,12,oz-10,4,24,4);solid(x,12,oz+18,4,24,4);}
+ solid(ox+25,24,oz+4,110,2,34,metal);
+ route([[ox-19,15,oz-10],[ox-19,27,oz-10],[ox+25,27,oz-10],[ox+25,12,oz-10]],4.2);
+ // Separation column and reboiler are connected to the rack.
+ const column=new THREE.Mesh(new THREE.CylinderGeometry(9,9,79,12),metal);column.position.set(ox+25,39.5,oz-10);group.add(column);
+ colliders.push({x:ox+25,z:oz-10,w:16,d:16,top:79,bottom:0});
+ solid(ox+49,9,oz-10,25,18,22);
+ route([[ox+25,27,oz-10],[ox+25,55,oz-10],[ox+49,55,oz-10],[ox+49,18,oz-10]],3.3);
+ // Overhead condenser line -> cooling unit -> product storage.
+ solid(ox+64,15,oz+21,30,30,27);
+ route([[ox+25,74,oz-10],[ox+64,74,oz-10],[ox+64,74,oz+21],[ox+64,30,oz+21]],3);
+ route([[ox+64,12,oz+21],[productX,12,oz+21],[productX,12,productZ-22]],4.1);
+ // Ground-level outlet continues to a loading connection at the sector edge.
+ route([[productX+22,8,productZ],[ox+111,8,productZ],[ox+111,8,oz+108]],3.2);
+ // Periodic low-pressure steam vent: decorative, with a solid pedestal.
+ if((cx+cz)%2===0){const x=ox+93,z=oz-80;solid(x,3,z,12,6,12);
+  const steam=new THREE.Mesh(new THREE.ConeGeometry(5,22,7,1,true),
+   new THREE.MeshBasicMaterial({color:0xb8dce1,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide,fog:true}));
+  steam.position.set(x,19,z);group.add(steam);steam.userData.geyser=true;
  }
 }
 // V209: Continuous BRIDGE -> organic-crystal gradient in western free chunks.
