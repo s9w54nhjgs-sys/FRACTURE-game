@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V210 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V211 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2246,12 +2246,16 @@ addOuterFloor(sideWidth,outerSpan,(centerWidth+sideWidth)/2,0);
 addOuterFloor(centerWidth,sideWidth,0,-(centerWidth+sideWidth)/2);
 addOuterFloor(centerWidth,sideWidth,0,(centerWidth+sideWidth)/2);
 scene.add(outerFloor);
-// V210: out-of-bounds scenery, intentionally outside the playable 4km square.
-// The existing world limits remain authoritative; this only supplies visual continuity.
-const borderSea=new THREE.Mesh(new THREE.PlaneGeometry(1900,4700),new THREE.MeshStandardMaterial({color:0x092a38,metalness:.28,roughness:.48,side:THREE.DoubleSide}));
-borderSea.rotation.x=-Math.PI/2;borderSea.position.set(2870,-.45,0);scene.add(borderSea);
-const borderMistMat=new THREE.MeshBasicMaterial({color:0x5a4667,transparent:true,opacity:.18,depthWrite:false,side:THREE.DoubleSide});
-for(let i=0;i<8;i++){const haze=new THREE.Mesh(new THREE.PlaneGeometry(520,240),borderMistMat);haze.position.set(-2110,95,-1750+i*500);haze.rotation.y=Math.PI/2;scene.add(haze);}
+// V211: Boundary is visible from inside the map, rather than hidden past the fog cutoff.
+const borderSeaMat=new THREE.MeshBasicMaterial({color:0x0a3442,side:THREE.DoubleSide,fog:false});
+const borderSea=new THREE.Mesh(new THREE.PlaneGeometry(1350,4300),borderSeaMat);
+borderSea.rotation.x=-Math.PI/2;borderSea.position.set(1980,-.045,0);scene.add(borderSea);
+const shoreMat=new THREE.MeshStandardMaterial({color:0x303e43,roughness:.98});
+const shore=new THREE.Mesh(new THREE.BoxGeometry(22,4,3300),shoreMat);
+shore.position.set(1540,1,0);scene.add(shore);
+const borderMistMat=new THREE.MeshBasicMaterial({color:0x655276,transparent:true,opacity:.23,depthWrite:false,side:THREE.DoubleSide,fog:false});
+for(let i=0;i<9;i++){const haze=new THREE.Mesh(new THREE.PlaneGeometry(460,240),borderMistMat);
+ haze.position.set(-1840,95,-1830+i*450);haze.rotation.y=Math.PI/2;scene.add(haze);}
 // V178: removed ground-level abyss and canal.
 // V151 industrial vertical slice: structural scenery and matching climb collision.
 // The original city's bridge, roof, movement and rebirth logic are untouched.
@@ -2259,6 +2263,7 @@ const industrialPipeMat=new THREE.MeshStandardMaterial({color:0x62717a,metalness
 const industrialRustMat=new THREE.MeshStandardMaterial({color:0x74564a,metalness:.58,roughness:.78});
 const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness:.48,roughness:.88});
 const industrialCylinderGeo=new THREE.CylinderGeometry(1,1,1,10);
+const processPipeUnitGeo=new THREE.CylinderGeometry(1,1,1,7),processTankUnitGeo=new THREE.CylinderGeometry(1,1,1,12),processRoofUnitGeo=new THREE.ConeGeometry(1,1,12);
 const canalWaterSurfaces=[],canalRipples=[];
 
 // Distant giant silhouettes must remain visible inside the secret biome.
@@ -2646,10 +2651,10 @@ if(industrialSector&&cx>=2&&cx<=6&&cz>=-1&&cz<=1&&!(cx===2&&cz===0)){
  const tube=(a,b,r=3.2)=>{
   const v=new THREE.Vector3(...a),w=new THREE.Vector3(...b),delta=w.clone().sub(v);
   if(delta.length()<.01)return;
-  const mesh=new THREE.Mesh(new THREE.CylinderGeometry(r,r,delta.length(),10),metal);
+  const mesh=new THREE.Mesh(processPipeUnitGeo,metal);mesh.scale.set(r,delta.length(),r);
   mesh.position.copy(v).add(w).multiplyScalar(.5);
   mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());group.add(mesh);
-  const steps=Math.ceil(delta.length()/8);
+  const steps=Math.ceil(delta.length()/24);
   for(let j=0;j<steps;j++){const p=v.clone().addScaledVector(delta,(j+.5)/steps);
    const half=Math.max(r,delta.length()/steps*.5);
    colliders.push({x:p.x,z:p.z,w:2*r+1,d:2*r+1,top:p.y+half,bottom:p.y-half});
@@ -2657,10 +2662,10 @@ if(industrialSector&&cx>=2&&cx<=6&&cz>=-1&&cz<=1&&!(cx===2&&cz===0)){
  };
  const route=(pts,r)=>{for(let i=1;i<pts.length;i++)tube(pts[i-1],pts[i],r);};
  const tank=(x,z,rad,h)=>{
-  const shell=new THREE.Mesh(new THREE.CylinderGeometry(rad,rad,h,14),industrialRustMat);shell.position.set(x,h/2,z);group.add(shell);
+  const shell=new THREE.Mesh(processTankUnitGeo,industrialRustMat);shell.scale.set(rad,h,rad);shell.position.set(x,h/2,z);group.add(shell);
   colliders.push({x,z,w:rad*1.65,d:rad*1.65,top:h,bottom:0});
-  const roof=new THREE.Mesh(new THREE.ConeGeometry(rad+1,5,14),metal);roof.position.set(x,h+2.5,z);group.add(roof);
-  for(let k=0;k<3;k++){const ring=new THREE.Mesh(new THREE.TorusGeometry(rad+.15,.65,5,14),metal);ring.rotation.x=Math.PI/2;ring.position.set(x,h*(k+1)/4,z);group.add(ring);}
+  const roof=new THREE.Mesh(processRoofUnitGeo,metal);roof.scale.set(rad+1,5,rad+1);roof.position.set(x,h+2.5,z);group.add(roof);
+  // Weld seams are implied by material bands; omit individual torus draw calls on mobile.
  };
  const feedX=ox-75,feedZ=oz-60,productX=ox+72,productZ=oz+54;
  tank(feedX,feedZ,20,33);tank(feedX,oz+24,16,27);
@@ -2674,7 +2679,7 @@ if(industrialSector&&cx>=2&&cx<=6&&cz>=-1&&cz<=1&&!(cx===2&&cz===0)){
  solid(ox+25,24,oz+4,110,2,34,metal);
  route([[ox-19,15,oz-10],[ox-19,27,oz-10],[ox+25,27,oz-10],[ox+25,12,oz-10]],4.2);
  // Separation column and reboiler are connected to the rack.
- const column=new THREE.Mesh(new THREE.CylinderGeometry(9,9,79,12),metal);column.position.set(ox+25,39.5,oz-10);group.add(column);
+ const column=new THREE.Mesh(processTankUnitGeo,metal);column.scale.set(9,79,9);column.position.set(ox+25,39.5,oz-10);group.add(column);
  colliders.push({x:ox+25,z:oz-10,w:16,d:16,top:79,bottom:0});
  solid(ox+49,9,oz-10,25,18,22);
  route([[ox+25,27,oz-10],[ox+25,55,oz-10],[ox+49,55,oz-10],[ox+49,18,oz-10]],3.3);
@@ -2690,6 +2695,24 @@ if(industrialSector&&cx>=2&&cx<=6&&cz>=-1&&cz<=1&&!(cx===2&&cz===0)){
    new THREE.MeshBasicMaterial({color:0xb8dce1,transparent:true,opacity:.16,depthWrite:false,side:THREE.DoubleSide,fog:true}));
   steam.position.set(x,19,z);group.add(steam);steam.userData.geyser=true;
  }
+}
+// V211: water-treatment works near the giant reservoir; kept outside the spherical hull.
+if(cx===4&&cz===4){
+ const x=875,z=830,concrete=industrialDarkMat;
+ const add=(px,py,pz,w,h,d,mat=concrete)=>{box(px,py,pz,w,h,d,mat);colliders.push({x:px,z:pz,w,d,top:py+h/2,bottom:py-h/2});};
+ // Clarifier basins, pump hall and elevated filtration gallery.
+ add(x,12,z,110,24,75);
+ add(x,28,z,117,5,83,industrialPipeMat);
+ add(x-64,9,z+7,15,18,88);
+ add(x+64,9,z+7,15,18,88);
+ for(let k=0;k<3;k++){
+  const basin=new THREE.Mesh(new THREE.CylinderGeometry(23,23,7,12),concrete);
+  basin.position.set(x-70+k*70,4,z-100);group.add(basin);
+  colliders.push({x:x-70+k*70,z:z-100,w:40,d:40,top:8,bottom:0});
+  const water=new THREE.Mesh(new THREE.CircleGeometry(21,16),new THREE.MeshBasicMaterial({color:0x316775,transparent:true,opacity:.8,side:THREE.DoubleSide}));
+  water.rotation.x=-Math.PI/2;water.position.set(x-70+k*70,8,z-100);group.add(water);
+ }
+ add(x,49,z,22,39,24);
 }
 // V209: Continuous BRIDGE -> organic-crystal gradient in western free chunks.
 // Tier 3 is pure alien geology with no building geometry or artificial pathways.
@@ -2805,6 +2828,7 @@ function updateChunkStreaming(t){
  if(t-(updateChunkStreaming.lastVisual||0)<250)return;
  updateChunkStreaming.lastVisual=t;
  const p=camera.position;
+ for(const [key,entry] of streamedTerrain){if(key==='4,4')continue;const [cx,cz]=key.split(',').map(Number);const dx=p.x-(cx+.5)*250,dz=p.z-(cz+.5)*250;entry.group.visible=dx*dx+dz*dz<490*490;}
  for(const [key,items] of chunkDecor){
   const loaded=chunkCache.get(key)?.loaded===true;
   for(const d of items){
@@ -4221,7 +4245,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
- if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:normalFogDensity)-scene.fog.density)*Math.min(1,dt*2);}
+ if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:(player.position.x>430&&player.position.x<1600&&Math.abs(player.position.z)<470?.013:normalFogDensity))-scene.fog.density)*Math.min(1,dt*2);}
  if(!floatingNow&&jumpHeight<0&&waterslideProgress<0&&t>waterPlungeUntil){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  // Buoyancy is a persistent state, not an airborne-only one-frame correction.
  const reservoirInside=reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight);
