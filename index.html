@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V212 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V213 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2267,6 +2267,20 @@ for(let i=0;i<140;i++){
 crystalForest.instanceMatrix.needsUpdate=true;infectionBackdrop.add(crystalForest);
 const haze=new THREE.Mesh(new THREE.PlaneGeometry(4400,380),new THREE.MeshBasicMaterial({color:0x574668,transparent:true,opacity:.28,depthWrite:false,side:THREE.DoubleSide,fog:false}));
 haze.position.set(-2160,130,0);haze.rotation.y=Math.PI/2;infectionBackdrop.add(haze);
+// V213 static horizon: offshore ruins and corrupted reclaimed-land skyline.
+const horizonGroup=new THREE.Group();scene.add(horizonGroup);
+const wreckGeo=new THREE.BoxGeometry(1,1,1),wreckMat=new THREE.MeshBasicMaterial({color:0x35464c,fog:false}),wreckDummy=new THREE.Object3D();
+const wrecks=new THREE.InstancedMesh(wreckGeo,wreckMat,90);
+for(let i=0;i<90;i++){const x=2150+(i%9)*180,z=-1750+Math.floor(i/9)*370,h=12+(i*53)%135;
+ wreckDummy.position.set(x,h*.36-2,z);wreckDummy.rotation.set((i%4)*.13,i*.7,(i%3)*.08);
+ wreckDummy.scale.set(9+(i*13)%32,h,11+(i*17)%38);wreckDummy.updateMatrix();wrecks.setMatrixAt(i,wreckDummy.matrix);
+}wrecks.instanceMatrix.needsUpdate=true;horizonGroup.add(wrecks);
+const infectedGroundMat=new THREE.MeshBasicMaterial({color:0x292639,fog:false,side:THREE.DoubleSide});
+for(const z of [-3100,3100]){const m=new THREE.Mesh(new THREE.PlaneGeometry(4000,2200),infectedGroundMat);m.rotation.x=-Math.PI/2;m.position.set(-100,-2,z);horizonGroup.add(m);}
+const outerCrystals=new THREE.InstancedMesh(crystalGeo,crystalMat,160);
+for(let i=0;i<160;i++){const z=i<80?-2110-(i%5)*115:2110+(i%5)*115,x=-1930+Math.floor(i%80/5)*250,h=75+(i*59)%180;
+ crystalDummy.position.set(x,h*.5-3,z);crystalDummy.rotation.set(0,i*.41,.12);crystalDummy.scale.set(12+(i%7)*5,h,12+(i%5)*5);crystalDummy.updateMatrix();outerCrystals.setMatrixAt(i,crystalDummy.matrix);
+}outerCrystals.instanceMatrix.needsUpdate=true;horizonGroup.add(outerCrystals);
 // V178: removed ground-level abyss and canal.
 // V151 industrial vertical slice: structural scenery and matching climb collision.
 // The original city's bridge, roof, movement and rebirth logic are untouched.
@@ -2486,12 +2500,12 @@ function createStreamedTerrain(key){
    for(let i=0;i<n;i++){
     const a=i/n,b=(i+1)/n,ax=p0.x+(p1.x-p0.x)*a,bx=p0.x+(p1.x-p0.x)*b,az=p0.z+(p1.z-p0.z)*a,bz=p0.z+(p1.z-p0.z)*b,ay=p0.y+(p1.y-p0.y)*a,by=p0.y+(p1.y-p0.y)*b;
     const dx=bx-ax,dy=by-ay,dz=bz-az,L=Math.hypot(dx,dy,dz),midX=(ax+bx)/2,midY=(ay+by)/2,midZ=(az+bz)/2;
-    const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,12,1,true),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.BackSide}));
+    const pipeShell=new THREE.Mesh(new THREE.CylinderGeometry(15,15,L,12,1,true),new THREE.MeshStandardMaterial({color:0x82979d,metalness:.7,roughness:.5,side:THREE.DoubleSide}));
     pipeShell.position.set(midX,midY,midZ);pipeShell.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx,dy,dz).normalize());group.add(pipeShell);
     // Closed circular tube. Single, inexpensive water-surface ribbon; no
     // duplicated half-cylinder, turbulent fragment shader or animated flow.
     const waterbed=new THREE.Mesh(new THREE.BoxGeometry(22,.22,L+.5),
-      new THREE.MeshBasicMaterial({color:0x287f96,transparent:true,opacity:.82,depthWrite:false,side:THREE.DoubleSide}));
+      new THREE.MeshBasicMaterial({color:0x287f96,depthWrite:true,side:THREE.DoubleSide}));
     waterbed.position.set(midX,midY-10.6,midZ);
     waterbed.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),new THREE.Vector3(dx,dy,dz).normalize());
     group.add(waterbed);
@@ -2752,6 +2766,18 @@ if(cx===4&&cz===4){
   smoke.position.set(sx,165,sz);group.add(smoke);
  }
 }
+// V213: Static wet ground and bioluminescent algae beneath reservoir and slide.
+if(cx>=2&&cx<=5&&cz>=0&&cz<=5&&Math.hypot((cx+.5)*250-1020,(cz+.5)*250-920)<780){
+ const wetGeometry=new THREE.CircleGeometry(1,8),wetDummy=new THREE.Object3D();
+ const wetPatches=new THREE.InstancedMesh(wetGeometry,new THREE.MeshBasicMaterial({color:0x172d2d,side:THREE.DoubleSide}),22);
+ const luminousAlgae=new THREE.InstancedMesh(wetGeometry,new THREE.MeshBasicMaterial({color:0x36b5a4,side:THREE.DoubleSide}),30);
+ for(let i=0;i<30;i++){const x=cx*250+terrainHash(cx,cz,700+i*2)*250,z=cz*250+terrainHash(cx,cz,701+i*2)*250;
+  wetDummy.position.set(x,.09+i*.0002,z);wetDummy.rotation.set(-Math.PI/2,0,i*.51);
+  const rr=1.3+terrainHash(cx,cz,740+i)*4;wetDummy.scale.set(rr,rr*.7,1);wetDummy.updateMatrix();luminousAlgae.setMatrixAt(i,wetDummy.matrix);
+  if(i<22){wetDummy.scale.set(rr*4,rr*3,1);wetDummy.updateMatrix();wetPatches.setMatrixAt(i,wetDummy.matrix);}
+ }
+ wetPatches.instanceMatrix.needsUpdate=true;luminousAlgae.instanceMatrix.needsUpdate=true;group.add(wetPatches,luminousAlgae);
+}
 // V209: Continuous BRIDGE -> organic-crystal gradient in western free chunks.
 // Tier 3 is pure alien geology with no building geometry or artificial pathways.
 const tier=infectionTier((cx+.5)*250,(cz+.5)*250);
@@ -2779,7 +2805,15 @@ if(tier){
    const p={x,z,h,w:radius*2.3,d:radius*2.1,legacy:true,streamKey:key};climbDecks.push(p);platforms.push(p);
   }
  }
- if(tier===3){
+ // V213: Bioluminescent infected moss colonies, instanced per streamed chunk.
+ const mossGeo=new THREE.IcosahedronGeometry(1,0),mossDummy=new THREE.Object3D();
+ for(let c=0;c<3;c++){const mat=new THREE.MeshBasicMaterial({color:[0x7b3caa,0x398f77,0x9b487e][c]});
+  const count=18+tier*12,patches=new THREE.InstancedMesh(mossGeo,mat,count);
+  for(let i=0;i<count;i++){const x=ox+(seed(500+c*110+i*3)-.5)*230,z=oz+(seed(501+c*110+i*3)-.5)*230,rr=1.5+seed(502+c*110+i*3)*3.8;
+   mossDummy.position.set(x,rr*.18,z);mossDummy.scale.set(rr,.35+rr*.12,rr*.8);mossDummy.rotation.set(0,i*.57,0);mossDummy.updateMatrix();patches.setMatrixAt(i,mossDummy.matrix);
+  }patches.instanceMatrix.needsUpdate=true;group.add(patches);
+ }
+if(tier===3){
   // Continuous rocky terrain: no skyline buildings in this inner biome.
   const floor=new THREE.Mesh(new THREE.CylinderGeometry(175,175,5,12),base);
   floor.position.set(ox,-2,oz);group.add(floor);
