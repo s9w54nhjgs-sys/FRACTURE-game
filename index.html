@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V224 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V225 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2850,6 +2850,12 @@ if(cx>=2&&cx<=5&&cz>=0&&cz<=5&&Math.hypot((cx+.5)*250-1020,(cz+.5)*250-920)<780)
  }
  wetPatches.instanceMatrix.needsUpdate=true;luminousAlgae.instanceMatrix.needsUpdate=true;group.add(wetPatches,luminousAlgae);
 }
+const infectionFloorGeo=new THREE.CylinderGeometry(175,175,5,12);
+const infectionTrunkGeo=new THREE.CylinderGeometry(.32,1,1,6,1);
+const infectionSpikeGeo=new THREE.ConeGeometry(1,1,5);
+const infectionMoundGeo=new THREE.ConeGeometry(1,1,7);
+const infectionMossGeo=new THREE.IcosahedronGeometry(1,0);
+const infectionMossMats=[0x412b3e,0x34463b,0x51343a].map(color=>new THREE.MeshBasicMaterial({color}));
 const infectionTerrainFlesh=new THREE.MeshStandardMaterial({color:0x23192e,roughness:.88,metalness:.08,flatShading:true});
 const infectionTerrainCrystal=new THREE.MeshStandardMaterial({color:0x53366c,emissive:0x250d3b,emissiveIntensity:.8,metalness:.32,roughness:.27,flatShading:true});
 const infectionTerrainBase=new THREE.MeshStandardMaterial({color:0x292438,roughness:.98,flatShading:true});
@@ -2863,34 +2869,41 @@ if(tier){
  const base=infectionTerrainBase;
  const seed=(n)=>terrainHash(cx,cz,n);
  const count=tier===1?4:tier===2?6:7;
+ // Batch all organic trunks, spikes and mounds into three instanced draw calls per chunk.
+ const trunkGeo=infectionTrunkGeo,spikeGeo=infectionSpikeGeo,moundGeo=infectionMoundGeo;
+ const trunkBatch=new THREE.InstancedMesh(trunkGeo,flesh,count);
+ const spikeBatch=new THREE.InstancedMesh(spikeGeo,crystal,count);
+ const moundBatch=new THREE.InstancedMesh(moundGeo,base,count);
+ const d=new THREE.Object3D();
  for(let i=0;i<count;i++){
   const x=ox+(seed(210+i*3)-.5)*190,z=oz+(seed(211+i*3)-.5)*190;
   const radius=(tier===1?5:tier===2?10:17)+seed(212+i*3)*(tier===3?18:9);
-  const height=(tier===1?15:tier===2?48:95)+seed(260+i)* (tier===3?125:40);
-  const root=new THREE.Mesh(new THREE.CylinderGeometry(radius*.32,radius,height,6,1),flesh);
-  root.position.set(x,height*.47,z);root.rotation.z=(seed(300+i)-.5)*.32;group.add(root);
+  const height=(tier===1?15:tier===2?48:95)+seed(260+i)*(tier===3?125:40);
+  d.position.set(x,height*.47,z);d.rotation.set(0,0,(seed(300+i)-.5)*.32);
+  d.scale.set(radius,height,radius);d.updateMatrix();trunkBatch.setMatrixAt(i,d.matrix);
+  d.position.set(x+radius*.25,height*.92,z);d.rotation.set(0,0,(seed(350+i)-.5)*.6);
+  d.scale.set(radius*.72,height*.72,radius*.72);d.updateMatrix();spikeBatch.setMatrixAt(i,d.matrix);
+  const moundH=Math.min(32,height*.28);
+  d.position.set(x,moundH*.48,z);d.rotation.set(0,0,0);
+  d.scale.set(radius*1.6,moundH,radius*1.6);d.updateMatrix();moundBatch.setMatrixAt(i,d.matrix);
   colliders.push({x,z,w:radius*1.4,d:radius*1.4,top:height*.8,bottom:0});
-  const spike=new THREE.Mesh(new THREE.ConeGeometry(radius*.72,height*.72,5),crystal);
-  spike.position.set(x+radius*.25,height*.92,z);spike.rotation.z=(seed(350+i)-.5)*.6;group.add(spike);
-  const mound=new THREE.Mesh(new THREE.ConeGeometry(radius*1.6,Math.min(32,height*.28),7),base);
-  mound.position.set(x,Math.min(32,height*.28)*.48,z);group.add(mound);
   if(i%3===0){const h=14+tier*9;
-   // Broad, flat organic shelf, registered with the normal climb-deck solver.
    const shelf=new THREE.Mesh(terrainLandmarkGeo,flesh);shelf.position.set(x,h-.5,z);shelf.scale.set(radius*2.3,1,radius*2.1);group.add(shelf);
    const p={x,z,h,w:radius*2.3,d:radius*2.1,legacy:true,streamKey:key};climbDecks.push(p);platforms.push(p);
   }
  }
+ for(const batch of [trunkBatch,spikeBatch,moundBatch]){batch.instanceMatrix.needsUpdate=true;batch.frustumCulled=false;group.add(batch);}
  // V213: Bioluminescent infected moss colonies, instanced per streamed chunk.
- const mossGeo=new THREE.IcosahedronGeometry(1,0),mossDummy=new THREE.Object3D();
- for(let c=0;c<3;c++){const mat=new THREE.MeshBasicMaterial({color:[0x412b3e,0x34463b,0x51343a][c]});
-  const count=8+tier*6,patches=new THREE.InstancedMesh(mossGeo,mat,count);
+ const mossGeo=infectionMossGeo,mossDummy=new THREE.Object3D();
+ for(let c=0;c<3;c++){const mat=infectionMossMats[c];
+  const count=tier===3?7:8+tier*4,patches=new THREE.InstancedMesh(mossGeo,mat,count);
   for(let i=0;i<count;i++){const x=ox+(seed(500+c*110+i*3)-.5)*230,z=oz+(seed(501+c*110+i*3)-.5)*230,rr=1.5+seed(502+c*110+i*3)*3.8;
    mossDummy.position.set(x,.65+rr*.35,z);mossDummy.scale.set(rr,.35+rr*.12,rr*.8);mossDummy.rotation.set(0,i*.57,0);mossDummy.updateMatrix();patches.setMatrixAt(i,mossDummy.matrix);
   }patches.instanceMatrix.needsUpdate=true;group.add(patches);
  }
 if(tier===3){
   // Continuous rocky terrain: no skyline buildings in this inner biome.
-  const floor=new THREE.Mesh(new THREE.CylinderGeometry(175,175,5,12),base);
+  const floor=new THREE.Mesh(infectionFloorGeo,base);
   floor.position.set(ox,-2,oz);group.add(floor);
   // Monumental central crystal is resident globally, not loaded with terrain chunks.
  }
