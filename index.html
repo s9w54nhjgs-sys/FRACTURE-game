@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V217 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V218 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3961,6 +3961,9 @@ const infectionBrood=[],infectionMothers=[],infectionYoung=[];
 const infectionEggGeo=new THREE.SphereGeometry(.22,6,5);
 const infectionEggMat=new THREE.MeshStandardMaterial({color:0xd16b99,emissive:0x5b193c,emissiveIntensity:.65,roughness:.55});
 const infectionClutchMat=new THREE.MeshStandardMaterial({color:0x4c2c46,emissive:0x190b20,roughness:.8});
+const spentClutches=[];
+const spentEggMat=new THREE.MeshStandardMaterial({color:0x514451,emissive:0x000000,roughness:1,flatShading:true});
+const spentDustGeo=new THREE.TetrahedronGeometry(1,0),spentDustMat=new THREE.MeshBasicMaterial({color:0x675466,transparent:true,opacity:.75,depthWrite:false});
 function infectionClutch(x,z){
  const g=new THREE.Group(),base=new THREE.Mesh(new THREE.SphereGeometry(1.35,9,7),infectionClutchMat);
  base.scale.set(1,.33,.78);base.position.y=.42;g.add(base);
@@ -4041,7 +4044,30 @@ function updateInfectionBrood(t){
    const u=special(type,x,z);u.g.scale.setScalar(.5);u.hp*=.5;u.infectionJuvenile=true;u.alert=true;u.nest=null;
    u.g.position.y=type==='aerial'?3.5:.8;infectionYoung.push(u);
   }
-  if(count>=10){scene.remove(egg.mesh);infectionBrood.splice(i,1);}
+  if(count>=10){
+   // Stop all bioluminescence and fermenting pulse immediately after final hatch.
+   egg.mesh.scale.set(1,1,1);
+   egg.mesh.traverse(obj=>{if(obj.isMesh)obj.material=spentEggMat;});
+   const fragments=[];
+   for(let j=0;j<14;j++){const part=new THREE.Mesh(spentDustGeo,spentDustMat);
+    const angle=j*2.399963;part.position.set(egg.x+Math.cos(angle)*.7,.45+(j%4)*.23,egg.z+Math.sin(angle)*.7);
+    part.scale.setScalar(.15+(j%5)*.07);scene.add(part);
+    fragments.push({mesh:part,vx:Math.cos(angle)*(1+j%3),vy:1.5+(j%5)*.45,vz:Math.sin(angle)*(1+j%3)});
+   }
+   spentClutches.push({mesh:egg.mesh,fragments,start:t});
+   infectionBrood.splice(i,1);
+  }
+ }
+ // Spent granular clutches dry, crumble and settle; no animated glow remains.
+ for(let i=spentClutches.length-1;i>=0;i--){const c=spentClutches[i],age=(t-c.start)/1000;
+  c.mesh.scale.set(Math.max(.02,1-age/6),Math.max(.015,1-age/3.7),Math.max(.02,1-age/6));
+  c.mesh.position.y=-Math.min(.35,age*.09);
+  for(const d of c.fragments){d.mesh.position.x+=d.vx*dt;d.mesh.position.z+=d.vz*dt;
+   d.mesh.position.y=Math.max(.08,d.mesh.position.y+d.vy*dt);d.vy-=8.5*dt;
+   d.mesh.rotation.x+=dt*2.1;d.mesh.rotation.z+=dt*1.4;
+   d.mesh.scale.multiplyScalar(Math.max(.85,1-dt*.6));
+  }
+  if(age>6){scene.remove(c.mesh);for(const d of c.fragments)scene.remove(d.mesh);spentClutches.splice(i,1);}
  }
  // Reclaim slots when hatchlings are defeated.
  for(let i=infectionYoung.length-1;i>=0;i--)if(!specialEnemies.includes(infectionYoung[i]))infectionYoung.splice(i,1);
