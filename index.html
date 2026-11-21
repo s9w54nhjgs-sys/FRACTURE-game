@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V220 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V221 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3888,7 +3888,7 @@ function updateRadioArray(t){
    radioEvents[i]=true;radioEventUntil[i]=t+180000;
    if(i===0){for(let j=0;j<6;j++){const e=special('pursuer',player.position.x+Math.cos(j)*28,player.position.z+Math.sin(j)*28);e.alert=true;e.mode='chase';}notify('PRISM 1 // PURSUER RELEASE');}
    if(i===1){for(let j=0;j<13;j++){const a=j*2.4;special('swarm',700+Math.cos(a)*(90+j*12),150+Math.sin(a)*(90+j*12));}notify('PRISM 2 // INDUSTRIAL FOG / 13 HOSTILES');}
-   if(i===2){radioBeeSwarmActive=true;for(let j=0;j<4;j++){const a=j*Math.PI/2,g=new THREE.Group();for(let k=0;k<22;k++){const taper=Math.max(.16,Math.sin((k+1)/23*Math.PI)),segment=new THREE.Mesh(new THREE.SphereGeometry(1.5,7,6),canalWormMat);segment.position.set(0,Math.sin(k*.55)*1.7,-k*2.5);segment.scale.set(taper*2.8,taper*2.2,2.2);g.add(segment);}g.position.set(1125+Math.cos(a)*110,-28,1100+Math.sin(a)*110);scene.add(g);radioTankBees.push({mesh:g,heading:a,phase:j*1.7,lastHit:0,emergeAt:t+1000+j*800,emergeUntil:t+9000+j*800});}notify('PRISM 3 // WATER BEE BLOOM');}
+   if(i===2){radioBeeSwarmActive=true;for(let j=0;j<4;j++){const a=j*Math.PI/2,g=new THREE.Group();for(let k=0;k<22;k++){const taper=Math.max(.16,Math.sin((k+1)/23*Math.PI)),segment=new THREE.Mesh(new THREE.SphereGeometry(1.5,7,6),canalWormMat);segment.position.set(0,Math.sin(k*.55)*1.7,-k*2.5);segment.scale.set(taper*2.8,taper*2.2,2.2);g.add(segment);}g.position.set(1125+Math.cos(a)*110,-45,1100+Math.sin(a)*110);scene.add(g);radioTankBees.push({mesh:g,heading:a,phase:j*1.7,lastHit:0,emergeAt:t+30000+j*1300,emergeUntil:t+44000+j*1300,stage:'waiting'});}notify('PRISM 3 // WATER BEE BLOOM');}
    if(i===3){radioBombStart=t;radioBombardUntil=t+69000;radioBombTick=t+10000;radioBombAnchorX=player.position.x;radioBombAnchorZ=player.position.z;radioFleetRoute=Math.floor(Math.random()*10);const heading=radioFleetRoute*Math.PI/5;radioFleetDX=Math.cos(heading);radioFleetDZ=Math.sin(heading);const tx=radioBombAnchorX,tz=radioBombAnchorZ;const limit=1900;const bx=radioFleetDX>0?(tx+limit)/radioFleetDX:radioFleetDX<0?(limit-tx)/(-radioFleetDX):1e8;const bz=radioFleetDZ>0?(tz+limit)/radioFleetDZ:radioFleetDZ<0?(limit-tz)/(-radioFleetDZ):1e8;radioFleetCrossDistance=Math.min(bx,bz);radioFleetStartX=tx-radioFleetDX*(radioFleetCrossDistance+500);radioFleetStartZ=tz-radioFleetDZ*(radioFleetCrossDistance+500);notify('PRISM 4 // FLEET APPROACH / ROUTE '+(radioFleetRoute+1));}
    if(i===4){radioRevealUntil=t+180000;notify('PRISM 5 // POSITION REVEALED 03:00');}
    if(Math.random()<.035){radioLifeBonus++;notify('RARE PRISM // EXTRA LIFE +1 (RESERVE)');}
@@ -3949,9 +3949,30 @@ function updateRadioArray(t){
  updateRadioArray.prev=t;
  for(let i=0;i<radioTankBees.length;i++){
   const w=radioTankBees[i],m=w.mesh,dtBee=Math.min(.05,Math.max(0,(t-(radioWaterBeeLast||t))/1000));
-  if(w.emergeUntil&&t<w.emergeUntil){const p=Math.max(0,Math.min(1,(t-w.emergeAt)/(w.emergeUntil-w.emergeAt)));
-   m.position.y=-28+p*497;m.scale.setScalar(.3+.7*p);m.rotation.y=t*.001;continue;}
   const feet=climbFloor+jumpHeight,wet=reservoirWet(player.position.x,player.position.z,feet);
+  const playerInTank=wet&&Math.hypot(player.position.x-1125,player.position.z-1100)<265;
+  if(t<w.emergeAt){m.visible=false;continue;}
+  m.visible=true;
+  if(w.stage==='waiting'||w.stage==='rising'){
+   w.stage='rising';
+   const p=Math.max(0,Math.min(1,(t-w.emergeAt)/(w.emergeUntil-w.emergeAt))),smooth=p*p*(3-2*p);
+   m.position.y=-45+smooth*397;
+   m.rotation.y=w.heading+smooth*Math.PI*6;m.rotation.x=(1-smooth)*Math.PI*.43;
+   m.scale.setScalar(.45+.55*Math.min(1,p*2));
+   for(let k=0;k<m.children.length;k++){const seg=m.children[k];
+    seg.position.y=Math.sin(t*.006-k*.45+w.phase)*1.8;seg.position.x=Math.sin(t*.005-k*.5)*2.5;
+   }
+   if(p>=1){w.stage='bottom';m.rotation.x=0;}continue;
+  }
+  if(w.stage==='bottom'){
+   m.position.y=352+Math.sin(t*.0007+w.phase)*3;m.rotation.y+=dtBee*.35;
+   if(playerInTank){w.stage='ascending';w.ascendStart=t;}else continue;
+  }
+  if(w.stage==='ascending'){
+   const p=Math.max(0,Math.min(1,(t-w.ascendStart)/7500));
+   m.position.y=352+p*117;m.rotation.y+=dtBee*1.4;
+   if(p>=1)w.stage='swimming';continue;
+  }
   const dx=player.position.x-m.position.x,dz=player.position.z-m.position.z,dist=Math.hypot(dx,dz);
   const hunt=wet&&dist<205&&Math.abs(feet-478)<68;
   const a=hunt?Math.atan2(dz,dx):w.phase+t*.00022;
@@ -3965,7 +3986,7 @@ function updateRadioArray(t){
   if(hunt&&dist<9&&Math.abs(feet-m.position.y)<9&&t-w.lastHit>=800){w.lastHit=t;waterWormAfflictionUntil=Math.max(waterWormAfflictionUntil,t+120000);applyBeeDamage(20,t);notify('WATER BEE // 20 DAMAGE / FILARIA');}
  }
  radioWaterBeeLast=t;
- if(radioBeeSwarmActive){radioLarvae.visible=true;const dummy=radioLarvaeDummy;for(let i=0;i<radioLarvae.count;i++){const a=i*2.399963+t*.00025*(i%2?1:-1),radius=Math.sqrt((i+.5)/radioLarvae.count)*210;dummy.position.set(1125+Math.cos(a)*radius,487.8-2.5*Math.sin(t*.006+i*.7)**2,1100+Math.sin(a)*radius);dummy.rotation.set(Math.sin(t*.008+i)*.7,a,Math.cos(t*.009+i)*.8);dummy.scale.set(.7+Math.sin(t*.011+i)*.18,.55,2.2);dummy.updateMatrix();radioLarvae.setMatrixAt(i,dummy.matrix);}radioLarvae.instanceMatrix.needsUpdate=true;}
+ if(radioBeeSwarmActive){radioLarvae.visible=radioTankBees.some(w=>w.stage==='ascending'||w.stage==='swimming');const dummy=radioLarvaeDummy;for(let i=0;i<radioLarvae.count;i++){const a=i*2.399963+t*.00025*(i%2?1:-1),radius=Math.sqrt((i+.5)/radioLarvae.count)*210;dummy.position.set(1125+Math.cos(a)*radius,487.8-2.5*Math.sin(t*.006+i*.7)**2,1100+Math.sin(a)*radius);dummy.rotation.set(Math.sin(t*.008+i)*.7,a,Math.cos(t*.009+i)*.8);dummy.scale.set(.7+Math.sin(t*.011+i)*.18,.55,2.2);dummy.updateMatrix();radioLarvae.setMatrixAt(i,dummy.matrix);}radioLarvae.instanceMatrix.needsUpdate=true;}
  if(t>radioCoreCooldown&&player.position.distanceTo(center)<34){
   radioCoreCooldown=t+10000;radioLaunchUntil=t+2800;const a=Math.random()*Math.PI*2;radioLaunchVX=Math.cos(a)*160;radioLaunchVZ=Math.sin(a)*160;climbFloor=Math.max(climbFloor,270);jumpHeight=40;jumpVelocity=90;jumpCount=1;gliding=false;glideFlightActive=false;glideInterrupted=true;fallPeak=climbFloor+jumpHeight;notify('CORE // SUPERSONIC EJECTION / NO GLIDE');
  }
@@ -4000,7 +4021,7 @@ function infectionLay(m,t){
   const mesh=infectionClutch(x,z);scene.add(mesh);
   infectionBrood.push({x,z,mesh,laid:t,nextWave:t+24000,wave:0,ready:false});
  }
- m.eaten=0;m.lastLay=t;m.burrowUntil=t+2400;m.emergeAt=t+4200;
+ m.eaten=0;m.lastLay=t;m.burrowStart=t;m.burrowUntil=t+2300;m.emergeAt=t+5200;m.emergeStart=t+5200;m.emergeEnd=t+7900;
  const next=infectionRandom();m.nextX=next[0];m.nextZ=next[1];
 }
 for(let i=0;i<3;i++){const [x,z]=infectionRandom();infectionMothers.push({x,z,heading:Math.random()*6.28,eaten:0,lastLay:performance.now()-Math.random()*60000,turnAt:0,burrowUntil:0,emergeAt:0,layUntil:0});}
@@ -4023,14 +4044,14 @@ function updateBeeNav(t){
 }
 let infectionLastUpdate=0;
 function updateInfectionBrood(t){
- if(t-infectionLastUpdate<65)return;
- const dt=Math.min(.15,(t-infectionLastUpdate)/1000||.065);infectionLastUpdate=t;
+ if(t-infectionLastUpdate<16)return;
+ const dt=Math.min(.04,(t-infectionLastUpdate)/1000||.016);infectionLastUpdate=t;
  let mi=0,di=0;
  for(const m of infectionMothers){
-  if(m.emergeAt&&t>=m.emergeAt){m.x=m.nextX;m.z=m.nextZ;m.emergeAt=0;m.burrowUntil=t+1700;}
+  if(m.emergeAt&&t>=m.emergeAt){m.x=m.nextX;m.z=m.nextZ;m.emergeAt=0;m.emerging=true;}
   if(t-m.lastLay>=60000&&!m.layUntil){m.layUntil=t+3500;m.layAngle=m.heading;}
   if(m.layUntil&&t>=m.layUntil){infectionLay(m,t);m.layUntil=0;}
-  const underground=m.emergeAt>0;
+  const underground=m.emergeAt>0||m.emerging||m.burrowUntil>t;
   if(!underground&&!m.layUntil){
    if(t>m.turnAt){m.heading+=(Math.random()-.5)*2.5;m.turnAt=t+2200+Math.random()*4200;}
    const nx=m.x+Math.cos(m.heading)*dt*5.5,nz=m.z+Math.sin(m.heading)*dt*5.5;
@@ -4041,14 +4062,20 @@ function updateInfectionBrood(t){
     }
    }
   }else if(m.layUntil)m.heading+=dt*2.8;
-  const sink=m.burrowUntil>t?Math.min(1,(m.burrowUntil-t)/1700):0;
+  const burrowP=m.burrowStart&&t>=m.burrowStart&&t<m.burrowUntil?Math.min(1,(t-m.burrowStart)/2300):0;
+  const emergeP=m.emerging?Math.min(1,(t-m.emergeStart)/2700):0;
+  if(m.emerging&&emergeP>=1){m.emerging=false;m.burrowStart=0;m.burrowUntil=0;m.emergeEnd=0;}
   for(let j=0;j<16;j++){
    const k=j/15,rad=Math.sin((k*.85+.12)*Math.PI)*2.6,side=Math.sin(t*.004-k*10)*1.5;
    const x=m.x-Math.cos(m.heading)*k*24-Math.sin(m.heading)*side,z=m.z-Math.sin(m.heading)*k*24+Math.cos(m.heading)*side;
-   motherDummy.position.set(x,2.4+Math.sin(t*.004-k*8)*.5-sink*5,z);
+   const dive=Math.max(0,Math.min(1,(burrowP-k*.66)/.34));
+   const rise=Math.max(0,Math.min(1,(emergeP-k*.68)/.32));
+   const depth=burrowP>0?dive*13:m.emerging?(1-rise)*13:0;
+   const bend=burrowP>0?Math.sin(dive*Math.PI)*3.2:m.emerging?Math.sin(rise*Math.PI)*3.2:0;
+   motherDummy.position.set(x,2.4+Math.sin(t*.004-k*8)*.5-depth-bend,z);
    motherDummy.scale.set(rad*1.4,rad*1.05,rad*1.6);motherDummy.updateMatrix();motherMesh.setMatrixAt(mi++,motherDummy.matrix);
   }
-  if(m.burrowUntil>t){for(let j=0;j<7;j++){const a=j*2.4+t*.002;
+  if(m.burrowUntil>t||m.emerging){for(let j=0;j<7;j++){const a=j*2.4+t*.002;
    motherDummy.position.set(m.x+Math.cos(a)*(3+j),.5+j*.16,m.z+Math.sin(a)*(3+j));
    motherDummy.scale.set(1.2+j*.2,1.2+j*.2,1.2+j*.2);motherDummy.updateMatrix();debrisMesh.setMatrixAt(di++,motherDummy.matrix);
   }}
