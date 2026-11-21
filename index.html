@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V215 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V216 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1260,7 +1260,7 @@ for(const [x,z] of stalkerSites)special('pursuer',x,z);
 const aerialAxis=new THREE.Vector3(0,1,0);
 function aimAerial(u,t,progress=1){const g=u.g,tip=new THREE.Vector3(u.lockedX,-.45,u.lockedZ).sub(g.position).normalize();const target=new THREE.Quaternion().setFromUnitVectors(aerialAxis,tip);u.body.quaternion.slerp(target,Math.min(1,progress));const chatter=(1-progress)*.12;u.body.rotateY(Math.sin(t*.083+u.seed)*chatter);u.body.rotateZ(Math.sin(t*.049+u.seed)*chatter*.6);}
 function prepareAerial(u,t){u.mode='gearLock';u.last=t;u.lockedX=player.position.x;u.lockedZ=player.position.z;u.startX=u.g.position.x;u.startY=u.g.position.y;u.startZ=u.g.position.z;u.body.rotation.set(0,0,Math.PI);}
-function diveAerial(u,t,dt){const g=u.g,p=Math.min(1,(t-u.last)/430),ease=p*p*(3-2*p);g.position.set(u.startX+(u.lockedX-u.startX)*ease,Math.max(.9,u.startY+( .9-u.startY)*ease),u.startZ+(u.lockedZ-u.startZ)*ease);aimAerial(u,t,1);if(p>=1){u.mode='stuck';u.last=t;g.position.y=.9;u.body.quaternion.setFromUnitVectors(aerialAxis,new THREE.Vector3(0,-1,0));impact(g.position.x,.15,g.position.z);if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.8&&t>=dashInvulnerableUntil)applySpecialDamage(32,t)}}
+function diveAerial(u,t,dt){const g=u.g,p=Math.min(1,(t-u.last)/430),ease=p*p*(3-2*p);g.position.set(u.startX+(u.lockedX-u.startX)*ease,Math.max(.9,u.startY+( .9-u.startY)*ease),u.startZ+(u.lockedZ-u.startZ)*ease);aimAerial(u,t,1);if(p>=1){u.mode='stuck';u.last=t;g.position.y=.9;u.body.quaternion.setFromUnitVectors(aerialAxis,new THREE.Vector3(0,-1,0));impact(g.position.x,.15,g.position.z);if(Math.hypot(player.position.x-g.position.x,player.position.z-g.position.z)<1.8&&t>=dashInvulnerableUntil)applySpecialDamage(32*(u.infectionJuvenile?.5:1),t)}}
 const aerialSentinels=[[-28,-36],[32,32],[-65,44]];
 const aerialRoamers=[[-44,4],[42,-45],[67,53],[-70,-57]];
 const aerialWallSites=[...walls.map(w=>({x:w.x,z:w.z,w:w.w,d:w.d})),{x:-55,z:-54,w:14,d:12},{x:51,z:14,w:12,d:10}];
@@ -1295,7 +1295,7 @@ function updateSpecial(t,dt){if(done)return;
  u.body.rotation.set(Math.sin(pulse*.67)*.45,Math.sin(pulse*.47)*.6,Math.cos(pulse*.81)*.36);
  if(d<17)u.alert=true;if(!u.alert)continue;
  const speed=3.5+Math.min(1.2,alerted*.1);if(d>1.6){const nx=g.position.x+dx/d*speed*dt,nz=g.position.z+dz/d*speed*dt;if(u.ignoreWalls||!collides(nx,g.position.z))g.position.x=nx;if(u.ignoreWalls||!collides(g.position.x,nz))g.position.z=nz}
- if(d<1.8&&t-u.last>1450&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(1.25,t)}
+ if(d<1.8&&t-u.last>1450&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(1.25*(u.infectionJuvenile?.5:1),t)}
  }else if(u.type==='pursuer'){
  // A shadow-loving inchworm: low 30cm crawl, periodically rises to its full silhouette.
  // Shadow network: detect across the entire connected component of building / vessel shadows.
@@ -1409,8 +1409,8 @@ function updateSpecial(t,dt){if(done)return;
  }
 }
  g.rotation.y=Math.atan2(-ax,-az);
- if(u.alert&&d<1.5&&t-u.last>1700&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(9,t)}
- }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-(u.lastDamageAt||-10000)>1800&&t>=dashInvulnerableUntil){u.lastDamageAt=t;applySpecialDamage(16,t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=5+Math.random()*24;u.nextTurn=t+450+Math.random()*1650}
+ if(u.alert&&d<1.5&&t-u.last>1700&&t>=dashInvulnerableUntil){u.last=t;applySpecialDamage(9*(u.infectionJuvenile?.5:1),t)}
+ }else{if(u.variant==='wall'){if(u.mode==='embedded'){g.position.set(u.homeX,5.5,u.homeZ);u.body.rotation.x=Math.PI/2;if(d<6){u.mode='tracking';u.last=t;u.body.rotation.x=0}}else if(u.mode==='tracking'){if(d>5){u.mode='returning'}else{const speed=11;g.position.x+=dx/d*speed*dt;g.position.z+=dz/d*speed*dt;g.position.y+=(1.2-g.position.y)*Math.min(1,dt*4);g.rotation.y=Math.atan2(-dx,-dz);if(d<1.6&&t-(u.lastDamageAt||-10000)>1800&&t>=dashInvulnerableUntil){u.lastDamageAt=t;applySpecialDamage(16*(u.infectionJuvenile?.5:1),t)}}}else if(u.mode==='returning'){g.position.x+=(u.homeX-g.position.x)*Math.min(1,dt*4);g.position.z+=(u.homeZ-g.position.z)*Math.min(1,dt*4);g.position.y+=(5.5-g.position.y)*Math.min(1,dt*4);if(Math.hypot(g.position.x-u.homeX,g.position.z-u.homeZ)<.5)u.mode='embedded'}}else if(u.variant==='roamer'&&u.mode==='idle'){if(t>u.nextTurn){u.targetHeading=u.heading+(Math.random()-.5)*Math.PI*2.5;u.flightY=5+Math.random()*24;u.nextTurn=t+450+Math.random()*1650}
  if(!u.flockMate||!specialEnemies.includes(u.flockMate)||t>u.flockUntil)u.flockMate=null;
  if(!u.flockMate)for(const other of specialEnemies){if(other!==u&&other.variant==='roamer'&&other.mode==='idle'&&Math.hypot(g.position.x-other.g.position.x,g.position.y-other.g.position.y,g.position.z-other.g.position.z)<1){u.flockMate=other;u.flockUntil=t+2400+Math.random()*2600;break}}
  if(u.flockMate){u.targetHeading=u.flockMate.heading+Math.sin(t*.003+u.seed)*.15;u.flightY=u.flockMate.flightY+Math.sin(u.seed)*.7}
@@ -2799,8 +2799,8 @@ if(cx>=-5&&cx<=5&&cz>=-5&&cz<=5&&((cx+cz)%2===0)&&!(cx===4&&cz===4)){
  const landing={x:sx,z:sz,h:deckHeight,w:100,d:75,legacy:true,streamKey:key};climbDecks.push(landing);platforms.push(landing);
  // Horizontal bridge to the next diagonal platform; open central voids remain.
  if(cx<5&&cz<5){const link=new THREE.Mesh(terrainLandmarkGeo,industrialPipeMat);
-  link.position.set(sx+65,deckHeight-1,sz+65);link.scale.set(7,2,110);link.rotation.y=-Math.PI/4;group.add(link);
-  const route={ax:sx,az:sz,ah:deckHeight,bx:sx+125,bz:sz+125,bh:deckHeight,width:5,streamKey:key};
+  link.position.set(sx+125,deckHeight-1,sz+125);link.scale.set(9,2,353.6);link.rotation.y=-Math.PI/4;group.add(link);
+  const route={ax:sx,az:sz,ah:deckHeight,bx:sx+250,bz:sz+250,bh:deckHeight,width:5,streamKey:key};
   climbRamps.push(route);ramps.push(route);
  }
 }
@@ -3873,7 +3873,7 @@ function updateRadioArray(t){
    radioEvents[i]=true;radioEventUntil[i]=t+180000;
    if(i===0){for(let j=0;j<6;j++){const e=special('pursuer',player.position.x+Math.cos(j)*28,player.position.z+Math.sin(j)*28);e.alert=true;e.mode='chase';}notify('PRISM 1 // PURSUER RELEASE');}
    if(i===1){for(let j=0;j<13;j++){const a=j*2.4;special('swarm',700+Math.cos(a)*(90+j*12),150+Math.sin(a)*(90+j*12));}notify('PRISM 2 // INDUSTRIAL FOG / 13 HOSTILES');}
-   if(i===2){radioBeeSwarmActive=true;for(let j=0;j<4;j++){const a=j*Math.PI/2,g=new THREE.Group();for(let k=0;k<22;k++){const taper=Math.max(.16,Math.sin((k+1)/23*Math.PI)),segment=new THREE.Mesh(new THREE.SphereGeometry(1.5,7,6),canalWormMat);segment.position.set(0,Math.sin(k*.55)*1.7,-k*2.5);segment.scale.set(taper*2.8,taper*2.2,2.2);g.add(segment);}g.position.set(1125+Math.cos(a)*110,478,1100+Math.sin(a)*110);scene.add(g);radioTankBees.push({mesh:g,heading:a,phase:j*1.7,lastHit:0});}notify('PRISM 3 // WATER BEE BLOOM');}
+   if(i===2){radioBeeSwarmActive=true;for(let j=0;j<4;j++){const a=j*Math.PI/2,g=new THREE.Group();for(let k=0;k<22;k++){const taper=Math.max(.16,Math.sin((k+1)/23*Math.PI)),segment=new THREE.Mesh(new THREE.SphereGeometry(1.5,7,6),canalWormMat);segment.position.set(0,Math.sin(k*.55)*1.7,-k*2.5);segment.scale.set(taper*2.8,taper*2.2,2.2);g.add(segment);}g.position.set(1125+Math.cos(a)*110,-28,1100+Math.sin(a)*110);scene.add(g);radioTankBees.push({mesh:g,heading:a,phase:j*1.7,lastHit:0,emergeAt:t+1000+j*800,emergeUntil:t+9000+j*800});}notify('PRISM 3 // WATER BEE BLOOM');}
    if(i===3){radioBombStart=t;radioBombardUntil=t+69000;radioBombTick=t+10000;radioBombAnchorX=player.position.x;radioBombAnchorZ=player.position.z;radioFleetRoute=Math.floor(Math.random()*10);const heading=radioFleetRoute*Math.PI/5;radioFleetDX=Math.cos(heading);radioFleetDZ=Math.sin(heading);const tx=radioBombAnchorX,tz=radioBombAnchorZ;const limit=1900;const bx=radioFleetDX>0?(tx+limit)/radioFleetDX:radioFleetDX<0?(limit-tx)/(-radioFleetDX):1e8;const bz=radioFleetDZ>0?(tz+limit)/radioFleetDZ:radioFleetDZ<0?(limit-tz)/(-radioFleetDZ):1e8;radioFleetCrossDistance=Math.min(bx,bz);radioFleetStartX=tx-radioFleetDX*(radioFleetCrossDistance+500);radioFleetStartZ=tz-radioFleetDZ*(radioFleetCrossDistance+500);notify('PRISM 4 // FLEET APPROACH / ROUTE '+(radioFleetRoute+1));}
    if(i===4){radioRevealUntil=t+180000;notify('PRISM 5 // POSITION REVEALED 03:00');}
    if(Math.random()<.035){radioLifeBonus++;notify('RARE PRISM // EXTRA LIFE +1 (RESERVE)');}
@@ -3934,6 +3934,8 @@ function updateRadioArray(t){
  updateRadioArray.prev=t;
  for(let i=0;i<radioTankBees.length;i++){
   const w=radioTankBees[i],m=w.mesh,dtBee=Math.min(.05,Math.max(0,(t-(radioWaterBeeLast||t))/1000));
+  if(w.emergeUntil&&t<w.emergeUntil){const p=Math.max(0,Math.min(1,(t-w.emergeAt)/(w.emergeUntil-w.emergeAt)));
+   m.position.y=-28+p*497;m.scale.setScalar(.3+.7*p);m.rotation.y=t*.001;continue;}
   const feet=climbFloor+jumpHeight,wet=reservoirWet(player.position.x,player.position.z,feet);
   const dx=player.position.x-m.position.x,dz=player.position.z-m.position.z,dist=Math.hypot(dx,dz);
   const hunt=wet&&dist<205&&Math.abs(feet-478)<68;
@@ -4019,6 +4021,8 @@ function updateInfectionBrood(t){
   }
   scene.remove(egg.mesh);infectionBrood.splice(i,1);
  }
+ // Reclaim slots when hatchlings are defeated.
+ for(let i=infectionYoung.length-1;i>=0;i--)if(!specialEnemies.includes(infectionYoung[i]))infectionYoung.splice(i,1);
  // Prevent unbounded egg growth and accumulated scene objects.
  while(infectionBrood.length>100){const e=infectionBrood.shift();scene.remove(e.mesh);}
 }
