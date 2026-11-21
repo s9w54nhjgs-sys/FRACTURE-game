@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V214 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V215 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2782,6 +2782,28 @@ if(cx===4&&cz===4){
   smoke.position.set(sx,165,sz);group.add(smoke);
  }
 }
+// V215: Upper-city expansion spanning roughly 2 x 2 km across industrial and infected airspace.
+// Streamed to avoid maintaining a second full map in memory.
+if(cx>=-5&&cx<=5&&cz>=-5&&cz<=5&&((cx+cz)%2===0)&&!(cx===4&&cz===4)){
+ const sx=cx*250+125,sz=cz*250+125;
+ const skyMat=industrialDarkMat,deckHeight=165+terrainHash(cx,cz,890)*105;
+ const skyBox=(x,y,z,w,h,d)=>{
+  const mesh=new THREE.Mesh(terrainLandmarkGeo,skyMat);mesh.position.set(x,y,z);mesh.scale.set(w,h,d);group.add(mesh);
+  colliders.push({x,z,w,d,top:y+h/2,bottom:y-h/2});
+ };
+ // Distinct suspended islands, tower supports, and a landing deck.
+ skyBox(sx,deckHeight-3,sz,100,6,75);
+ skyBox(sx-24,deckHeight+32,sz-16,24,64,24);
+ skyBox(sx+26,deckHeight+48,sz+12,29,96,22);
+ skyBox(sx,deckHeight-38,sz,10,70,12);
+ const landing={x:sx,z:sz,h:deckHeight,w:100,d:75,legacy:true,streamKey:key};climbDecks.push(landing);platforms.push(landing);
+ // Horizontal bridge to the next diagonal platform; open central voids remain.
+ if(cx<5&&cz<5){const link=new THREE.Mesh(terrainLandmarkGeo,industrialPipeMat);
+  link.position.set(sx+65,deckHeight-1,sz+65);link.scale.set(7,2,110);link.rotation.y=-Math.PI/4;group.add(link);
+  const route={ax:sx,az:sz,ah:deckHeight,bx:sx+125,bz:sz+125,bh:deckHeight,width:5,streamKey:key};
+  climbRamps.push(route);ramps.push(route);
+ }
+}
 // V213: Static wet ground and bioluminescent algae beneath reservoir and slide.
 if(cx>=2&&cx<=5&&cz>=0&&cz<=5&&Math.hypot((cx+.5)*250-1020,(cz+.5)*250-920)<780){
  const wetGeometry=new THREE.CircleGeometry(1,8),wetDummy=new THREE.Object3D();
@@ -3931,7 +3953,76 @@ function updateRadioArray(t){
   radioCoreCooldown=t+10000;radioLaunchUntil=t+2800;const a=Math.random()*Math.PI*2;radioLaunchVX=Math.cos(a)*160;radioLaunchVZ=Math.sin(a)*160;climbFloor=Math.max(climbFloor,270);jumpHeight=40;jumpVelocity=90;jumpCount=1;gliding=false;glideFlightActive=false;glideInterrupted=true;fallPeak=climbFloor+jumpHeight;notify('CORE // SUPERSONIC EJECTION / NO GLIDE');
  }
 }
-function update(t){requestAnimationFrame(update);updateRadioArray(t);updateIndustrialAerials(t);updateBeehives(t);
+// V215: Ground BEE brood ecology. Separate from reservoir BEE and existing BRIDGE nests.
+const infectionBrood=[],infectionMothers=[],infectionYoung=[];
+const infectionEggGeo=new THREE.IcosahedronGeometry(1,1),infectionEggMat=new THREE.MeshStandardMaterial({color:0x54404c,emissive:0x271127,roughness:.8});
+const infectionBeeGeo=new THREE.SphereGeometry(1,7,5),infectionBeeMat=new THREE.MeshStandardMaterial({color:0x702846,emissive:0x2a0715,roughness:.6});
+const infectionDebrisGeo=new THREE.TetrahedronGeometry(1,0),infectionDebrisMat=new THREE.MeshBasicMaterial({color:0x665268});
+function infectionInside(x,z){return x<-520&&x>-1930&&z>-1880&&z<950&&infectionTier(x,z)>0;}
+function infectionRandom(){for(let i=0;i<50;i++){const x=-1880+Math.random()*1290,z=-1800+Math.random()*2650;if(infectionInside(x,z))return [x,z];}return [-1450,-900];}
+function infectionLay(m,t){
+ const count=Math.min(12,3+m.eaten),a0=Math.random()*Math.PI*2;
+ for(let i=0;i<count;i++){
+  const a=a0+i*Math.PI*2/count,r=4.5+(i%3)*1.6,x=m.x+Math.cos(a)*r,z=m.z+Math.sin(a)*r;
+  if(!infectionInside(x,z))continue;
+  const mesh=new THREE.Mesh(infectionEggGeo,infectionEggMat);
+  mesh.position.set(x,1.1,z);mesh.scale.set(1.1,1.65,1.1);scene.add(mesh);
+  infectionBrood.push({x,z,mesh,laid:t,hatch:t+27000+Math.random()*18000});
+ }
+ m.eaten=0;m.lastLay=t;m.burrowUntil=t+2400;m.emergeAt=t+4200;
+ const next=infectionRandom();m.nextX=next[0];m.nextZ=next[1];
+}
+for(let i=0;i<4;i++){const [x,z]=infectionRandom();infectionMothers.push({x,z,heading:Math.random()*6.28,eaten:0,lastLay:performance.now()-Math.random()*60000,turnAt:0,burrowUntil:0,emergeAt:0,layUntil:0});}
+const motherGeo=new THREE.SphereGeometry(1,6,5),motherDummy=new THREE.Object3D();
+const motherMesh=new THREE.InstancedMesh(motherGeo,infectionBeeMat,4*16);motherMesh.frustumCulled=false;scene.add(motherMesh);
+const debrisMesh=new THREE.InstancedMesh(infectionDebrisGeo,infectionDebrisMat,4*7);debrisMesh.frustumCulled=false;scene.add(debrisMesh);
+let infectionLastUpdate=0;
+function updateInfectionBrood(t){
+ if(t-infectionLastUpdate<65)return;
+ const dt=Math.min(.15,(t-infectionLastUpdate)/1000||.065);infectionLastUpdate=t;
+ let mi=0,di=0;
+ for(const m of infectionMothers){
+  if(m.emergeAt&&t>=m.emergeAt){m.x=m.nextX;m.z=m.nextZ;m.emergeAt=0;m.burrowUntil=t+1700;}
+  if(t-m.lastLay>=60000&&!m.layUntil){m.layUntil=t+3500;m.layAngle=m.heading;}
+  if(m.layUntil&&t>=m.layUntil){infectionLay(m,t);m.layUntil=0;}
+  const underground=m.emergeAt>0;
+  if(!underground&&!m.layUntil){
+   if(t>m.turnAt){m.heading+=(Math.random()-.5)*2.5;m.turnAt=t+2200+Math.random()*4200;}
+   const nx=m.x+Math.cos(m.heading)*dt*5.5,nz=m.z+Math.sin(m.heading)*dt*5.5;
+   if(infectionInside(nx,nz)){m.x=nx;m.z=nz;}else m.heading+=2.4;
+   for(let j=infectionBrood.length-1;j>=0;j--){const egg=infectionBrood[j];
+    if(Math.hypot(egg.x-m.x,egg.z-m.z)<5.2&&t-egg.laid>3000&&Math.random()<.22){
+     scene.remove(egg.mesh);infectionBrood.splice(j,1);m.eaten++;
+    }
+   }
+  }else if(m.layUntil)m.heading+=dt*2.8;
+  const sink=m.burrowUntil>t?Math.min(1,(m.burrowUntil-t)/1700):0;
+  for(let j=0;j<16;j++){
+   const k=j/15,rad=Math.sin((k*.85+.12)*Math.PI)*2.6,side=Math.sin(t*.004-k*10)*1.5;
+   const x=m.x-Math.cos(m.heading)*k*24-Math.sin(m.heading)*side,z=m.z-Math.sin(m.heading)*k*24+Math.cos(m.heading)*side;
+   motherDummy.position.set(x,.7+Math.sin(t*.004-k*8)*.5-sink*5,z);
+   motherDummy.scale.set(rad,rad*.72,rad*1.2);motherDummy.updateMatrix();motherMesh.setMatrixAt(mi++,motherDummy.matrix);
+  }
+  if(m.burrowUntil>t){for(let j=0;j<7;j++){const a=j*2.4+t*.002;
+   motherDummy.position.set(m.x+Math.cos(a)*(3+j),.5+j*.16,m.z+Math.sin(a)*(3+j));
+   motherDummy.scale.set(1.2+j*.2,1.2+j*.2,1.2+j*.2);motherDummy.updateMatrix();debrisMesh.setMatrixAt(di++,motherDummy.matrix);
+  }}
+ }
+ motherMesh.count=mi;motherMesh.instanceMatrix.needsUpdate=true;debrisMesh.count=di;debrisMesh.instanceMatrix.needsUpdate=true;
+ for(let i=infectionBrood.length-1;i>=0;i--){const egg=infectionBrood[i];
+  egg.mesh.scale.y=1.65+Math.sin(t*.003+egg.x)*.09;
+  if(t<egg.hatch)continue;
+  const type=['swarm','pursuer','aerial'][Math.floor(Math.random()*3)];
+  if(infectionYoung.length<36&&specialEnemies.length<125){
+   const u=special(type,egg.x,egg.z);u.g.scale.setScalar(.5);u.hp*=.5;u.infectionJuvenile=true;u.alert=true;u.nest=null;
+   u.g.position.y=type==='aerial'?3.5:.8;infectionYoung.push(u);
+  }
+  scene.remove(egg.mesh);infectionBrood.splice(i,1);
+ }
+ // Prevent unbounded egg growth and accumulated scene objects.
+ while(infectionBrood.length>100){const e=infectionBrood.shift();scene.remove(e.mesh);}
+}
+function update(t){requestAnimationFrame(update);updateRadioArray(t);updateIndustrialAerials(t);updateBeehives(t);updateInfectionBrood(t);
  for(let i=cellWarpRings.length-1;i>=0;i--){
   const w=cellWarpRings[i],p=(t-w.born)/w.life;
   if(p<0)continue;
