@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V222 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V223 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2842,16 +2842,19 @@ if(cx>=2&&cx<=5&&cz>=0&&cz<=5&&Math.hypot((cx+.5)*250-1020,(cz+.5)*250-920)<780)
  }
  wetPatches.instanceMatrix.needsUpdate=true;luminousAlgae.instanceMatrix.needsUpdate=true;group.add(wetPatches,luminousAlgae);
 }
+const infectionTerrainFlesh=new THREE.MeshStandardMaterial({color:0x23192e,roughness:.88,metalness:.08,flatShading:true});
+const infectionTerrainCrystal=new THREE.MeshStandardMaterial({color:0x53366c,emissive:0x250d3b,emissiveIntensity:.8,metalness:.32,roughness:.27,flatShading:true});
+const infectionTerrainBase=new THREE.MeshStandardMaterial({color:0x292438,roughness:.98,flatShading:true});
 // V209: Continuous BRIDGE -> organic-crystal gradient in western free chunks.
 // Tier 3 is pure alien geology with no building geometry or artificial pathways.
 const tier=infectionTier((cx+.5)*250,(cz+.5)*250);
 if(tier){
  const ox=cx*250+125,oz=cz*250+125;
- const flesh=new THREE.MeshStandardMaterial({color:0x23192e,roughness:.88,metalness:.08,flatShading:true});
- const crystal=new THREE.MeshStandardMaterial({color:0x53366c,emissive:0x250d3b,emissiveIntensity:.8,metalness:.32,roughness:.27,flatShading:true});
- const base=new THREE.MeshStandardMaterial({color:0x292438,roughness:.98,flatShading:true});
+ const flesh=infectionTerrainFlesh;
+ const crystal=infectionTerrainCrystal;
+ const base=infectionTerrainBase;
  const seed=(n)=>terrainHash(cx,cz,n);
- const count=tier===1?5:tier===2?9:14;
+ const count=tier===1?4:tier===2?6:7;
  for(let i=0;i<count;i++){
   const x=ox+(seed(210+i*3)-.5)*190,z=oz+(seed(211+i*3)-.5)*190;
   const radius=(tier===1?5:tier===2?10:17)+seed(212+i*3)*(tier===3?18:9);
@@ -4018,18 +4021,19 @@ const spentDustGeo=new THREE.TetrahedronGeometry(1,0),spentDustMat=new THREE.Mes
 function infectionClutch(x,z){
  const g=new THREE.Group(),base=new THREE.Mesh(new THREE.SphereGeometry(1.35,7,5),infectionClutchMat);
  base.scale.set(1,.33,.78);base.position.y=.42;g.add(base);
- for(let i=0;i<12;i++){const a=i*2.399963,r=Math.sqrt((i+.5)/12),px=Math.cos(a)*r*1.14,pz=Math.sin(a)*r*.91;
-  const bead=new THREE.Mesh(infectionEggGeo,infectionEggMat);
-  bead.position.set(px,.64+.3*(1-r*r)+Math.sin(i*2.7)*.08,pz);bead.scale.setScalar(.85+(i%4)*.16);g.add(bead);
+ const beads=new THREE.InstancedMesh(infectionEggGeo,infectionEggMat,12),d=new THREE.Object3D();
+ for(let i=0;i<12;i++){const a=i*2.399963,r=Math.sqrt((i+.5)/12);
+  d.position.set(Math.cos(a)*r*1.14,.64+.3*(1-r*r)+Math.sin(i*2.7)*.08,Math.sin(a)*r*.91);
+  d.scale.setScalar(.85+(i%4)*.16);d.updateMatrix();beads.setMatrixAt(i,d.matrix);
  }
- g.position.set(x,0,z);return g;
+ beads.instanceMatrix.needsUpdate=true;beads.frustumCulled=false;g.add(beads);g.position.set(x,0,z);return g;
 }
 const infectionBeeGeo=new THREE.SphereGeometry(1,7,5),infectionBeeMat=new THREE.MeshStandardMaterial({color:0x702846,emissive:0x2a0715,roughness:.6});
 const infectionDebrisGeo=new THREE.TetrahedronGeometry(1,0),infectionDebrisMat=new THREE.MeshBasicMaterial({color:0x665268});
 function infectionInside(x,z){return x<-520&&x>-1930&&z>-1880&&z<950&&infectionTier(x,z)>0;}
 function infectionRandom(){for(let i=0;i<50;i++){const x=-1880+Math.random()*1290,z=-1800+Math.random()*2650;if(infectionInside(x,z))return [x,z];}return [-1450,-900];}
 function infectionLay(m,t){
- const count=Math.min(4,3+m.eaten),a0=Math.random()*Math.PI*2;
+ const count=Math.min(3,3+m.eaten),a0=Math.random()*Math.PI*2;
  for(let i=0;i<count;i++){
   const a=a0+i*Math.PI*2/count,r=4.5+(i%3)*1.6,x=m.x+Math.cos(a)*r,z=m.z+Math.sin(a)*r;
   if(!infectionInside(x,z))continue;
@@ -4039,10 +4043,10 @@ function infectionLay(m,t){
  m.eaten=0;m.lastLay=t;m.burrowStart=t;m.burrowUntil=t+2300;m.emergeAt=t+5200;m.emergeStart=t+5200;m.emergeEnd=t+7900;
  const next=infectionRandom();m.nextX=next[0];m.nextZ=next[1];
 }
-for(let i=0;i<3;i++){const [x,z]=infectionRandom();infectionMothers.push({x,z,heading:Math.random()*6.28,eaten:0,lastLay:performance.now()-Math.random()*60000,turnAt:0,burrowUntil:0,emergeAt:0,layUntil:0});}
+for(let i=0;i<3;i++){const [x,z]=infectionRandom();const h=Math.random()*6.28;infectionMothers.push({x,z,heading:h,visualHeading:h,eaten:0,hp:80,aggroUntil:0,lastLay:performance.now()-Math.random()*60000,turnAt:0,burrowUntil:0,emergeAt:0,layUntil:0,aiAt:0,lastBite:0});}
 const motherGeo=new THREE.SphereGeometry(1,6,5),motherDummy=new THREE.Object3D();
-const motherMesh=new THREE.InstancedMesh(motherGeo,infectionBeeMat,3*16);motherMesh.frustumCulled=false;scene.add(motherMesh);
-const debrisMesh=new THREE.InstancedMesh(infectionDebrisGeo,infectionDebrisMat,3*7);debrisMesh.frustumCulled=false;scene.add(debrisMesh);
+const motherMesh=new THREE.InstancedMesh(motherGeo,infectionBeeMat,3*16);motherMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);motherMesh.frustumCulled=false;scene.add(motherMesh);
+const debrisMesh=new THREE.InstancedMesh(infectionDebrisGeo,infectionDebrisMat,3*7);debrisMesh.instanceMatrix.setUsage(THREE.DynamicDrawUsage);debrisMesh.frustumCulled=false;scene.add(debrisMesh);
 // TEMP DEBUG: nearest terrestrial BEE bearing and distance, remove after ecology verification.
 const beeNav=document.createElement('div');
 beeNav.style.cssText='position:fixed;top:34%;left:50%;transform:translateX(-50%);z-index:15;pointer-events:none;background:rgba(16,8,26,.85);color:#e5b4d9;border:1px solid #a65a8d;border-radius:7px;padding:5px 12px;font:600 13px monospace;white-space:nowrap';
@@ -4059,30 +4063,52 @@ function updateBeeNav(t){
 }
 let infectionLastUpdate=0;
 function updateInfectionBrood(t){
- if(t-infectionLastUpdate<33)return;
- const dt=Math.min(.05,(t-infectionLastUpdate)/1000||.033);infectionLastUpdate=t;
+ if(t-infectionLastUpdate<16)return;
+ const dt=Math.min(.04,(t-infectionLastUpdate)/1000||.016);infectionLastUpdate=t;
  let mi=0,di=0;
  for(const m of infectionMothers){
   if(m.emergeAt&&t>=m.emergeAt){m.x=m.nextX;m.z=m.nextZ;m.emergeAt=0;m.emerging=true;}
   if(t-m.lastLay>=60000&&!m.layUntil){m.layUntil=t+3500;m.layAngle=m.heading;}
   if(m.layUntil&&t>=m.layUntil){infectionLay(m,t);m.layUntil=0;}
   const underground=m.emergeAt>0||m.emerging||m.burrowUntil>t;
+  // Slow neutral predator. Scan targets at 4 Hz rather than every render frame.
   if(!underground&&!m.layUntil){
-   if(t>m.turnAt){m.heading+=(Math.random()-.5)*2.5;m.turnAt=t+2200+Math.random()*4200;}
-   const nx=m.x+Math.cos(m.heading)*dt*5.5,nz=m.z+Math.sin(m.heading)*dt*5.5;
-   if(infectionInside(nx,nz)){m.x=nx;m.z=nz;}else m.heading+=2.4;
-   for(let j=infectionBrood.length-1;j>=0;j--){const egg=infectionBrood[j];
-    if(Math.hypot(egg.x-m.x,egg.z-m.z)<5.2&&t-egg.laid>3000&&Math.random()<.22){
-     scene.remove(egg.mesh);infectionBrood.splice(j,1);m.eaten++;
+   if(t>m.aiAt){
+    m.aiAt=t+250;m.target=null;let best=Infinity;
+    for(const u of specialEnemies){
+     if(u.g.position.y>12)continue;
+     const d2=(u.g.position.x-m.x)**2+(u.g.position.z-m.z)**2;
+     if(d2<95*95&&d2<best){best=d2;m.target=u;}
     }
+    // Eggs are aggressively consumed when reachable, reducing brood population.
+    for(const egg of infectionBrood){
+     const d2=(egg.x-m.x)**2+(egg.z-m.z)**2;
+     if(d2<130*130&&d2<best){best=d2;m.target={egg};}
+    }
+    if(m.aggroUntil>t&&Math.hypot(player.position.x-m.x,player.position.z-m.z)<100)m.target={player:true};
+    if(m.target){const tx=m.target.egg?.x??(m.target.player?player.position.x:m.target.g.position.x),tz=m.target.egg?.z??(m.target.player?player.position.z:m.target.g.position.z);m.heading=Math.atan2(tz-m.z,tx-m.x);}
+    else if(t>m.turnAt){m.heading+=(Math.random()-.5)*1.2;m.turnAt=t+4000+Math.random()*5000;}
    }
-  }else if(m.layUntil)m.heading+=dt*2.8;
+   const delta=Math.atan2(Math.sin(m.heading-m.visualHeading),Math.cos(m.heading-m.visualHeading));
+   m.visualHeading+=Math.max(-dt*.8,Math.min(dt*.8,delta));
+   const speed=m.target?3.5:2.4,nx=m.x+Math.cos(m.visualHeading)*dt*speed,nz=m.z+Math.sin(m.visualHeading)*dt*speed;
+   if(infectionInside(nx,nz)){m.x=nx;m.z=nz;}else {m.heading+=1.5;m.target=null;}
+   if(m.target?.egg&&Math.hypot(m.target.egg.x-m.x,m.target.egg.z-m.z)<7){
+    const index=infectionBrood.indexOf(m.target.egg);
+    if(index>=0){scene.remove(m.target.egg.mesh);infectionBrood.splice(index,1);m.eaten++;}m.target=null;
+   }else if(m.target?.g&&Math.hypot(m.target.g.position.x-m.x,m.target.g.position.z-m.z)<8&&t-m.lastBite>1100){
+    m.lastBite=t;m.target.hp-=Math.max(1,m.target.type==='pursuer'?6:2);
+    if(m.target.hp<=0){const u=m.target;scene.remove(u.g);const index=specialEnemies.indexOf(u);if(index>=0)specialEnemies.splice(index,1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);}m.target=null;
+   }else if(m.target?.player&&Math.hypot(player.position.x-m.x,player.position.z-m.z)<9&&t-m.lastBite>1100){
+    m.lastBite=t;applyBeeDamage(12,t);
+   }
+  }else if(m.layUntil)m.visualHeading+=dt*1.1;
   const burrowP=m.burrowStart&&t>=m.burrowStart?Math.min(1,(t-m.burrowStart)/2300):0;
   const emergeP=m.emerging?Math.min(1,(t-m.emergeStart)/2700):0;
   if(m.emerging&&emergeP>=1){m.emerging=false;m.burrowStart=0;m.burrowUntil=0;m.emergeEnd=0;}
   for(let j=0;j<16;j++){
    const k=j/15,rad=Math.sin((k*.85+.12)*Math.PI)*2.6,side=Math.sin(t*.004-k*10)*1.5;
-   const x=m.x-Math.cos(m.heading)*k*24-Math.sin(m.heading)*side,z=m.z-Math.sin(m.heading)*k*24+Math.cos(m.heading)*side;
+   const x=m.x-Math.cos(m.visualHeading)*k*24-Math.sin(m.visualHeading)*side,z=m.z-Math.sin(m.visualHeading)*k*24+Math.cos(m.visualHeading)*side;
    const dive=Math.max(0,Math.min(1,(burrowP-k*.66)/.34));
    const rise=Math.max(0,Math.min(1,(emergeP-k*.68)/.32));
    const depth=m.emerging?(1-rise)*13:m.burrowStart?dive*13:0;
@@ -4090,7 +4116,7 @@ function updateInfectionBrood(t){
    motherDummy.position.set(x,2.4+Math.sin(t*.004-k*8)*.5-depth-bend,z);
    motherDummy.scale.set(rad*1.4,rad*1.05,rad*1.6);motherDummy.updateMatrix();motherMesh.setMatrixAt(mi++,motherDummy.matrix);
   }
-  if((m.burrowUntil>t||m.emerging)&&Math.hypot(m.x-player.position.x,m.z-player.position.z)<260){for(let j=0;j<7;j++){const a=j*2.4+t*.002;
+  if((m.burrowUntil>t||m.emerging)&&Math.hypot(m.x-player.position.x,m.z-player.position.z)<160){for(let j=0;j<7;j++){const a=j*2.4+t*.002;
    motherDummy.position.set(m.x+Math.cos(a)*(3+j),.5+j*.16,m.z+Math.sin(a)*(3+j));
    motherDummy.scale.set(1.2+j*.2,1.2+j*.2,1.2+j*.2);motherDummy.updateMatrix();debrisMesh.setMatrixAt(di++,motherDummy.matrix);
   }}
@@ -4121,7 +4147,7 @@ function updateInfectionBrood(t){
    egg.mesh.scale.set(1,1,1);
    egg.mesh.traverse(obj=>{if(obj.isMesh)obj.material=spentEggMat;});
    const fragments=[];
-   for(let j=0;j<14;j++){const part=new THREE.Mesh(spentDustGeo,spentDustMat);
+   for(let j=0;j<5;j++){const part=new THREE.Mesh(spentDustGeo,spentDustMat);
     const angle=j*2.399963;part.position.set(egg.x+Math.cos(angle)*.7,.45+(j%4)*.23,egg.z+Math.sin(angle)*.7);
     part.scale.setScalar(.15+(j%5)*.07);scene.add(part);
     fragments.push({mesh:part,vx:Math.cos(angle)*(1+j%3),vy:1.5+(j%5)*.45,vz:Math.sin(angle)*(1+j%3)});
@@ -4144,7 +4170,7 @@ function updateInfectionBrood(t){
  // Reclaim slots when hatchlings are defeated.
  for(let i=infectionYoung.length-1;i>=0;i--)if(!specialEnemies.includes(infectionYoung[i]))infectionYoung.splice(i,1);
  // Prevent unbounded egg growth and accumulated scene objects.
- while(infectionBrood.length>22){const e=infectionBrood.shift();scene.remove(e.mesh);}
+ while(infectionBrood.length>14){const e=infectionBrood.shift();scene.remove(e.mesh);}
 }
 // V222: low-cost global material scatter (visual test), one instanced draw call per type.
 const worldMaterialGeo=new THREE.DodecahedronGeometry(1,0);
