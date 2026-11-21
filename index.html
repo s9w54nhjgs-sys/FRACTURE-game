@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V223 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V224 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1539,7 +1539,15 @@ function aerialSlash(power,now){
  for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z,d=Math.hypot(dx,dz),front=(dx*forwardX+dz*forwardZ)/(d||1);if(d<radius&&front>-.15&&Math.abs(u.g.position.y-player.position.y)<4){u.hp-=power>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,power>1,forwardX,forwardZ,0,false,u.type==='pursuer');impact(u.g.position.x,u.g.position.y,u.g.position.z);hits++;if(u.hp<=0){dissolveEnemy(u.g,forwardX,forwardZ,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
-function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;
+function attack(power=1){const now=performance.now();
+ // Neutral ground BEE only retaliates when struck within melee reach.
+ if(typeof infectionMothers!=='undefined')for(const m of infectionMothers){
+  if(m.emergeAt||m.emerging||m.burrowUntil>now)continue;
+  if(Math.hypot(m.x-player.position.x,m.z-player.position.z)<10){
+   m.hp-=power>1?8:4;m.aggroUntil=now+25000;
+   if(m.hp<=0){const next=infectionRandom();m.x=next[0];m.z=next[1];m.hp=80;m.aggroUntil=0;m.lastLay=now;}
+  }
+ }if(done||now-lastAttack<210)return;
  if(now<legacyEchoUntil)power=Math.max(power,1.6);
  if(hitBeehive(power,now)){lastAttack=now;return;}
  if(power>1)pendingCasingEject='charge'; // Only charged attacks eject molten shards.
