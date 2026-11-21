@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V219 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V220 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2216,6 +2216,8 @@ for(const b of distantBuildings){
 }
 function streamedBuildingBlockers(x,z,feet){
  const cx=Math.floor(x/CHUNK_SIZE),cz=Math.floor(z/CHUNK_SIZE),hits=[];
+ // Always-on giant crystal collider.
+ if(Math.abs(x+1450)<115&&Math.abs(z+900)<115&&feet<650&&feet+2>0)hits.push({x:-1450,z:-900,w:230,d:230,top:650,bottom:0});
  for(let ox=-1;ox<=1;ox++)for(let oz=-1;oz<=1;oz++){
   const key=(cx+ox)+','+(cz+oz);
   // Activate collision only for nearby, ready chunks; render silhouettes persist.
