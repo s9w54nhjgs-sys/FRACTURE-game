@@ -2935,6 +2935,21 @@ const ancientCrystalColliders=[{x:-1450,z:-900,w:230,d:230,top:650,bottom:0}];
 // V227F: third-layer fog is a visibility budget, not merely a shader tint.
 const tier3FogCenter=new THREE.Vector2(-1450,-900);
 const tier3FogState={blend:0,visibleRange:185};
+// V230: a single cheap atmospheric veil, no animated particle meshes or per-frame geometry.
+const infectionFogShell=new THREE.Mesh(
+ new THREE.SphereGeometry(1,24,12),
+ new THREE.ShaderMaterial({
+  transparent:true,depthWrite:false,side:THREE.FrontSide,
+  uniforms:{uTime:{value:0},uOpacity:{value:.38}},
+  vertexShader:'varying vec3 vLocal; void main(){vLocal=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',
+  fragmentShader:'varying vec3 vLocal;uniform float uTime;uniform float uOpacity;void main(){float n=sin(vLocal.x*24.7+sin(vLocal.z*19.3+uTime*.09))*sin(vLocal.y*28.1-vLocal.z*13.7+uTime*.07);float cloud=smoothstep(-.7,.75,n);float height=smoothstep(-.92,-.25,vLocal.y)*(1.-smoothstep(.45,.98,vLocal.y));vec3 c=mix(vec3(.66,.65,.73),vec3(.80,.78,.85),cloud);gl_FragColor=vec4(c,uOpacity*(.48+.38*cloud)*height);}'
+ })
+);
+infectionFogShell.position.set(-1450,80,-900);infectionFogShell.scale.set(790,280,790);infectionFogShell.frustumCulled=true;infectionFogShell.renderOrder=3;scene.add(infectionFogShell);
+const infectionHaze=document.createElement('div');
+infectionHaze.style.cssText='position:fixed;inset:0;z-index:2;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 46%,rgba(207,199,219,.08) 0%,rgba(192,184,207,.16) 42%,rgba(191,180,208,.35) 100%);transition:opacity .65s ease';
+document.body.appendChild(infectionHaze);
+
 function tier3FogBlend(x,z){const distance=Math.hypot(x-tier3FogCenter.x,z-tier3FogCenter.y);return THREE.MathUtils.smoothstep(920-distance,0,420);}
 
 createStreamedTerrain('4,4'); // The secret reservoir landmark stays resident.
@@ -3014,7 +3029,7 @@ function updateChunkStreaming(t){
  for(const [key,entry] of streamedTerrain){if(key==='4,4')continue;const [cx,cz]=key.split(',').map(Number);const dx=p.x-(cx+.5)*250,dz=p.z-(cz+.5)*250;const fogFactor=tier3FogBlend(p.x,p.z);
   const chunkTier=entry.infectionLevel||0;
   // Cull only infected terrain chunks. Keep all non-infected world geometry intact.
-  const fogRange=820-(820-220)*fogFactor;
+  const fogRange=820-(820-195)*fogFactor;
   const maxRange=chunkTier>0?fogRange:820;
   entry.group.visible=dx*dx+dz*dz<maxRange*maxRange;
   if(entry.group.visible&&entry.infectionMeshes.length){
@@ -4697,10 +4712,14 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
 
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;const fogBlend=tier3FogBlend(player.position.x,player.position.z);tier3FogState.blend=fogBlend;
  const originalFog=t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:(player.position.x>430&&player.position.x<1600&&Math.abs(player.position.z)<470?.013:normalFogDensity);
- const desiredFog=Math.max(originalFog,.025*fogBlend);
+ // The inner biome stays readable nearby but hides far-LOD transitions in dense haze.
+ const desiredFog=Math.max(originalFog,.037*fogBlend);
+ infectionHaze.style.opacity=(fogBlend*.72).toFixed(3);
+ infectionFogShell.visible=fogBlend<.22;
+ infectionFogShell.material.uniforms.uTime.value=t*.001;
  scene.fog.density+=(desiredFog-scene.fog.density)*Math.min(1,dt*2);
  // Fade to cool ivory haze without introducing any new particle simulation.
- scene.fog.color.lerpColors(new THREE.Color(0x8b98a0),new THREE.Color(0xc0bbc8),fogBlend*.92);
+ scene.fog.color.lerpColors(new THREE.Color(0x8b98a0),new THREE.Color(0xc8c2d1),fogBlend*.96);
  }
  if(!floatingNow&&jumpHeight<0&&waterslideProgress<0&&t>waterPlungeUntil){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  // Buoyancy is a persistent state, not an airborne-only one-frame correction.
