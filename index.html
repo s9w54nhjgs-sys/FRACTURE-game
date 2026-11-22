@@ -69,7 +69,9 @@ const scopeRay=new THREE.Vector3(),scopeAim=new THREE.Vector3();
 const scopeButton=document.getElementById('scopeTest');
 scopeButton.addEventListener('pointerdown',e=>e.stopPropagation());
 scopeButton.addEventListener('click',e=>{e.stopPropagation();scopeActive=!scopeActive;scopeButton.classList.toggle('active',scopeActive);document.getElementById('scopeReticle').classList.toggle('active',scopeActive);scopeButton.textContent=scopeActive?'SCOPE OFF':'SCOPE ×5';});scene.add(camera); // Camera-mounted flyby meshes are included in scene graph.
-const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});renderer.setPixelRatio(Math.min(devicePixelRatio,1.6));renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
+const renderer=new THREE.WebGLRenderer({antialias:true,powerPreference:'high-performance'});
+const adaptiveQuality={ratio:Math.min(devicePixelRatio,1.6),last:0,frames:0,enabled:true};
+renderer.setPixelRatio(adaptiveQuality.ratio);renderer.setSize(innerWidth,innerHeight);renderer.outputColorSpace=THREE.SRGBColorSpace;document.body.prepend(renderer.domElement);
 // Screen-space underwater color absorption + strong edge vignetting.
 const underwaterVeil=document.createElement('div');underwaterVeil.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:radial-gradient(ellipse at 50% 43%,rgba(1,25,50,.30) 0%,rgba(0,12,34,.70) 45%,rgba(0,3,19,.97) 100%);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterVeil);
 const underwaterTint=document.createElement('div');underwaterTint.style.cssText='position:fixed;inset:0;z-index:3;pointer-events:none;opacity:0;background:rgba(4,43,86,.42);mix-blend-mode:multiply;transition:opacity .14s linear';document.body.appendChild(underwaterTint);
@@ -2911,7 +2913,19 @@ if(tier===3){
   // Monumental central crystal is resident globally, not loaded with terrain chunks.
  }
 }
- scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders});
+ const staticGroups=new Map();
+ for(const mesh of [...group.children]){
+  if(!mesh.isMesh||mesh.isInstancedMesh||mesh.geometry!==terrainLandmarkGeo||mesh.children.length||Object.keys(mesh.userData).length)continue;
+  const k=mesh.material.uuid;let arr=staticGroups.get(k);if(!arr){arr=[];staticGroups.set(k,arr);}arr.push(mesh);
+ }
+ for(const arr of staticGroups.values())if(arr.length>=3){
+  const inst=new THREE.InstancedMesh(terrainLandmarkGeo,arr[0].material,arr.length);
+  for(let i=0;i<arr.length;i++){arr[i].updateMatrix();inst.setMatrixAt(i,arr[i].matrix);group.remove(arr[i]);}
+  inst.instanceMatrix.needsUpdate=true;inst.frustumCulled=false;group.add(inst);
+ }
+ const infectionLevel=infectionTier((cx+.5)*250,(cz+.5)*250);
+ const infectionMeshes=infectionLevel?[...group.children].filter(o=>o.isInstancedMesh):[];
+ scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders,infectionLevel,infectionMeshes});
 }
 // V219: ancient-tree-scale permanent crystal landmark with broad collision.
 const ancientCrystalMat=new THREE.MeshStandardMaterial({color:0x382b47,emissive:0x160d22,metalness:.18,roughness:.52,flatShading:true});
@@ -2998,11 +3012,20 @@ function updateChunkStreaming(t){
  updateChunkStreaming.lastVisual=t;
  const p=camera.position;
  for(const [key,entry] of streamedTerrain){if(key==='4,4')continue;const [cx,cz]=key.split(',').map(Number);const dx=p.x-(cx+.5)*250,dz=p.z-(cz+.5)*250;const fogFactor=tier3FogBlend(p.x,p.z);
-  const chunkTier=infectionTier((cx+.5)*250,(cz+.5)*250);
+  const chunkTier=entry.infectionLevel||0;
   // Cull only infected terrain chunks. Keep all non-infected world geometry intact.
   const fogRange=820-(820-220)*fogFactor;
   const maxRange=chunkTier>0?fogRange:820;
-  entry.group.visible=dx*dx+dz*dz<maxRange*maxRange;}
+  entry.group.visible=dx*dx+dz*dz<maxRange*maxRange;
+  if(entry.group.visible&&entry.infectionMeshes.length){
+   const distance=Math.hypot(dx,dz),factor=distance<135?1:distance<260?.65:.3;
+   for(const mesh of entry.infectionMeshes)mesh.count=Math.max(1,Math.ceil(mesh.instanceMatrix.count*factor));
+  }
+  if(entry.group.visible&&chunkTier>0&&fogFactor>.45){
+   const ax=-1450-p.x,az=-900-p.z,dist2=ax*ax+az*az,bx=(cx+.5)*250-p.x,bz=(cz+.5)*250-p.z;
+   if(bx*bx+bz*bz>dist2+180*180&&dist2>100*100&&Math.abs(ax*bz-az*bx)<Math.sqrt(dist2)*85)entry.group.visible=false;
+  }
+ }
  for(const [key,items] of chunkDecor){
   const loaded=chunkCache.get(key)?.loaded===true;
   for(const d of items){
@@ -4096,8 +4119,17 @@ function updateBeeNav(t){
  const arrow=['↑','↗','→','↘','↓','↙','←','↖'][((Math.round(angle/(Math.PI/4))%8)+8)%8];
  beeNav.textContent='TEST GROUND BEE '+arrow+' '+Math.round(Math.hypot(dx,dz))+'m '+(closest.emergeAt?'[UNDERGROUND]':'[SURFACE]');
 }
+const broodSpatial={at:0,eggs:new Map(),enemies:new Map()};
+function broodSpatialKey(x,z){return Math.floor(x/160)+','+Math.floor(z/160);}
+function broodSpatialRebuild(t){if(t-broodSpatial.at<240)return;broodSpatial.at=t;broodSpatial.eggs.clear();broodSpatial.enemies.clear();
+ for(const e of infectionBrood){const k=broodSpatialKey(e.x,e.z);if(!broodSpatial.eggs.has(k))broodSpatial.eggs.set(k,[]);broodSpatial.eggs.get(k).push(e);}
+ for(const u of specialEnemies){const k=broodSpatialKey(u.g.position.x,u.g.position.z);if(!broodSpatial.enemies.has(k))broodSpatial.enemies.set(k,[]);broodSpatial.enemies.get(k).push(u);}
+}
+function* broodSpatialNear(map,x,z){const cx=Math.floor(x/160),cz=Math.floor(z/160);
+ for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)for(const item of map.get((cx+dx)+','+(cz+dz))||[])yield item;
+}
 let infectionLastUpdate=0;
-function updateInfectionBrood(t){
+function updateInfectionBrood(t){broodSpatialRebuild(t);
  if(t-infectionLastUpdate<16)return;
  const dt=Math.min(.04,(t-infectionLastUpdate)/1000||.016);infectionLastUpdate=t;
  let mi=0,di=0;
@@ -4110,13 +4142,13 @@ function updateInfectionBrood(t){
   if(!underground&&!m.layUntil){
    if(t>m.aiAt){
     m.aiAt=t+250;m.target=null;let best=Infinity;
-    for(const u of specialEnemies){
+    for(const u of broodSpatialNear(broodSpatial.enemies,m.x,m.z)){
      if(u.g.position.y>12)continue;
      const d2=(u.g.position.x-m.x)**2+(u.g.position.z-m.z)**2;
      if(d2<95*95&&d2<best){best=d2;m.target=u;}
     }
     // Eggs are aggressively consumed when reachable, reducing brood population.
-    for(const egg of infectionBrood){
+    for(const egg of broodSpatialNear(broodSpatial.eggs,m.x,m.z)){
      const d2=(egg.x-m.x)**2+(egg.z-m.z)**2;
      if(d2<130*130&&d2<best){best=d2;m.target={egg};}
     }
@@ -4740,12 +4772,20 @@ if(fractureDiag.open)diagMeasure('stream',()=>{streamGroundDetails(t);updateChun
  else{streamGroundDetails(t);updateChunkStreaming(t);}
  if(fractureDiag.hideCrystals)diagApplyCrystalVisibility();
  else if(fractureDiag.open)ancientCrystal.visible=true;
+ if(adaptiveQuality.enabled){adaptiveQuality.frames++;
+  if(!adaptiveQuality.last)adaptiveQuality.last=t;
+  if(t-adaptiveQuality.last>4500){const fps=adaptiveQuality.frames*1000/(t-adaptiveQuality.last);
+   const target=fps<38?Math.max(.85,adaptiveQuality.ratio-.15):fps>57?Math.min(Math.min(devicePixelRatio,1.6),adaptiveQuality.ratio+.1):adaptiveQuality.ratio;
+   if(Math.abs(target-adaptiveQuality.ratio)>.01){adaptiveQuality.ratio=target;renderer.setPixelRatio(target);renderer.setSize(innerWidth,innerHeight);}
+   adaptiveQuality.frames=0;adaptiveQuality.last=t;
+  }
+ }
  const renderStart=performance.now();renderer.render(scene,camera);
  if(fractureDiag.open){const dt=performance.now()-renderStart;fractureDiag.metrics.render=(fractureDiag.metrics.render||0)*.92+dt*.08;}
  if(t-(window.__perfLast||0)>1000){
   window.__perfLast=t;
   const dtFrame=t-(window.__perfPrev||t);window.__perfPrev=t;
-  window.fracturePerf={fps:Math.round(window.__perfFrames||0),renderMs:+(performance.now()-renderStart).toFixed(1),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,sceneObjects:scene.children.length,loadedChunks:[...chunkCache.values()].filter(c=>c.loaded).length,eggs:infectionBrood.length,juveniles:infectionYoung.length,enemies:specialEnemies.length};
+  window.fracturePerf={fps:Math.round(window.__perfFrames||0),pixelRatio:+adaptiveQuality.ratio.toFixed(2),renderMs:+(performance.now()-renderStart).toFixed(1),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,sceneObjects:scene.children.length,loadedChunks:[...chunkCache.values()].filter(c=>c.loaded).length,eggs:infectionBrood.length,juveniles:infectionYoung.length,enemies:specialEnemies.length};
   window.__perfFrames=0;
   if(window.__perfOverlay)window.__perfOverlay.textContent=JSON.stringify(window.fracturePerf);
   if(fractureDiag.open)diagRefreshPanel();
