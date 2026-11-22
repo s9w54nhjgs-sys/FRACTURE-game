@@ -4238,7 +4238,28 @@ for(let i=0;i<15;i++){
  const u=special(i%3===0?'pursuer':i%3===1?'swarm':'aerial',x,z);
  u.alert=false;u.worldPatrol=true;worldPatrols.push(u);
 }
-function update(t){requestAnimationFrame(update);updateRadioArray(t);updateIndustrialAerials(t);updateBeehives(t);updateInfectionBrood(t);updateBeeNav(t);
+// V228: opt-in on-device diagnostics; no world or save-data changes.
+const fractureDiag={open:false,hideCrystals:false,pauseBrood:false,pauseFlocks:false,metrics:{},samples:{},lastStamp:0};
+function diagMeasure(name,fn){const a=performance.now();fn();const dt=performance.now()-a;const m=fractureDiag.metrics;m[name]=(m[name]||0)*.92+dt*.08;}
+function diagApplyCrystalVisibility(){const hide=fractureDiag.hideCrystals;
+ ancientCrystal.visible=!hide;
+ for(const [key,entry] of streamedTerrain){const [cx,cz]=key.split(',').map(Number);
+  if(infectionTier((cx+.5)*250,(cz+.5)*250)>0)entry.group.visible=hide?false:entry.group.visible;
+ }
+}
+function update(t){requestAnimationFrame(update);
+ if(fractureDiag.open){
+  diagMeasure('radio',()=>updateRadioArray(t));
+  if(!fractureDiag.pauseFlocks)diagMeasure('flocks',()=>updateIndustrialAerials(t));
+  diagMeasure('water',()=>updateBeehives(t));
+  if(!fractureDiag.pauseBrood)diagMeasure('brood',()=>updateInfectionBrood(t));
+  diagMeasure('navigation',()=>updateBeeNav(t));
+ }else{
+  updateRadioArray(t);if(!fractureDiag.pauseFlocks)updateIndustrialAerials(t);updateBeehives(t);
+  if(!fractureDiag.pauseBrood)updateInfectionBrood(t);updateBeeNav(t);
+ }
+ if(fractureDiag.pauseBrood)infectionLastUpdate=t;
+ if(fractureDiag.pauseFlocks)updateIndustrialAerials.prev=t;
  for(let i=cellWarpRings.length-1;i>=0;i--){
   const w=cellWarpRings[i],p=(t-w.born)/w.life;
   if(p<0)continue;
@@ -4715,14 +4736,19 @@ cloudSky.position.copy(camera.position);if(done&&cellLogRevealAt){
  if(t>=cellLogRevealAt){cellLogRevealAt=0;$('resultTitle').textContent=finalCellDeath?'CELL LOG':'CELL TRANSFER';$('result').classList.add('show');window.fractureFinish?.(false,kills);if(finalCellDeath)finalHomeReturnAt=t+4500;}
 }
 if(finalHomeReturnAt&&t>=finalHomeReturnAt){finalHomeReturnAt=0;window.fractureReturnHome?.();}
-streamGroundDetails(t);updateChunkStreaming(t);
+if(fractureDiag.open)diagMeasure('stream',()=>{streamGroundDetails(t);updateChunkStreaming(t);});
+ else{streamGroundDetails(t);updateChunkStreaming(t);}
+ if(fractureDiag.hideCrystals)diagApplyCrystalVisibility();
+ else if(fractureDiag.open)ancientCrystal.visible=true;
  const renderStart=performance.now();renderer.render(scene,camera);
+ if(fractureDiag.open){const dt=performance.now()-renderStart;fractureDiag.metrics.render=(fractureDiag.metrics.render||0)*.92+dt*.08;}
  if(t-(window.__perfLast||0)>1000){
   window.__perfLast=t;
   const dtFrame=t-(window.__perfPrev||t);window.__perfPrev=t;
   window.fracturePerf={fps:Math.round(window.__perfFrames||0),renderMs:+(performance.now()-renderStart).toFixed(1),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,sceneObjects:scene.children.length,loadedChunks:[...chunkCache.values()].filter(c=>c.loaded).length,eggs:infectionBrood.length,juveniles:infectionYoung.length,enemies:specialEnemies.length};
   window.__perfFrames=0;
   if(window.__perfOverlay)window.__perfOverlay.textContent=JSON.stringify(window.fracturePerf);
+  if(fractureDiag.open)diagRefreshPanel();
  }
  window.__perfFrames=(window.__perfFrames||0)+1;
 }
@@ -4731,5 +4757,23 @@ window.fracturePerfPanel=()=>{
  if(window.__perfOverlay){window.__perfOverlay.remove();window.__perfOverlay=null;return;}
  const el=document.createElement('div');el.style.cssText='position:fixed;bottom:70px;left:8px;z-index:9999;background:#101820dd;color:#baffdc;padding:7px;font:11px monospace;max-width:80vw;overflow-wrap:anywhere;pointer-events:none';el.textContent='Profiling…';document.body.appendChild(el);window.__perfOverlay=el;
 };
+const diagUI=document.createElement('div');
+diagUI.style.cssText='position:fixed;left:8px;top:calc(90px + env(safe-area-inset-top));z-index:9998;font:12px monospace;color:#e7e9ff;pointer-events:none';
+diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V228</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagReset">すべて戻す</button></div>';
+document.body.appendChild(diagUI);
+const diagBody=diagUI.querySelector('#diagBody'),diagReadout=diagUI.querySelector('#diagReadout');
+diagUI.querySelectorAll('#diagBody button').forEach(b=>b.style.cssText='display:block;width:100%;margin-top:6px;background:#30264b;color:white;border:1px solid #8874bb;border-radius:5px;padding:7px;text-align:left;font:11px sans-serif');
+diagUI.querySelector('#diagToggle').onclick=()=>{fractureDiag.open=!fractureDiag.open;diagBody.style.display=fractureDiag.open?'block':'none';};
+diagUI.querySelector('#diagCrystals').onclick=()=>{fractureDiag.hideCrystals=!fractureDiag.hideCrystals;ancientCrystal.visible=!fractureDiag.hideCrystals;};
+diagUI.querySelector('#diagBrood').onclick=()=>{fractureDiag.pauseBrood=!fractureDiag.pauseBrood;infectionLastUpdate=performance.now();};
+diagUI.querySelector('#diagFlocks').onclick=()=>{fractureDiag.pauseFlocks=!fractureDiag.pauseFlocks;updateIndustrialAerials.prev=performance.now();};
+diagUI.querySelector('#diagReset').onclick=()=>{fractureDiag.hideCrystals=false;fractureDiag.pauseBrood=false;fractureDiag.pauseFlocks=false;ancientCrystal.visible=true;infectionLastUpdate=performance.now();updateIndustrialAerials.prev=performance.now();};
+function diagRefreshPanel(){const m=fractureDiag.metrics,p=window.fracturePerf||{};
+ diagReadout.textContent='FPS '+(p.fps??'?')+' | calls '+(p.drawCalls??'?')+' | triangles '+(p.triangles??'?')+'\\nCPU JS averages (ms):\\n'+
+ ['radio','flocks','water','brood','navigation','stream','render'].map(k=>k+': '+(m[k]||0).toFixed(2)).join(' | ')+'\\n'+
+ 'eggs '+infectionBrood.length+' / young '+infectionYoung.length+' / enemies '+specialEnemies.length+'\\n'+
+ '結晶 '+(fractureDiag.hideCrystals?'OFF':'ON')+' | BEE '+(fractureDiag.pauseBrood?'PAUSED':'ON')+' | drones '+(fractureDiag.pauseFlocks?'PAUSED':'ON')+'\\n'+
+ '※ renderはCPU側の呼出時間。GPU実測ではありません。';
+}
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
 </script><script src="./rebirth.js?v=2261"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
