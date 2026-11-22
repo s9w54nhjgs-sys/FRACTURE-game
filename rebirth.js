@@ -29,7 +29,7 @@ if(!Array.isArray(data.gachaHistory))data.gachaHistory=[];
 function render(){document.getElementById('frGen').textContent='第 '+data.generation+' 世代';document.getElementById('frState').innerHTML='<div class="frCard"><div class="frLine"><b>現在の個性：'+data.ability.name+'</b><b>'+data.ability.type+'</b></div><div class="frMuted">'+data.ability.desc+'</div></div><div class="frLine"><span>残機：<b>'+data.lives+' / 2</b></span><span>キルタグ：<b>'+data.tags+' / 100</b></span><span>特殊抽選：<b>'+data.draws+' 回</b></span></div><div class="frCard"><b>特殊能力（試作）</b><div class="frMuted">'+(data.bonus?data.bonus.name+' / 残り使用回数 '+data.bonus.uses:'未所持')+'</div></div>';document.getElementById('frState').insertAdjacentHTML('beforeend','<div class="frCard"><b>ガチャ履歴（直近5回）</b><div class="frMuted">'+(data.gachaHistory.length?data.gachaHistory.slice(-5).reverse().map((x,i)=>'・'+x).join('<br>'):'まだ抽選していません')+'</div></div>');document.getElementById('frNotice').textContent=note;document.getElementById('frGacha').disabled=data.tags<100;}
 function show(){window.fractureMenuOpen=true;menu.classList.remove('frHidden');home.style.display='none';render()}
 function hide(){window.fractureMenuOpen=false;menu.classList.add('frHidden');home.style.display='block'}
-document.getElementById('frDeploy').onclick=()=>{if(document.getElementById('result')?.classList.contains('show')){sessionStorage.setItem('frAutoDeploy','1');location.reload()}else hide()};
+document.getElementById('frDeploy').onclick=()=>{if(window.fractureMatchFinished||document.getElementById('result')?.classList.contains('show')){sessionStorage.setItem('frAutoDeploy','1');location.reload();return;}hide()};
 home.onclick=show;
 document.getElementById('frGacha').onclick=()=>{
  if(data.tags<100)return;
