@@ -3213,6 +3213,55 @@ const portalGeo=new THREE.TorusGeometry(12,1.7,10,32);const portalMat=new THREE.
 const industryPortal=new THREE.Mesh(portalGeo,portalMat);industryPortal.position.set(industrialPortalLocation.x,industrialPortalLocation.y+9,industrialPortalLocation.z);scene.add(industryPortal);
 const crownPortalMesh=new THREE.Mesh(portalGeo,portalMat);crownPortalMesh.position.set(1125,624,1100);scene.add(crownPortalMesh);
 const crownDeck=new THREE.Mesh(new THREE.CylinderGeometry(85,85,3,48,1,false,0,Math.PI),new THREE.MeshStandardMaterial({color:0x5d737e,metalness:.65,roughness:.55,side:THREE.DoubleSide}));crownDeck.position.set(1125,613,1100);scene.add(crownDeck);climbDecks.push({x:1125,z:1100,h:614.5,w:150,d:110});
+// V227: First stratum of the sky sanctuary, an isolated, instanced ancient labyrinth.
+// Keep the lower world intact; the first layer is a separate distant playable district.
+const skyLayerOne=new THREE.Group();skyLayerOne.position.set(3200,0,3200);scene.add(skyLayerOne);
+const skyFloorY=125,skyWalls=[];
+const skyStone=new THREE.MeshStandardMaterial({color:0x9da79b,roughness:.94,metalness:0});
+const skyMoss=new THREE.MeshStandardMaterial({color:0x526d4b,roughness:1});
+const skyGlow=new THREE.MeshStandardMaterial({color:0x85d7ce,emissive:0x1b8f88,emissiveIntensity:.65,roughness:.4});
+const skyFloorGeo=new THREE.BoxGeometry(1,1,1),skyDummy=new THREE.Object3D();
+function skyBatch(items,mat,solid=false){
+ const mesh=new THREE.InstancedMesh(skyFloorGeo,mat,items.length);mesh.frustumCulled=false;
+ items.forEach((a,i)=>{skyDummy.position.set(a[0],a[1],a[2]);skyDummy.rotation.set(0,0,0);skyDummy.scale.set(a[3],a[4],a[5]);skyDummy.updateMatrix();mesh.setMatrixAt(i,skyDummy.matrix);
+ if(solid)skyWalls.push({x:3200+a[0],z:3200+a[2],w:a[3],d:a[5],bottom:a[1]-a[4]/2,top:a[1]+a[4]/2});});
+ mesh.instanceMatrix.needsUpdate=true;skyLayerOne.add(mesh);return mesh;
+}
+const skyPaving=[],skyColumns=[],skyVines=[],skyRunes=[];
+skyPaving.push([0,skyFloorY-3,0,250,6,250]);
+for(let i=0;i<28;i++){let a=i*Math.PI*2/28,x=Math.cos(a)*115,z=Math.sin(a)*115;
+ skyColumns.push([x,skyFloorY+14,z,5,28,5]);
+ skyPaving.push([x,skyFloorY+28,z,11,3,11]);
+}
+for(let i=0;i<9;i++){const z=-85+i*21;
+ if(i!==4){skyColumns.push([-55,skyFloorY+12,z,7,24,8]);skyColumns.push([55,skyFloorY+12,z,7,24,8]);}
+ skyPaving.push([0,skyFloorY-.15,z,106,.3,8]);
+}
+for(let i=0;i<36;i++){let a=i*2.39996,r=28+((i*37)%79),x=Math.cos(a)*r,z=Math.sin(a)*r;
+ skyVines.push([x,skyFloorY+.18,z,4+(i%4)*2,.4,5+(i%3)*2]);
+ if(i%4===0)skyRunes.push([x,skyFloorY+1.5,z,1.5,3,1.5]);
+}
+skyBatch(skyPaving,skyStone);skyBatch(skyColumns,skyStone,true);skyBatch(skyVines,skyMoss);skyBatch(skyRunes,skyGlow);
+climbDecks.push({x:3200,z:3200,h:skyFloorY,w:250,d:250});
+const skyRoof=new THREE.Mesh(new THREE.CylinderGeometry(119,119,8,32),skyStone);skyRoof.position.set(0,skyFloorY+57,0);skyLayerOne.add(skyRoof);
+const skyOculus=new THREE.Mesh(new THREE.TorusGeometry(28,2.5,6,48),skyGlow);skyOculus.rotation.x=Math.PI/2;skyOculus.position.set(0,skyFloorY+52,0);skyLayerOne.add(skyOculus);
+const skyEntrance=new THREE.Mesh(new THREE.TorusGeometry(8,1.5,8,24),skyGlow);skyEntrance.position.set(0,skyFloorY+9,-99);skyLayerOne.add(skyEntrance);
+// CSS-only eyelid occlusion: no new texture/video decoder or draw calls.
+const skyEyelids=document.createElement('div');skyEyelids.style.cssText='position:fixed;inset:0;background:#03070c;opacity:0;pointer-events:none;z-index:9998;transition:opacity .18s';document.body.appendChild(skyEyelids);
+let skyTransferStart=0,skyTransferDone=false;
+function skyBlastTransfer(t){
+ if(skyTransferStart||skyTransferDone)return;
+ skyTransferStart=t;glideAutoHold=false;gliding=false;glideFlightActive=false;notify('SKYWARD // BLAST ASCENT');
+}
+function skyTransferUpdate(t){
+ if(!skyTransferStart)return;
+ const p=(t-skyTransferStart)/1000;
+ if(p<2.5){jumpCount=1;jumpVelocity=0;jumpHeight+=Math.min(9,.13+p*.2);player.position.y+=Math.min(9,.13+p*.2);skyEyelids.style.opacity='0';}
+ else if(p<5.3){skyEyelids.style.opacity=String(.20+.13*Math.sin(p*13)**2); }
+ else if(p<6.7){skyEyelids.style.opacity=String(Math.sin((p-5.3)*Math.PI*2)**8*.9);}
+ else if(p<7.4){skyEyelids.style.opacity='1';}
+ else {resetTravel(3200,skyFloorY,3200);skyTransferDone=true;skyTransferStart=0;skyEyelids.style.opacity='0';notify('SKY SANCTUARY // STRATUM I');}
+}
 const resetTravel=(x,y,z)=>{player.position.set(x,y+1.35,z);climbFloor=y;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=y;fallPeak=y;moveVX=moveVZ=dashX=dashZ=0;landingSkidUntil=0;gliding=false;glideFlightActive=false;glideInterrupted=false;releaseJump();};
  function jumpNow(){if(done||inIndustrialWater(player.position.x,player.position.z)||jumpCount>=(beehiveDebuffLevel(performance.now())>=1?1:2))return;
  // V108: before jumping after a glide landing, anchor to the actual roof
@@ -4628,6 +4677,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  if(playerBubbles.visible){for(let i=0;i<bubbleCount;i++){const phase=(t*.00047+i*.61803398875)%1,ang=i*2.399963;const radius=.3+(i%7)*.12;bubbleDummy.position.set(player.position.x+Math.cos(ang)*radius+Math.sin(t*.001+i)*.14,player.position.y+.2+phase*4.2,player.position.z+Math.sin(ang)*radius);bubbleDummy.scale.setScalar(.55+(i%5)*.19);bubbleDummy.updateMatrix();playerBubbles.setMatrixAt(i,bubbleDummy.matrix);}playerBubbles.instanceMatrix.needsUpdate=true;}
  for(let i=splashRings.length-1;i>=0;i--){const ring=splashRings[i],age=t-ring.born;if(age>1150){scene.remove(ring.mesh);ring.mesh.material.dispose();splashRings.splice(i,1);}else if(age>=0){ring.mesh.scale.setScalar(.6+age*.012);ring.mesh.material.opacity=.55*(1-age/1150);}}
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
+ skyTransferUpdate(t);if(!skyTransferDone&&!skyTransferStart&&Math.hypot(player.position.x-1125,player.position.z-1100)<14&&climbFloor>580)skyBlastTransfer(t);
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:(player.position.x>430&&player.position.x<1600&&Math.abs(player.position.z)<470?.013:normalFogDensity))-scene.fog.density)*Math.min(1,dt*2);}
