@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V226 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V231 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1620,6 +1620,28 @@ const climbEdge=new THREE.MeshBasicMaterial({color:0x31798b});
 const climbRamps=[];
 // Radio support beams share the normal landing/ramp solver, not visual-only geometry.
 for(const w of radioWalkways){w.cradle.updateWorldMatrix(true,false);const a=w.cradle.localToWorld(w.A.clone()),b=w.cradle.localToWorld(w.B.clone());climbRamps.push({ax:a.x,az:a.z,ah:a.y+1,bx:b.x,bz:b.z,bh:b.y+1,width:w.width,radioWalk:true});}
+// V231 ancient sky-city: batched suspended terraces and walkable ruin towers.
+const skyCity=new THREE.Group();skyCity.name='SKY_CITY_V231';scene.add(skyCity);
+const skyStone=new THREE.MeshStandardMaterial({color:0x85847c,roughness:.91,flatShading:true});
+const skyMoss=new THREE.MeshStandardMaterial({color:0x4c6657,roughness:1});
+const skyBaseGeo=new THREE.BoxGeometry(1,1,1);
+const skyTerraces=new THREE.InstancedMesh(skyBaseGeo,skyStone,28);
+const skyRuins=new THREE.InstancedMesh(skyBaseGeo,skyStone,84);
+const skyGrowth=new THREE.InstancedMesh(skyBaseGeo,skyMoss,28);
+const skyDummy=new THREE.Object3D();
+for(let i=0;i<28;i++){
+ const col=i%7,row=Math.floor(i/7),x=-1550+col*285+(row%2)*65,z=-1050+row*360;
+ const h=365+(i%5)*28,w=105+(i%3)*25,d=90+(i%4)*15;
+ skyDummy.position.set(x,h-9,z);skyDummy.rotation.set(0,0,0);skyDummy.scale.set(w,18,d);skyDummy.updateMatrix();skyTerraces.setMatrixAt(i,skyDummy.matrix);
+ climbDecks.push({x,z,h,w,d,legacy:true,skyCity:true});
+ skyDummy.position.set(x,h+.7,z);skyDummy.scale.set(w*.7,1.4,d*.7);skyDummy.updateMatrix();skyGrowth.setMatrixAt(i,skyDummy.matrix);
+ for(let j=0;j<3;j++){
+  const bx=x+(j-1)*w*.26,bz=z+(j%2?-.22:.22)*d,bh=18+((i*7+j*13)%45);
+  skyDummy.position.set(bx,h+bh/2,bz);skyDummy.scale.set(9+(j%2)*6,bh,12);skyDummy.updateMatrix();skyRuins.setMatrixAt(i*3+j,skyDummy.matrix);
+  climbDecks.push({x:bx,z:bz,h:h+bh,w:9+(j%2)*6,d:12,legacy:true,skyCity:true});
+ }
+}
+for(const m of [skyTerraces,skyRuins,skyGrowth]){m.instanceMatrix.needsUpdate=true;m.computeBoundingSphere();skyCity.add(m);}
 function addClimbDeck(x,z,h,w=11,d=11){
  const deck=new THREE.Mesh(new THREE.BoxGeometry(w,.55,d),climbSteel);
  deck.position.set(x,h-.68,z);scene.add(deck);
@@ -3005,7 +3027,7 @@ function planChunks(t){
  chunkPending.sort((a,b)=>(chunkCache.get(a)?.score??99)-(chunkCache.get(b)?.score??99));
  // Keep recently visited chunks warm for turns and rapid direction changes.
  for(const [key,entry] of chunkCache){
-  if(t-entry.lastSeen>12000&&key!=='4,4'){
+  if(t-entry.lastSeen>(entry.prewarmed?90000:12000)&&key!=='4,4'){
    evictStreamedTerrain(key);
    if(streamedTerrain.has(key))continue;
    entry.loaded=false;chunkCache.delete(key);
@@ -4834,5 +4856,25 @@ function diagRefreshPanel(){const m=fractureDiag.metrics,p=window.fracturePerf||
  '結晶 '+(fractureDiag.hideCrystals?'OFF':'ON')+' | BEE '+(fractureDiag.pauseBrood?'PAUSED':'ON')+' | drones '+(fractureDiag.pauseFlocks?'PAUSED':'ON')+'\\n'+
  '※ renderはCPU側の呼出時間。GPU実測ではありません。';
 }
-window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
+window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});// V231 staged preload: build key terrain while loading, yield between batches.
+async function startupPrewarm(){
+ const loading=$('loading');
+ const coords=[];
+ const add=(cx,cz)=>{const key=cx+','+cz;if(!coords.includes(key)&&outerChunk(cx,cz))coords.push(key);};
+ for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)add(dx,dz);
+ for(let dx=-2;dx<=1;dx++)for(let dz=-2;dz<=1;dz++)add(-6+dx,-4+dz);
+ for(let i=0;i<coords.length;i++){
+  const key=coords[i];loading.innerHTML='FRACTURE<br>WORLD PRELOADING<br><small>地形生成 '+(i+1)+' / '+coords.length+'</small>';
+  createStreamedTerrain(key);
+  const ent=chunkCache.get(key)||{key,loaded:true,lastSeen:performance.now(),score:0};
+  ent.loaded=true;ent.prewarmed=true;ent.lastSeen=performance.now();chunkCache.set(key,ent);
+  if(i%2===1)await new Promise(resolve=>setTimeout(resolve,0));
+ }
+ loading.innerHTML='FRACTURE<br>WORLD PRELOADING<br><small>GPU マテリアル準備中…</small>';
+ // Precompile material programs; geometry uploads can still occur on first visibility.
+ try{if(renderer.compileAsync)await renderer.compileAsync(scene,camera);else renderer.compile(scene,camera);}catch(e){console.warn('Precompile skipped',e);}
+ updateChunkStreaming.lastVisual=0;
+ loading.classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
+}
+startupPrewarm().catch(e=>{console.error(e);$('loading').innerHTML='FRACTURE<br>PRELOAD ERROR<br><small>'+String(e.message||e)+'</small>';});
 </script><script src="./rebirth.js?v=2261"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
