@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V231 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V232 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3247,13 +3247,54 @@ devWarpButton.addEventListener('click',()=>{
  camera.position.set(target.x,target.h+4,target.z+8);
  notify('DEV WARP: 橋梁上へ移動');
 });
-// V231 BRIDGE summit blast-transfer cinematic; user-triggered to avoid accidental warps.
-const blastButton=document.createElement('button');blastButton.textContent='✦ 爆風転送 / FIRST LAYER';
+// V232: sky citadel is vertically above BRIDGE (Three.js Y is altitude).
+const skyMazeY=1480,skyMazeX=0,skyMazeZ=-65;
+const skyMaze=new THREE.Group();skyMaze.name='SKY_LABYRINTH_V232';scene.add(skyMaze);
+const mazeRock=new THREE.MeshStandardMaterial({color:0x737c79,roughness:.98,flatShading:true});
+const mazeDark=new THREE.MeshStandardMaterial({color:0x313f43,roughness:1,flatShading:true});
+const mazeGeo=new THREE.BoxGeometry(1,1,1),mazeRockParts=[],mazeDarkParts=[];
+function mazeBox(x,y,z,w,h,d,dark=false){(dark?mazeDarkParts:mazeRockParts).push([x,y,z,w,h,d]);}
+function mazeFloor(x,z,w,d,h=skyMazeY){mazeBox(x,h-8,z,w,16,d);climbDecks.push({x,z,h,w,d,legacy:true,skyMaze:true});}
+mazeFloor(0,-65,220,220);
+for(let i=0;i<4;i++){const ang=i*Math.PI/2;mazeFloor(Math.round(Math.cos(ang)*175),-65+Math.round(Math.sin(ang)*175),140,110);}
+for(let ix=-2;ix<=2;ix++)for(let iz=-2;iz<=2;iz++){
+ if(Math.abs(ix)+Math.abs(iz)<2)continue;
+ const x=ix*38,z=-65+iz*38;
+ const height=24+((ix*11+iz*17+200)%5)*11;
+ mazeBox(x,skyMazeY+height/2,z,9,height,9);
+ mazeBox(x,skyMazeY+height+2,z,18,4,18,true);
+}
+for(let i=0;i<24;i++){
+ const ang=i*Math.PI/12,x=Math.cos(ang)*103,z=-65+Math.sin(ang)*103;
+ const height=45+(i%4)*18;
+ mazeBox(x,skyMazeY+height/2,z,13,height,13);
+ mazeBox(x,skyMazeY+height+4,z,22,8,22,true);
+}
+for(let i=0;i<4;i++){const angle=i*Math.PI/2;
+ const x=Math.cos(angle)*112,z=-65+Math.sin(angle)*112;
+ mazeBox(x,skyMazeY+48,z,14,96,14);
+ mazeBox(x,skyMazeY+96,z,32,10,32,true);
+}
+// Deep archway maze, connected to the central arrival court.
+for(let i=0;i<6;i++){
+ const z=-65-i*31;
+ for(const side of [-1,1])mazeBox(side*33,skyMazeY+29,z,10,58,12);
+ mazeBox(0,skyMazeY+59,z,78,12,12,true);
+ if(i>2)mazeFloor(0,z,76,37);
+}
+function mazeInstanced(parts,mat){const mesh=new THREE.InstancedMesh(mazeGeo,mat,parts.length),d=new THREE.Object3D();
+ parts.forEach((p,i)=>{d.position.set(p[0],p[1],p[2]);d.scale.set(p[3],p[4],p[5]);d.updateMatrix();mesh.setMatrixAt(i,d.matrix);});
+ mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();skyMaze.add(mesh);
+}
+mazeInstanced(mazeRockParts,mazeRock);mazeInstanced(mazeDarkParts,mazeDark);
+const blastButton=document.createElement('button');blastButton.textContent='✦ 爆風転送 / SKY CITADEL';
 Object.assign(blastButton.style,{position:'fixed',left:'50%',bottom:'120px',transform:'translateX(-50%)',zIndex:'9000',padding:'12px 16px',border:'1px solid #b9e9f9',borderRadius:'12px',background:'#102534ee',color:'#f0faff',fontWeight:'bold',display:'none',touchAction:'manipulation'});
 document.body.appendChild(blastButton);
 const blastScreen=document.createElement('div');
-blastScreen.style.cssText='position:fixed;inset:0;z-index:8999;pointer-events:none;display:none;background:radial-gradient(ellipse at center,#e7f4fa 0%,#8eabb9 38%,#172535 100%);opacity:0;transition:opacity .4s ease';
+blastScreen.style.cssText='position:fixed;inset:0;z-index:8999;pointer-events:none;display:none;overflow:hidden;background:radial-gradient(ellipse at center,#e7f4fa 0%,#8eabb9 38%,#172535 100%);opacity:0;transition:opacity .2s linear';
 document.body.appendChild(blastScreen);
+blastScreen.innerHTML='<div id="blastStripes" style="position:absolute;inset:-100%;background:repeating-linear-gradient(88deg,transparent 0 15px,#f6ffff77 18px 24px,transparent 28px 57px);animation:blastRush .19s linear infinite;opacity:.5"></div><div id="blastSub" style="position:absolute;top:38%;left:-95%;width:85%;height:23%;border-radius:60% 48% 48% 60%;background:linear-gradient(#182a39,#050c14 52%,#283b47);box-shadow:0 0 45px #e2f5ff;transform:rotate(-8deg);display:none;animation:blastSubCross 1.15s ease-in forwards"><div style="position:absolute;right:9%;top:42%;width:24%;height:13%;background:#a7d9e4;box-shadow:0 0 25px #d6f9ff"></div></div><div id="blastCaption" style="position:absolute;top:22%;width:100%;text-align:center;color:white;font-weight:800;font-size:17px;letter-spacing:.16em;text-shadow:0 2px 12px #111"></div>';
+const blastCSS=document.createElement('style');blastCSS.textContent='@keyframes blastRush{to{transform:translateY(160px)}}@keyframes blastSubCross{from{left:-95%;transform:rotate(-8deg) scale(.75)}to{left:120%;transform:rotate(-8deg) scale(1.4)}}';document.head.appendChild(blastCSS);
 let blastRunning=false,blastFinished=false;
 function updateBlastAccess(){
  const near=Math.hypot(player.position.x,player.position.z+65)<85;
@@ -3262,21 +3303,33 @@ function updateBlastAccess(){
 blastButton.addEventListener('click',async()=>{
  if(done||blastRunning)return;blastRunning=true;blastButton.style.display='none';
  const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
- const subtitle=document.createElement('div');subtitle.style.cssText='position:absolute;left:0;right:0;top:42%;text-align:center;color:#f6f9ff;font-size:19px;font-weight:800;text-shadow:0 3px 14px #112;letter-spacing:.13em';
- blastScreen.appendChild(subtitle);blastScreen.style.display='block';
- subtitle.textContent='BLAST ASCENT // 急上昇';blastScreen.style.opacity='.9';await sleep(700);
- subtitle.textContent='CLOUD VELOCITY // 雲中超高速移動';blastScreen.style.background='repeating-linear-gradient(95deg,#d7e6f2 0px,#718a9d 22px,#233b50 47px)';await sleep(850);
- subtitle.textContent='SUBMARINE SHADOW // 追い越し';blastScreen.style.background='radial-gradient(ellipse at 55% 55%,#142332 0%,#566d7f 30%,#d7e4ec 75%)';await sleep(600);
- subtitle.textContent='';for(let i=0;i<3;i++){blastScreen.style.opacity=i%2===0?'0.12':'1';await sleep(145);blastScreen.style.opacity='1';await sleep(130);}
- blastScreen.style.background='#000';blastScreen.style.opacity='1';await sleep(450);
- // Transfer to the first infected layer entrance. The complete underground maze is a separate build.
- const x=-680,z=-880,h=26;
- player.position.set(x,h+1.35,z);climbFloor=h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=h;fallPeak=h;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;
- glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
- camera.position.set(x,h+4,z+8);
- blastFinished=true;subtitle.textContent='FIRST LAYER // ARRIVAL';await sleep(550);
- blastScreen.style.opacity='0';await sleep(420);blastScreen.style.display='none';blastRunning=false;
- notify('FIRST LAYER // 侵食区域へ転送');
+ const caption=document.getElementById('blastCaption'),sub=document.getElementById('blastSub');
+ // Physical upward impulse before the cloud cinematic: remain directly above BRIDGE.
+ const startY=climbFloor+jumpHeight;
+ caption.textContent='BLAST IGNITION // 垂直射出';
+ const ascentAt=performance.now();
+ await new Promise(resolve=>{function ascend(now){const k=Math.min(1,(now-ascentAt)/700),ease=1-Math.pow(1-k,3);
+  player.position.x=skyMazeX;player.position.z=skyMazeZ;
+  player.position.y=startY+(skyMazeY-startY)*ease;
+  camera.position.set(skyMazeX,player.position.y+5,skyMazeZ+11);
+  if(k<1)requestAnimationFrame(ascend);else resolve();
+ }requestAnimationFrame(ascend);});
+ blastScreen.style.display='block';blastScreen.style.opacity='1';
+ caption.textContent='CLOUD BREAK // 超高速上昇';
+ await sleep(650);
+ caption.textContent='UNKNOWN SUBMARINE // CLOUD INTERCEPT';
+ sub.style.display='block';sub.style.animation='none';void sub.offsetWidth;sub.style.animation='blastSubCross 1.15s ease-in forwards';
+ await sleep(1200);
+ caption.textContent='SKY CITADEL // SIGNAL LOST';
+ for(let i=0;i<3;i++){blastScreen.style.opacity='.1';await sleep(90);blastScreen.style.opacity='1';await sleep(120);}
+ blastScreen.style.background='#000';await sleep(280);
+ player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);
+ climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;
+ moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+ camera.position.set(skyMazeX,skyMazeY+5,skyMazeZ+12);
+ blastFinished=true;caption.textContent='SKY CITADEL // ANCIENT UNDERCITY';await sleep(650);
+ blastScreen.style.opacity='0';await sleep(250);blastScreen.style.display='none';blastRunning=false;
+ notify('SKY CITADEL // 天空地下迷宮に到達');
 });
 // V151: quick industrial vertical-slice access for repeatable mobile QA.
 const industryWarpButton=document.createElement('button');
@@ -4357,7 +4410,7 @@ function diagApplyCrystalVisibility(){const hide=fractureDiag.hideCrystals;
   if(infectionTier((cx+.5)*250,(cz+.5)*250)>0)entry.group.visible=hide?false:entry.group.visible;
  }
 }
-function update(t){requestAnimationFrame(update);if(!blastRunning)updateBlastAccess();
+function update(t){requestAnimationFrame(update);if(blastRunning){renderer.render(scene,camera);return;}updateBlastAccess();
  if(fractureDiag.open){
   diagMeasure('radio',()=>updateRadioArray(t));
   if(!fractureDiag.pauseFlocks)diagMeasure('flocks',()=>updateIndustrialAerials(t));
