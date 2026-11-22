@@ -2918,6 +2918,11 @@ const ancientCrystalMat=new THREE.MeshStandardMaterial({color:0x382b47,emissive:
 const ancientCrystal=new THREE.Mesh(new THREE.ConeGeometry(175,680,7,5),ancientCrystalMat);
 ancientCrystal.position.set(-1450,340,-900);scene.add(ancientCrystal);
 const ancientCrystalColliders=[{x:-1450,z:-900,w:230,d:230,top:650,bottom:0}];
+// V227F: third-layer fog is a visibility budget, not merely a shader tint.
+const tier3FogCenter=new THREE.Vector2(-1450,-900);
+const tier3FogState={blend:0,visibleRange:185};
+function tier3FogBlend(x,z){const distance=Math.hypot(x-tier3FogCenter.x,z-tier3FogCenter.y);return THREE.MathUtils.smoothstep(920-distance,0,420);}
+
 createStreamedTerrain('4,4'); // The secret reservoir landmark stays resident.
 function evictStreamedTerrain(key){
  if(key==='4,4')return; // Secret reservoir and collision remain loaded.
@@ -2992,7 +2997,12 @@ function updateChunkStreaming(t){
  if(t-(updateChunkStreaming.lastVisual||0)<250)return;
  updateChunkStreaming.lastVisual=t;
  const p=camera.position;
- for(const [key,entry] of streamedTerrain){if(key==='4,4')continue;const [cx,cz]=key.split(',').map(Number);const dx=p.x-(cx+.5)*250,dz=p.z-(cz+.5)*250;entry.group.visible=dx*dx+dz*dz<820*820;}
+ for(const [key,entry] of streamedTerrain){if(key==='4,4')continue;const [cx,cz]=key.split(',').map(Number);const dx=p.x-(cx+.5)*250,dz=p.z-(cz+.5)*250;const fogFactor=tier3FogBlend(p.x,p.z);
+  const chunkTier=infectionTier((cx+.5)*250,(cz+.5)*250);
+  // Cull only infected terrain chunks. Keep all non-infected world geometry intact.
+  const fogRange=820-(820-220)*fogFactor;
+  const maxRange=chunkTier>0?fogRange:820;
+  entry.group.visible=dx*dx+dz*dz<maxRange*maxRange;}
  for(const [key,items] of chunkDecor){
   const loaded=chunkCache.get(key)?.loaded===true;
   for(const d of items){
@@ -3002,6 +3012,7 @@ function updateChunkStreaming(t){
   }
  }
 }
+window.fractureFogStats=()=>({blend:+tier3FogState.blend.toFixed(2),visibleRange:Math.round(820-(820-220)*tier3FogState.blend),visibleInfectedChunks:[...streamedTerrain].filter(([key,e])=>{if(!e.group.visible)return false;const [cx,cz]=key.split(',').map(Number);return infectionTier((cx+.5)*250,(cz+.5)*250)>0;}).length});
 window.fractureChunkStats=()=>({chunkSize:CHUNK_SIZE,worldChunks:256,active:chunkActiveKey,predicted:chunkPredictedKey,cached:chunkCache.size,loaded:[...chunkCache.values()].filter(c=>c.loaded).length,pending:chunkPending.length,terrainTiles:streamedTerrain.size});
 var climbFloor=0,climbPrevFeet=0;let fallPeak=0,fallGlideUsed=false;
 function resolveFallDamage(ground,t){
@@ -4631,7 +4642,13 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
  if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
- if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;scene.fog.density+=( (t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:(player.position.x>430&&player.position.x<1600&&Math.abs(player.position.z)<470?.013:normalFogDensity))-scene.fog.density)*Math.min(1,dt*2);}
+ if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;const fogBlend=tier3FogBlend(player.position.x,player.position.z);tier3FogState.blend=fogBlend;
+ const originalFog=t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:(player.position.x>430&&player.position.x<1600&&Math.abs(player.position.z)<470?.013:normalFogDensity);
+ const desiredFog=Math.max(originalFog,.025*fogBlend);
+ scene.fog.density+=(desiredFog-scene.fog.density)*Math.min(1,dt*2);
+ // Fade to cool ivory haze without introducing any new particle simulation.
+ scene.fog.color.lerpColors(new THREE.Color(0x8b98a0),new THREE.Color(0xc0bbc8),fogBlend*.92);
+ }
  if(!floatingNow&&jumpHeight<0&&waterslideProgress<0&&t>waterPlungeUntil){jumpHeight=0;canalBobVelocity=0;canalBobEntry=0;}
  // Buoyancy is a persistent state, not an airborne-only one-frame correction.
  const reservoirInside=reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight);
