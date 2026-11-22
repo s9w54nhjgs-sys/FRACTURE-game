@@ -12,7 +12,7 @@
  const show=(msg)=>{loading.innerHTML='FRACTURE<br>STARTUP ERROR<br><small style="display:block;margin-top:18px;color:#ffc3b7;max-width:90vw;overflow-wrap:anywhere">'+String(msg).replace(/[&<>]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]))+'</small><small style="display:block;margin-top:12px">この画面をスクショして送ってください</small>'};
  window.addEventListener('error',e=>{if(!loading.classList.contains('hidden'))show(e.message||'スクリプトの読み込みに失敗しました')},true);
  window.addEventListener('unhandledrejection',e=>{if(!loading.classList.contains('hidden'))show(e.reason?.message||e.reason||'起動処理が失敗しました')});
- setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},12000);
+ setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
 <div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V231 ✓</div>
@@ -1647,6 +1647,16 @@ function addClimbDeck(x,z,h,w=11,d=11){
  deck.position.set(x,h-.68,z);scene.add(deck);
  climbDecks.push({x,z,h,w,d});
 }
+// V231 first-layer arrival courtyard: real visual and landing collision.
+addClimbDeck(-680,-880,26,90,90);
+const firstLayerWalls=new THREE.InstancedMesh(skyBaseGeo,skyStone,12);
+const firstDummy=new THREE.Object3D();
+for(let i=0;i<12;i++){
+ const x=-680+(i%4-1.5)*23,z=-880+(Math.floor(i/4)-1)*27;
+ const height=14+(i%3)*7;
+ firstDummy.position.set(x,26+height/2,z);firstDummy.scale.set(7,height,8);firstDummy.updateMatrix();firstLayerWalls.setMatrixAt(i,firstDummy.matrix);
+}
+firstLayerWalls.instanceMatrix.needsUpdate=true;firstLayerWalls.computeBoundingSphere();scene.add(firstLayerWalls);
 // V134: standable roofs come from the visible city's actual box geometry.
 // Keep legacy explicit bridge/route decks untouched; derive additional roof
 // surfaces without the old arbitrary 90-object or 95m height cap.
