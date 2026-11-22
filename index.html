@@ -3237,6 +3237,37 @@ devWarpButton.addEventListener('click',()=>{
  camera.position.set(target.x,target.h+4,target.z+8);
  notify('DEV WARP: 橋梁上へ移動');
 });
+// V231 BRIDGE summit blast-transfer cinematic; user-triggered to avoid accidental warps.
+const blastButton=document.createElement('button');blastButton.textContent='✦ 爆風転送 / FIRST LAYER';
+Object.assign(blastButton.style,{position:'fixed',left:'50%',bottom:'120px',transform:'translateX(-50%)',zIndex:'9000',padding:'12px 16px',border:'1px solid #b9e9f9',borderRadius:'12px',background:'#102534ee',color:'#f0faff',fontWeight:'bold',display:'none',touchAction:'manipulation'});
+document.body.appendChild(blastButton);
+const blastScreen=document.createElement('div');
+blastScreen.style.cssText='position:fixed;inset:0;z-index:8999;pointer-events:none;display:none;background:radial-gradient(ellipse at center,#e7f4fa 0%,#8eabb9 38%,#172535 100%);opacity:0;transition:opacity .4s ease';
+document.body.appendChild(blastScreen);
+let blastRunning=false,blastFinished=false;
+function updateBlastAccess(){
+ const near=Math.hypot(player.position.x,player.position.z+65)<85;
+ blastButton.style.display=!done&&!blastRunning&&!blastFinished&&near&&climbFloor+jumpHeight>65?'block':'none';
+}
+blastButton.addEventListener('click',async()=>{
+ if(done||blastRunning)return;blastRunning=true;blastButton.style.display='none';
+ const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+ const subtitle=document.createElement('div');subtitle.style.cssText='position:absolute;left:0;right:0;top:42%;text-align:center;color:#f6f9ff;font-size:19px;font-weight:800;text-shadow:0 3px 14px #112;letter-spacing:.13em';
+ blastScreen.appendChild(subtitle);blastScreen.style.display='block';
+ subtitle.textContent='BLAST ASCENT // 急上昇';blastScreen.style.opacity='.9';await sleep(700);
+ subtitle.textContent='CLOUD VELOCITY // 雲中超高速移動';blastScreen.style.background='repeating-linear-gradient(95deg,#d7e6f2 0px,#718a9d 22px,#233b50 47px)';await sleep(850);
+ subtitle.textContent='SUBMARINE SHADOW // 追い越し';blastScreen.style.background='radial-gradient(ellipse at 55% 55%,#142332 0%,#566d7f 30%,#d7e4ec 75%)';await sleep(600);
+ subtitle.textContent='';for(let i=0;i<3;i++){blastScreen.style.opacity=i%2===0?'0.12':'1';await sleep(145);blastScreen.style.opacity='1';await sleep(130);}
+ blastScreen.style.background='#000';blastScreen.style.opacity='1';await sleep(450);
+ // Transfer to the first infected layer entrance. The complete underground maze is a separate build.
+ const x=-680,z=-880,h=26;
+ player.position.set(x,h+1.35,z);climbFloor=h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=h;fallPeak=h;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;
+ glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+ camera.position.set(x,h+4,z+8);
+ blastFinished=true;subtitle.textContent='FIRST LAYER // ARRIVAL';await sleep(550);
+ blastScreen.style.opacity='0';await sleep(420);blastScreen.style.display='none';blastRunning=false;
+ notify('FIRST LAYER // 侵食区域へ転送');
+});
 // V151: quick industrial vertical-slice access for repeatable mobile QA.
 const industryWarpButton=document.createElement('button');
 industryWarpButton.textContent='TEST ⇧ PARABOLA';
@@ -4316,7 +4347,7 @@ function diagApplyCrystalVisibility(){const hide=fractureDiag.hideCrystals;
   if(infectionTier((cx+.5)*250,(cz+.5)*250)>0)entry.group.visible=hide?false:entry.group.visible;
  }
 }
-function update(t){requestAnimationFrame(update);
+function update(t){requestAnimationFrame(update);if(!blastRunning)updateBlastAccess();
  if(fractureDiag.open){
   diagMeasure('radio',()=>updateRadioArray(t));
   if(!fractureDiag.pauseFlocks)diagMeasure('flocks',()=>updateIndustrialAerials(t));
