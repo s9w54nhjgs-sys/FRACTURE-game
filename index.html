@@ -2865,6 +2865,7 @@ const infectionTerrainBase=new THREE.MeshStandardMaterial({color:0x292438,roughn
 // V209: Continuous BRIDGE -> organic-crystal gradient in western free chunks.
 // Tier 3 is pure alien geology with no building geometry or artificial pathways.
 const tier=infectionTier((cx+.5)*250,(cz+.5)*250);
+let tier3Hlod=null,tier3Detail=null;
 if(tier){
  const ox=cx*250+125,oz=cz*250+125;
  const flesh=infectionTerrainFlesh;
@@ -2897,7 +2898,6 @@ if(tier){
  }
  for(const batch of [trunkBatch,spikeBatch,moundBatch]){batch.instanceMatrix.needsUpdate=true;batch.frustumCulled=false;group.add(batch);}
  // V227: cheap silhouette proxies for distant tier-three crystals. Collision data stays intact.
- let tier3Hlod=null;
  if(tier===3){tier3Hlod=new THREE.Group();const proxyGeo=new THREE.ConeGeometry(1,1,5,1);
   for(let i=0;i<4;i++){const x=ox+(seed(210+i*3)-.5)*190,z=oz+(seed(211+i*3)-.5)*190;
    const h=80+seed(260+i)*120,r=14+seed(212+i*3)*20;
@@ -2913,13 +2913,14 @@ if(tier){
   }patches.instanceMatrix.needsUpdate=true;group.add(patches);
  }
 if(tier===3){
+  tier3Detail=[trunkBatch,spikeBatch,moundBatch,...group.children.filter(o=>o.isInstancedMesh&&o!==trunkBatch&&o!==spikeBatch&&o!==moundBatch)];
   // Continuous rocky terrain: no skyline buildings in this inner biome.
   const floor=new THREE.Mesh(infectionFloorGeo,base);
   floor.position.set(ox,-2,oz);group.add(floor);
   // Monumental central crystal is resident globally, not loaded with terrain chunks.
  }
 }
- scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders,tier3Hlod,tier3Detail:tier===3?[trunkBatch,spikeBatch,moundBatch,...group.children.filter(o=>o.isInstancedMesh&&o!==trunkBatch&&o!==spikeBatch&&o!==moundBatch)]:null});
+ scene.add(group);streamedTerrain.set(key,{group,platforms,ramps,colliders,tier3Hlod,tier3Detail});
 }
 // V219: ancient-tree-scale permanent crystal landmark with broad collision.
 const ancientCrystalMat=new THREE.MeshStandardMaterial({color:0x382b47,emissive:0x160d22,metalness:.18,roughness:.52,flatShading:true});
