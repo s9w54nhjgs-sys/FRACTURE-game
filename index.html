@@ -1512,6 +1512,7 @@ function cellDeathBurst(permadeath){
 function finish(success){
  if(done)return;
  done=true;
+ window.fractureMatchFinished=true;
  if(!success){
   finalCellDeath=(window.fractureLivesRemaining?.()??2)<=1;
   cellDeathBurst(finalCellDeath);
@@ -4714,4 +4715,4 @@ window.fracturePerfPanel=()=>{
  const el=document.createElement('div');el.style.cssText='position:fixed;bottom:70px;left:8px;z-index:9999;background:#101820dd;color:#baffdc;padding:7px;font:11px monospace;max-width:80vw;overflow-wrap:anywhere;pointer-events:none';el.textContent='Profiling…';document.body.appendChild(el);window.__perfOverlay=el;
 };
 window.addEventListener('resize',()=>{camera.aspect=innerWidth/innerHeight;camera.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight)});$('loading').classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
-</script><script src="./rebirth.js?v=176"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
+</script><script src="./rebirth.js?v=2261"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=157"></script></body></html>
