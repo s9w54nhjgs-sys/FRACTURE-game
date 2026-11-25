@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V248 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V249 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -4596,7 +4596,7 @@ skyTestShot.addEventListener('click',e=>{e.stopPropagation();const t=performance
  skyLeviathan.updateWorldMatrix(true,false);const o=skyLeviathan.worldToLocal(camera.position.clone()),v=skyLeviathan.worldToLocal(camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()))).sub(o);
  const a=v.x*v.x/2240**2+v.y*v.y/340**2+v.z*v.z/540**2,b=2*(o.x*v.x/2240**2+o.y*v.y/340**2+o.z*v.z/540**2),c=o.x*o.x/2240**2+o.y*o.y/340**2+o.z*o.z/540**2-1,disc=b*b-4*a*c;
  let distance=Infinity;if(disc>=0&&a>0){const q=(-b-Math.sqrt(disc))/(2*a),r=(-b+Math.sqrt(disc))/(2*a);distance=q>=0?q:r>=0?r:Infinity;}
- if(distance<=6500){damageLeviathan(250,t);notify('SNIPE HIT // 250 DMG / '+levi.hp+' HP');}else notify('SNIPE // MISS');
+ if(distance<=6500){damageLeviathan(1000,t);notify('SNIPE HIT // 1000 DMG / '+levi.hp+' HP');}else notify('SNIPE // MISS');
 });
 function hitSkyFauna(power,t){
  if(player.position.y<skyMazeY-3)return false;
