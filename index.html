@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V241 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V242 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -4491,21 +4491,31 @@ function spawnSilver(root,i,high=false){const a=sfRand(i+200)*6.28,h=high?root.h
 for(let i=0;i<96;i++)spawnSilver(silverRoots[i%silverRoots.length],i);
 for(let i=0;i<48;i++){const a=i*2.39996,r=25+sfRand(i+400)*125;skyWedges.push({x:195+Math.cos(a)*r,z:160+Math.sin(a)*r,y:skyMazeY+165+sfRand(i+500)*42,phase:a,waiting:i%3===0,hp:2,dead:false});}
 const skyLeviathan=new THREE.Group();skyFauna.add(skyLeviathan);
-const leviathanCount=420,leviathanMesh=new THREE.InstancedMesh(escortMesh.geometry,escortChrome,leviathanCount);skyLeviathan.add(leviathanMesh);
+const leviShape=[],leviathanCount=420,leviathanMesh=new THREE.InstancedMesh(escortMesh.geometry,escortChrome,leviathanCount);skyLeviathan.add(leviathanMesh);
 const sfDummy=new THREE.Object3D(),sfUp=new THREE.Vector3(0,1,0),sfDir=new THREE.Vector3();
 for(let i=0;i<leviathanCount;i++){
  const u=(i+.5)/leviathanCount,a=i*2.399963,x=(u-.5)*4480,shape=Math.pow(Math.sin(Math.PI*u),.75),r=Math.sqrt(sfRand(i+700));
  let y=Math.sin(a)*r*310*shape,z=Math.cos(a)*r*490*shape;
  // Broad pectoral fins and forked tail built into one rigid shoal silhouette.
  if(i%7===0&&u>.35&&u<.65){z=Math.sign(z||1)*(440+sfRand(i+800)*520);y*=.25;}
- if(u>.87){y=Math.sign(y||1)*(80+sfRand(i+900)*340);z*=.35;}
- sfDummy.position.set(x,y,z);sfDummy.quaternion.setFromUnitVectors(sfUp,sfDir.set(1,.03*Math.sin(a),.08*Math.cos(a)).normalize());sfDummy.scale.setScalar(24+sfRand(i+1000)*24);sfDummy.updateMatrix();leviathanMesh.setMatrixAt(i,sfDummy.matrix);
+ if(u<.13){y=Math.sign(y||1)*(80+sfRand(i+900)*340);z*=.35;}
+ leviShape.push({x,y,z,scale:24+sfRand(i+1000)*24});sfDummy.position.set(x,y,z);sfDummy.quaternion.setFromUnitVectors(sfUp,sfDir.set(1,.03*Math.sin(a),.08*Math.cos(a)).normalize());sfDummy.scale.setScalar(leviShape[i].scale);sfDummy.updateMatrix();leviathanMesh.setMatrixAt(i,sfDummy.matrix);
 }
 leviathanMesh.instanceMatrix.needsUpdate=true;leviathanMesh.computeBoundingSphere();
 const levi={hp:10000,dead:false,aggro:false,phase:'roam',heading:0,at:0,damageAt:0,target:new THREE.Vector3(),dir:new THREE.Vector3(1,0,0),core:null};
 skyLeviathan.position.set(1600,skyMazeY+460,160);
+levi.speed=36;levi.bend=0;levi.pitch=0;levi.poseAt=0;leviathanMesh.frustumCulled=false;
+function poseLeviathan(t,turn,dt){
+ levi.bend+=(Math.max(-.85,Math.min(.85,turn*9))-levi.bend)*Math.min(1,dt*.65);
+ if(t-levi.poseAt<50)return;levi.poseAt=t;
+ for(let i=0;i<leviShape.length;i++){const q=leviShape[i],u=(2240-q.x)/4480,angle=levi.bend*u+Math.sin(t*.00045-u*3.2)*.10*u;
+ const bendZ=levi.bend*2240*u*u+Math.sin(t*.00045-u*3.2)*110*u*u;
+ sfDummy.position.set(q.x+Math.sin(angle)*q.z,q.y,q.z*Math.cos(angle)+bendZ);
+ sfDummy.quaternion.setFromUnitVectors(sfUp,sfDir.set(Math.cos(angle),0,-Math.sin(angle)));sfDummy.scale.setScalar(q.scale);sfDummy.updateMatrix();leviathanMesh.setMatrixAt(i,sfDummy.matrix);}
+ leviathanMesh.instanceMatrix.needsUpdate=true;
+}
 const leviHud=document.createElement('div');leviHud.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);width:220px;color:#d7faff;background:#12232ddd;padding:7px;text-align:center;z-index:8;display:none;pointer-events:none';document.body.appendChild(leviHud);
-function clearSkyAggro(){skyAggro.clear();levi.aggro=false;levi.phase='roam';}
+function clearSkyAggro(){skyAggro.clear();levi.aggro=false;levi.phase='roam';levi.speed=36;}
 function leviHit(power,t){
  if(levi.dead||player.position.y<skyMazeY+115)return false;
  // Existing melee plus aimed charged strike against the aggregate hull.
@@ -4574,21 +4584,28 @@ function updateSkyFauna(t){
  }
  if(levi.dead)return;
  const pos=skyLeviathan.position;
- if(levi.aggro&&levi.phase==='roam'){levi.phase='approach';}
- if(levi.phase==='approach'){
-  const v=p.clone().sub(pos),dist=v.length();levi.dir.copy(v.normalize());skyLeviathan.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),levi.dir);
-  if(dist<2500){levi.phase='charge';levi.at=t;levi.target.copy(p);pos.copy(p).addScaledVector(levi.dir,-2240);levi.damageAt=t;}
-  else pos.addScaledVector(levi.dir,Math.min(dist,55*dt));
+ if(levi.aggro&&levi.phase==='roam'){levi.phase='turn';levi.at=t;}
+ let turn=0;
+ function steer(goal,rate){const v=goal.clone().sub(pos),desired=Math.atan2(v.z,v.x),delta=Math.atan2(Math.sin(desired-levi.heading),Math.cos(desired-levi.heading));turn=Math.max(-rate,Math.min(rate,delta/Math.max(dt,.001)));levi.heading+=turn*dt;const pitch=Math.atan2(v.y,Math.hypot(v.x,v.z));levi.pitch+=Math.max(-rate*dt,Math.min(rate*dt,pitch-levi.pitch));levi.dir.set(Math.cos(levi.heading)*Math.cos(levi.pitch),Math.sin(levi.pitch),Math.sin(levi.heading)*Math.cos(levi.pitch));return Math.acos(Math.max(-1,Math.min(1,levi.dir.dot(v.normalize()))));}
+ if(levi.phase==='turn'){
+  const angle=steer(p,.075);levi.speed=36;
+  if(angle<.09&&t-levi.at>1800){levi.phase='approach';levi.at=t;levi.target.copy(p);}
+ }else if(levi.phase==='approach'){
+  steer(levi.target,.045);
+  const ahead=levi.target.clone().sub(pos).dot(levi.dir),gap=Math.max(0,ahead-2240);
+  levi.speed=Math.min(2240,levi.speed+Math.max(90,(2240**2-levi.speed**2)/(2*Math.max(gap,100)))*dt);
+  if(gap<=Math.max(20,levi.speed*dt)){levi.phase='charge';levi.damageAt=t;levi.at=t;levi.speed=2240;}
  }else if(levi.phase==='charge'){
-  const q=Math.min(1,(t-levi.at)/2000);pos.copy(levi.target).addScaledVector(levi.dir,-2240+4480*q);
+  levi.speed=2240;
   const local=skyLeviathan.worldToLocal(p.clone()),inside=Math.abs(local.x)<=2240&&Math.abs(local.y)<340&&Math.abs(local.z)<540;
-  if(inside){const ticks=Math.min(100,Math.floor((t-levi.damageAt)/20));if(ticks>0){levi.damageAt+=ticks*20;applyBeeDamage(2*ticks,t);}}else levi.damageAt=t;
-  if(q>=1){levi.phase='recover';levi.at=t;}
- }else if(levi.phase==='recover'){pos.addScaledVector(levi.dir,36*dt);if(t-levi.at>8000)levi.phase=levi.aggro?'approach':'roam';}
- else{
-  const a=t*.000025,goal=new THREE.Vector3(195+Math.cos(a)*1450,skyMazeY+460+Math.sin(a*.7)*90,160+Math.sin(a)*1450),v=goal.sub(pos);
-  if(v.length()>1){const desired=Math.atan2(v.z,v.x),delta=Math.atan2(Math.sin(desired-levi.heading),Math.cos(desired-levi.heading));levi.heading+=Math.max(-dt*.15,Math.min(dt*.15,delta));levi.dir.set(Math.cos(levi.heading),Math.max(-.2,Math.min(.2,v.y/300)),Math.sin(levi.heading)).normalize();pos.addScaledVector(levi.dir,Math.min(v.length(),36*dt));skyLeviathan.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),levi.dir);}
+  if(inside){const ticks=Math.min(100,Math.floor((t-levi.damageAt)/20));if(ticks>0){levi.damageAt+=ticks*20;applyBeeDamage(2*ticks/3,t);}}else levi.damageAt=t;
+  if(t-levi.at>=2000){levi.phase='recover';levi.at=t;}
+ }else if(levi.phase==='recover'){
+  levi.speed=Math.max(36,levi.speed-450*dt);if(levi.speed<=36&&t-levi.at>8000){levi.phase=levi.aggro?'turn':'roam';levi.at=t;}
+ }else{
+  const a=Math.atan2(pos.z-160,pos.x-195)+.65,goal=new THREE.Vector3(195+Math.cos(a)*1450,skyMazeY+460,160+Math.sin(a)*1450);steer(goal,.075);levi.speed=36;
  }
+ pos.addScaledVector(levi.dir,levi.speed*dt);skyLeviathan.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),levi.dir);poseLeviathan(t,turn,dt);
  if(levi.aggro)leviHud.textContent='LEVIATHAN  '+levi.hp+' / 10000';
 }
 function update(t){requestAnimationFrame(update);if(skyMaze.userData.waterfallTime&&player.position.y>skyMazeY+100)skyMaze.userData.waterfallTime.value=t*.001;if(blastRunning){renderBlast(t);return;}updateSkyVegetation(t);updateSkyFauna(t);updateBlastAccess();
