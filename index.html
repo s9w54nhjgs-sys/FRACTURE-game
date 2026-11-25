@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V244 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V245 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3278,8 +3278,9 @@ function growColumn(x,z,r,h,seed){
 for(let i=0;i<7;i++)for(const x of [-110,-55,55,110])growColumn(x,-215+i*50,9,96,i+x);
 for(let i=0;i<14;i++){const a=i*Math.PI/7;growColumn(Math.cos(a)*48,-65+Math.sin(a)*48,6,110,i);}
 // V238: spatial vegetation batches with distance LOD and altitude separation.
-const skyVegetationCells=[];
+const skyVegetationCells=[],skyCoverTrees=[];
 function skyBatch(geo,mat,items,positionOf,write,kind){
+ if(kind==='tree')for(const item of items){if(Number.isFinite(item.hy)&&item.hy>4)skyCoverTrees.push({x:item.x,y:item.y,z:item.z,r:Math.max(item.sx,item.sz)*.5,h:item.hy});}
  const cells=new Map(),d=new THREE.Object3D();
  for(const item of items){const p=positionOf(item),key=Math.floor(p.x/90)+','+Math.floor(p.z/90)+','+(p.y>=skyMazeY+130?1:0);if(!cells.has(key))cells.set(key,[]);cells.get(key).push(item);}
  for(const list of cells.values()){
@@ -4527,6 +4528,16 @@ function poseLeviathan(t,turn,dt){
  leviathanMesh.instanceMatrix.needsUpdate=true;
 }
 const leviHud=document.createElement('div');leviHud.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);width:220px;color:#d7faff;background:#12232ddd;padding:7px;text-align:center;z-index:8;display:none;pointer-events:none';document.body.appendChild(leviHud);
+function leviCoverFactor(p){
+ const y=p.y-skyMazeY;
+ if(y>=142&&y<=190&&Math.abs(p.x)<72&&Math.abs(p.z+65)<85)return .3;
+ if(y>=0&&y<114&&Math.abs(p.x)<333&&Math.abs(p.z+65)<333)return .3;
+ const dir=levi.dir,behind=(x,z,r)=>{const dx=p.x-x,dz=p.z-z,a=dx*dir.x+dz*dir.z;return a>=-r&&a<=r+12&&Math.abs(dx*dir.z-dz*dir.x)<=r+1.2;};
+ let factor=1;
+ for(const parts of mazeParts)for(const [x,cy,z,w,h,d] of parts){if(h<8||p.y<cy-h/2||p.y>cy+h/2)continue;if(Math.max(w,d)<=30&&behind(x,z,Math.max(w,d)/2))factor=Math.min(factor,.5);}
+ for(const q of skyCoverTrees)if(p.y>=q.y-q.h/2&&p.y<=q.y+q.h/2&&behind(q.x,q.z,q.r))factor=Math.min(factor,.8);
+ return factor;
+}
 function clearSkyAggro(){skyAggro.clear();levi.aggro=false;levi.phase='roam';levi.speed=36;}
 function leviHit(power,t){
  if(levi.dead||player.position.y<skyMazeY+115)return false;
@@ -4609,7 +4620,7 @@ function updateSkyFauna(t){
  }else if(levi.phase==='charge'){
   levi.speed=2240;
   const elapsed=t-levi.at,ticks=Math.min(100,Math.floor((Math.min(t,levi.at+2000)-levi.damageAt)/20));
-  if(ticks>0){levi.damageAt+=ticks*20;const delta=p.clone().sub(levi.target),along=delta.dot(levi.dir);delta.addScaledVector(levi.dir,-along);if(delta.length()<340&&Math.abs(along)<2240){let vulnerable=0;for(let j=0;j<ticks;j++)if(levi.damageAt-j*20>=dashInvulnerableUntil)vulnerable++;if(vulnerable)applyBeeDamage(2*vulnerable,t);}}
+  if(ticks>0){levi.damageAt+=ticks*20;const delta=p.clone().sub(levi.target),along=delta.dot(levi.dir);delta.addScaledVector(levi.dir,-along);if(delta.length()<340&&Math.abs(along)<2240){let vulnerable=0;for(let j=0;j<ticks;j++)if(levi.damageAt-j*20>=dashInvulnerableUntil)vulnerable++;if(vulnerable)applyBeeDamage(2*vulnerable*leviCoverFactor(p),t);}}
   if(elapsed>=2000){levi.phase='loop';levi.at=t;levi.loopStart=pos.clone();levi.loopHeading=levi.heading;levi.loopSide=1;}
  }else if(levi.phase==='loop'){
   // Continuous banked return: outward arc, then homeward intercept.
