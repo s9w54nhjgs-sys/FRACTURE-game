@@ -51,6 +51,7 @@ window.fractureAwardDecoyTag=()=>{const gained=decoyTags+1;data.tags+=gained;not
 window.fractureReturnHome=()=>{document.getElementById('result')?.classList.remove('show');show();};
 window.fractureActiveAbility=()=>({name:data.ability?.name,type:data.ability?.type,generation:data.generation});
 window.fractureLivesRemaining=()=>data.lives;
+window.fractureAwardLeviathan=()=>{data.lives++;data.leviathanCores=(data.leviathanCores||0)+1;save();note='LEVIATHAN CORE × '+data.leviathanCores+' / 残機 +1';render();};
 window.fractureFinish=(success,kills)=>{if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;
 // Preserve the original procedural workshop: each reincarnation receives a newly generated recipe/seed.
 const parts=['basic','heavy','aerial','swarm','stalker','paint','aura'];
