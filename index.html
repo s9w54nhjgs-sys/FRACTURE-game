@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V246 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V247 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1589,7 +1589,7 @@ function legacySkill(){
  notify('LEGACY // '+name);
 }
 legacyButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();legacySkill()});
-function startDash(){const now=performance.now();if(done||dashCharges<=0)return;
+function startDash(){const now=performance.now();if(testFlight){dashUntil=now+390;return;}if(done||dashCharges<=0)return;
  if(beehiveDebuffLevel(now)>=.66&&dashChain>=1&&now<dashChainUntil){notify('BEEHIVE // DOUBLE DASH DISABLED');return;}
  dashChain=now<dashChainUntil?Math.min(2,dashChain+1):1;dashChainUntil=now+850;
  dashCharges--;dashRechargeAt.push(now+2400);lastDash=now;
@@ -3105,7 +3105,7 @@ function resolveFallDamage(ground,t){
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;
 let testFlight=false,testFlightHeight=0;
 const flightTestButton=document.createElement('button');flightTestButton.textContent='DEV FLIGHT OFF';Object.assign(flightTestButton.style,{position:'fixed',left:'10px',top:'calc(env(safe-area-inset-top) + 170px)',zIndex:'12',background:'#162b43e8',color:'#a8e8ff',border:'1px solid #72bcd9',borderRadius:'9px',padding:'7px 9px',font:'700 11px monospace',touchAction:'manipulation'});document.body.appendChild(flightTestButton);
-flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=Math.max(0,player.position.y-1.35);climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=testFlightHeight;dashUntil=0;glideAutoHold=false;gliding=false;glideFlightActive=false;notify('FLIGHT TEST // joystick move, JUMP ascend, DASH descend');}else{climbFloor=0;jumpHeight=Math.max(0,testFlightHeight);jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=jumpHeight;}});
+flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=Math.max(0,player.position.y-1.35,climbFloor+jumpHeight);releaseJump();radioLaunchUntil=0;waterslideProgress=-1;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=testFlightHeight;dashUntil=0;glideAutoHold=false;gliding=false;glideFlightActive=false;notify('FLIGHT TEST // ALT '+Math.round(testFlightHeight)+'m');}else{climbFloor=0;jumpHeight=Math.max(0,testFlightHeight);jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=jumpHeight;}});
 let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;let glideAutoHold=false,glideAccelerateAt=0;function releaseJump(){jumpHeld=false;}window.addEventListener("blur",releaseJump);
 // V123: route from the REAL registered roof footprints. Geometry and
 // collision use the same coordinates; no more guessed intermediate rooftops.
@@ -3409,7 +3409,7 @@ function renderBlast(t){
  if(!blastArrived){
   blastScreen.style.background='#000';blastScreen.style.opacity='1';
   if(sec<6.25)return;
-  player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+  if(testFlight)testFlightHeight=skyMazeY;player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
   camera.position.set(skyMazeX,skyMazeY+5,skyMazeZ+12);camera.lookAt(player.position);camera.fov=blastFov;camera.updateProjectionMatrix();scene.fog=blastFog;scene.background=blastSavedSky;blastArrived=true;
  }
  renderer.render(scene,camera);blastScreen.style.opacity=String(1-smooth(6.35,7.1,sec));
@@ -3464,7 +3464,7 @@ const industryPortal=new THREE.Mesh(portalGeo,portalMat);industryPortal.position
 const crownPortalMesh=new THREE.Mesh(portalGeo,portalMat);crownPortalMesh.position.set(1125,624,1100);scene.add(crownPortalMesh);
 const crownDeck=new THREE.Mesh(new THREE.CylinderGeometry(85,85,3,48,1,false,0,Math.PI),new THREE.MeshStandardMaterial({color:0x5d737e,metalness:.65,roughness:.55,side:THREE.DoubleSide}));crownDeck.position.set(1125,613,1100);scene.add(crownDeck);climbDecks.push({x:1125,z:1100,h:614.5,w:150,d:110});
 const resetTravel=(x,y,z)=>{player.position.set(x,y+1.35,z);climbFloor=y;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=y;fallPeak=y;moveVX=moveVZ=dashX=dashZ=0;landingSkidUntil=0;gliding=false;glideFlightActive=false;glideInterrupted=false;releaseJump();};
- function jumpNow(){if(done||inIndustrialWater(player.position.x,player.position.z)||jumpCount>=(beehiveDebuffLevel(performance.now())>=1?1:2))return;
+ function jumpNow(){if(testFlight)return;if(done||inIndustrialWater(player.position.x,player.position.z)||jumpCount>=(beehiveDebuffLevel(performance.now())>=1?1:2))return;
  // V108: before jumping after a glide landing, anchor to the actual roof
  // instead of carrying a stale ground-level climbFloor into the new jump.
  if(jumpCount===0){
@@ -4577,7 +4577,7 @@ const skyTestWarp=document.createElement('button'),skyTestShot=document.createEl
 skyTestWarp.textContent='TEST ⇧ SKY GARDEN';skyTestShot.textContent='SNIPE / TEST';
 for(const b of [skyTestWarp,skyTestShot]){Object.assign(b.style,{position:'fixed',zIndex:'9999',padding:'9px 12px',border:'1px solid #82d6e8',borderRadius:'9px',background:'#123440ed',color:'#c8faff',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});document.body.appendChild(b);b.addEventListener('pointerdown',e=>e.stopPropagation());}
 Object.assign(skyTestWarp.style,{right:'12px',top:'294px'});Object.assign(skyTestShot.style,{right:'15px',top:'46%',display:'none'});
-skyTestWarp.addEventListener('click',e=>{e.stopPropagation();if(done||blastRunning)return;const h=skyMazeY+160;player.position.set(195,h+1.35,160);climbFloor=h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=h;fallPeak=h;fallGlideUsed=false;moveVX=moveVZ=dashX=dashZ=0;dashUntil=0;glideAutoHold=false;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();camera.position.set(195,h+5,172);camera.lookAt(player.position);blastFinished=true;notify('DEV WARP // SKY GARDEN');});
+skyTestWarp.addEventListener('click',e=>{e.stopPropagation();if(done||blastRunning)return;const h=skyMazeY+160;if(testFlight)testFlightHeight=h;player.position.set(195,h+1.35,160);climbFloor=h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=h;fallPeak=h;fallGlideUsed=false;moveVX=moveVZ=dashX=dashZ=0;dashUntil=0;glideAutoHold=false;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();camera.position.set(195,h+5,172);camera.lookAt(player.position);blastFinished=true;notify('DEV WARP // SKY GARDEN');});
 let skyShotAt=-Infinity;
 skyTestShot.addEventListener('click',e=>{e.stopPropagation();const t=performance.now();if(done||!scopeActive||player.position.y<skyMazeY+115||levi.dead||t-skyShotAt<450)return;skyShotAt=t;
  // Exact ray intersection with the aggregate ellipsoid in boss-local space.
@@ -4869,9 +4869,9 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  }
  if(s.spinX&&!s.slimy){s.m.rotation.x+=s.spinX*step;s.m.rotation.z+=s.spinZ*step}s.m.position.z+=s.vz*step;if(s.slimy){const fade=Math.max(.02,1-age);s.m.scale.x*=Math.pow(fade,.025);s.m.scale.z*=Math.pow(fade,.025)}else s.m.scale.setScalar(Math.max(.01,1-age))}}const dt=t<hitStopUntil?0:Math.min((t-last)/1000,.05);last=t;updateExploration(t,dt);if(!done){let mx=input.x+(keys.d?1:0)-(keys.a?1:0),my=input.y+(keys.s?1:0)-(keys.w?1:0);if(autoRun&&Math.hypot(mx,my)<.1)my=-1;const mag=Math.hypot(mx,my);if(mag>.05){mx/=Math.max(1,mag);my/=Math.max(1,mag)}
  // V83: forward glide gains speed smoothly; air steering remains available.
- if(!glideAutoHold&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&!glideInterrupted){glideAutoHold=true;glideAccelerateAt=t;}
+ if(!testFlight&&!glideAutoHold&&jumpHeld&&performance.now()-jumpHeldAt>180&&jumpCount>0&&jumpVelocity<=0&&!glideInterrupted){glideAutoHold=true;glideAccelerateAt=t;}
  if(jumpCount===0||jumpHeight<=0&&climbFloor===0||glideInterrupted){glideAutoHold=false;}
- const glideFlight=t>=radioLaunchUntil&&!glideInterrupted&&glideAutoHold&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
+ const glideFlight=!testFlight&&t>=radioLaunchUntil&&!glideInterrupted&&glideAutoHold&&jumpCount>0&&jumpVelocity<=0&&(climbFloor+jumpHeight)>1.5;
  glideFlightActive=glideFlight;
  const glideSpeed=(testFlight?25:glideFlight?32.2*(1+Math.min(1,Math.max(0,(t-glideAccelerateAt)/6500))):6.2)*(t<legacySpeedUntil?1.4:1)*(beehiveDebuffLevel(t)>=.33||t<waterWormAfflictionUntil?.7:1)*(inIndustrialWater(player.position.x,player.position.z)? .9:1);
  const steerX=mag>.05?mx:0,steerY=mag>.05?my:-1;
@@ -5068,7 +5068,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  if(playerBubbles.visible){for(let i=0;i<bubbleCount;i++){const phase=(t*.00047+i*.61803398875)%1,ang=i*2.399963;const radius=.3+(i%7)*.12;bubbleDummy.position.set(player.position.x+Math.cos(ang)*radius+Math.sin(t*.001+i)*.14,player.position.y+.2+phase*4.2,player.position.z+Math.sin(ang)*radius);bubbleDummy.scale.setScalar(.55+(i%5)*.19);bubbleDummy.updateMatrix();playerBubbles.setMatrixAt(i,bubbleDummy.matrix);}playerBubbles.instanceMatrix.needsUpdate=true;}
  for(let i=splashRings.length-1;i>=0;i--){const ring=splashRings[i],age=t-ring.born;if(age>1150){scene.remove(ring.mesh);ring.mesh.material.dispose();splashRings.splice(i,1);}else if(age>=0){ring.mesh.scale.setScalar(.6+age*.012);ring.mesh.material.opacity=.55*(1-age/1150);}}
  for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
- if(t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
+ if(!testFlight&&t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;const fogBlend=tier3FogBlend(player.position.x,player.position.z);tier3FogState.blend=fogBlend;
  const originalFog=t<radioEventUntil[1]&&player.position.x>410&&player.position.x<1990&&player.position.z>-350&&player.position.z<800?.026:nearSecret?reservoirFogDensity:(player.position.x>430&&player.position.x<1600&&Math.abs(player.position.z)<470?.013:normalFogDensity);
@@ -5086,7 +5086,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  const reservoirInside=reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight);
  if(waterslideProgress<0&&!testFlight&&reservoirInside&&jumpCount===0&&(t<waterPlungeUntil||climbFloor>elevatedReservoir.waterY-30&&climbFloor<elevatedReservoir.waterY+6)){const age=Math.max(0,(t-waterImpactAt)/1000);const depth=waterImpactAt>0?waterImpactDepth*Math.exp(-age/2.2)*(1-Math.exp(-age*5)):0;climbFloor=elevatedReservoir.waterY;jumpHeight=-1.25-depth+Math.sin(t*.0021)*.14;fallPeak=elevatedReservoir.waterY;climbPrevFeet=climbFloor+jumpHeight;}
  if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0&&t>waterPlungeUntil){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
- if(testFlight){testFlightHeight=Math.max(0,testFlightHeight+((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt);fallPeak=climbPrevFeet=testFlightHeight;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
+ if(testFlight){const next=Math.max(0,testFlightHeight+((jumpHeld?1:0)-(t<dashUntil?1:0))*17*Math.min(dt,.05));testFlightHeight=skyVerticalContact(player.position.x,player.position.z,testFlightHeight,next);fallPeak=climbPrevFeet=testFlightHeight;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
  player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*(floatingNow?.19:.08);
  if(floatingNow){player.rotation.z=Math.sin(t*.0019)*.14;player.rotation.x=Math.sin(t*.0026+1.2)*.12;}else{player.rotation.z*=.87;player.rotation.x*=.87;}
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
