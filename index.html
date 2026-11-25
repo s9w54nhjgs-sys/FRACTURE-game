@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V240 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V241 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -4514,10 +4514,26 @@ function leviHit(power,t){
  let hit=hull<=1.04;
  if(!hit&&power>1){const ray=new THREE.Ray(camera.position.clone(),camera.getWorldDirection(new THREE.Vector3()));const center=skyLeviathan.position;const closest=ray.closestPointToPoint(center,new THREE.Vector3());if(closest.distanceTo(camera.position)<=range+2240){const q=skyLeviathan.worldToLocal(closest);hit=(q.x/2240)**2+(q.y/340)**2+(q.z/540)**2<=1;}}
  if(!hit)return false;
- const damage=power>1?30:10;levi.hp=Math.max(0,levi.hp-damage);cellDamage+=damage;levi.aggro=true;
+ return damageLeviathan(power>1?30:10,t);
+}
+function damageLeviathan(damage,t){if(levi.dead)return false;const p=player.position;levi.hp=Math.max(0,levi.hp-damage);cellDamage+=damage;levi.aggro=true;
  if(levi.hp===0){levi.dead=true;levi.aggro=false;kills++;$('kills').textContent=kills;const m=new THREE.Mesh(new THREE.IcosahedronGeometry(2,1),new THREE.MeshStandardMaterial({color:0x66ddff,emissive:0x167b9c,emissiveIntensity:1.5}));m.position.copy(p);m.position.y+=.5;scene.add(m);levi.core=m;notify('LEVIATHAN DOWN // CORE DROP');}
  return true;
 }
+// V241: direct exterior QA warp and scope-only boss test shot.
+const skyTestWarp=document.createElement('button'),skyTestShot=document.createElement('button');
+skyTestWarp.textContent='TEST ⇧ SKY GARDEN';skyTestShot.textContent='SNIPE / TEST';
+for(const b of [skyTestWarp,skyTestShot]){Object.assign(b.style,{position:'fixed',zIndex:'9999',padding:'9px 12px',border:'1px solid #82d6e8',borderRadius:'9px',background:'#123440ed',color:'#c8faff',fontWeight:'bold',fontSize:'11px',touchAction:'manipulation'});document.body.appendChild(b);b.addEventListener('pointerdown',e=>e.stopPropagation());}
+Object.assign(skyTestWarp.style,{right:'12px',top:'294px'});Object.assign(skyTestShot.style,{right:'15px',top:'46%',display:'none'});
+skyTestWarp.addEventListener('click',e=>{e.stopPropagation();if(done||blastRunning)return;const h=skyMazeY+160;player.position.set(195,h+1.35,160);climbFloor=h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=h;fallPeak=h;fallGlideUsed=false;moveVX=moveVZ=dashX=dashZ=0;dashUntil=0;glideAutoHold=false;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();camera.position.set(195,h+5,172);camera.lookAt(player.position);blastFinished=true;notify('DEV WARP // SKY GARDEN');});
+let skyShotAt=-Infinity;
+skyTestShot.addEventListener('click',e=>{e.stopPropagation();const t=performance.now();if(done||!scopeActive||player.position.y<skyMazeY+115||levi.dead||t-skyShotAt<450)return;skyShotAt=t;
+ // Exact ray intersection with the aggregate ellipsoid in boss-local space.
+ skyLeviathan.updateWorldMatrix(true,false);const o=skyLeviathan.worldToLocal(camera.position.clone()),v=skyLeviathan.worldToLocal(camera.position.clone().add(camera.getWorldDirection(new THREE.Vector3()))).sub(o);
+ const a=v.x*v.x/2240**2+v.y*v.y/340**2+v.z*v.z/540**2,b=2*(o.x*v.x/2240**2+o.y*v.y/340**2+o.z*v.z/540**2),c=o.x*o.x/2240**2+o.y*o.y/340**2+o.z*o.z/540**2-1,disc=b*b-4*a*c;
+ let distance=Infinity;if(disc>=0&&a>0){const q=(-b-Math.sqrt(disc))/(2*a),r=(-b+Math.sqrt(disc))/(2*a);distance=q>=0?q:r>=0?r:Infinity;}
+ if(distance<=6500){damageLeviathan(250,t);notify('SNIPE HIT // 250 DMG / '+levi.hp+' HP');}else notify('SNIPE // MISS');
+});
 function hitSkyFauna(power,t){
  if(player.position.y<skyMazeY-3)return false;
  let target=null,best=power>1?8:6.5,kind='';
@@ -4533,7 +4549,7 @@ function hitSkyFauna(power,t){
 let skyFaunaPrev=0;
 function updateSkyFauna(t){
  const dt=Math.min(.1,(t-(skyFaunaPrev||t))/1000);skyFaunaPrev=t;
- const p=player.position,active=p.y>skyMazeY-100&&!done;skyFauna.visible=active;leviHud.style.display=active&&levi.aggro&&!levi.dead?'block':'none';if(!active)return;
+ const p=player.position,active=p.y>skyMazeY-100&&!done;skyTestShot.style.display=scopeActive&&p.y>=skyMazeY+115&&!done&&!levi.dead?'block':'none';skyFauna.visible=active;leviHud.style.display=active&&levi.aggro&&!levi.dead?'block':'none';if(!active)return;
  if(levi.core&&p.distanceTo(levi.core.position)<4&&window.fractureAwardLeviathan){window.fractureAwardLeviathan();scene.remove(levi.core);levi.core.geometry.dispose();levi.core.material.dispose();levi.core=null;notify('LEVIATHAN CORE / 残機 +1');}
  const lower=p.y<skyMazeY+120;silverMesh.visible=silverEyes.visible=lower;wedgeMesh.visible=!lower;skyLeviathan.visible=!lower&&!levi.dead;
  if(lower){let n=0,e=0;for(const u of silver){if(u.dead)continue;const hostile=skyAggro.has(u),dist=Math.hypot(p.x-u.x,p.z-u.z);
@@ -4545,7 +4561,7 @@ function updateSkyFauna(t){
   if(hostile)u.heading=Math.atan2(p.z-u.z,p.x-u.x);else if(t>u.turnAt){u.heading+=(Math.random()-.5)*1.2;u.turnAt=t+4000+Math.random()*5000;}
   const delta=Math.atan2(Math.sin(u.heading-u.visualHeading),Math.cos(u.heading-u.visualHeading));u.visualHeading+=Math.max(-dt*2,Math.min(dt*2,delta));const speed=hostile?8:2.4,nx=u.x+Math.cos(u.visualHeading)*dt*speed,nz=u.z+Math.sin(u.visualHeading)*dt*speed;
   if(Math.abs(nx)<328&&Math.abs(nz+65)<328){u.x=nx;u.z=nz;}else u.heading+=1.5;
-  if(hostile&&Math.abs(p.y-skyMazeY)<4&&dist<2.1&&t-u.lastBite>1100){u.lastBite=t;applyBeeDamage(5,t);}
+  if(hostile&&Math.abs(p.y-skyMazeY)<4&&dist<2.1&&t-u.lastBite>1100){u.lastBite=t;applyBeeDamage(10/3,t);}
  }
  if(dist>170||n+9>silverMesh.instanceMatrix.count)continue;
  for(let j=0;j<9;j++){const k=j/8,r=.48*Math.sin((k*.85+.12)*Math.PI),side=Math.sin(t*.012-k*9+u.seed)*.19;
