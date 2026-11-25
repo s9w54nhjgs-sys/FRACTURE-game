@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V242 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V243 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -4504,14 +4504,26 @@ for(let i=0;i<leviathanCount;i++){
 leviathanMesh.instanceMatrix.needsUpdate=true;leviathanMesh.computeBoundingSphere();
 const levi={hp:10000,dead:false,aggro:false,phase:'roam',heading:0,at:0,damageAt:0,target:new THREE.Vector3(),dir:new THREE.Vector3(1,0,0),core:null};
 skyLeviathan.position.set(1600,skyMazeY+460,160);
-levi.speed=36;levi.bend=0;levi.pitch=0;levi.poseAt=0;leviathanMesh.frustumCulled=false;
+levi.speed=36;levi.pitch=0;levi.poseAt=0;levi.bank=0;leviathanMesh.frustumCulled=false;
+// Arc-length trail: each body section follows the exact path of the nose.
+const leviTrail=[],leviHead=skyLeviathan.position.clone().add(new THREE.Vector3(2240,0,0));
+let leviDistance=4480;
+for(let i=0;i<=112;i++)leviTrail.push({d:i*40,p:leviHead.clone().add(new THREE.Vector3(i*40-4480,0,0)),dir:new THREE.Vector3(1,0,0),bank:0});
+function leviSample(distance){
+ let lo=0,hi=leviTrail.length-1;while(hi-lo>1){const m=(lo+hi)>>1;if(leviTrail[m].d<=distance)lo=m;else hi=m;}
+ const a=leviTrail[lo],b=leviTrail[hi],u=THREE.MathUtils.clamp((distance-a.d)/Math.max(.001,b.d-a.d),0,1);
+ return {p:a.p.clone().lerp(b.p,u),dir:a.dir.clone().lerp(b.dir,u).normalize(),bank:THREE.MathUtils.lerp(a.bank,b.bank,u)};
+}
 function poseLeviathan(t,turn,dt){
- levi.bend+=(Math.max(-.85,Math.min(.85,turn*9))-levi.bend)*Math.min(1,dt*.65);
+ levi.bank+=(THREE.MathUtils.clamp(-turn*2,-.85,.85)-levi.bank)*Math.min(1,dt*1.4);
+ const last=leviTrail[leviTrail.length-1],step=last.p.distanceTo(leviHead);
+ if(step>=12){leviDistance+=step;leviTrail.push({d:leviDistance,p:leviHead.clone(),dir:levi.dir.clone(),bank:levi.bank});while(leviTrail.length>2&&leviTrail[1].d<leviDistance-4650)leviTrail.shift();}
+ const end=leviDistance+leviTrail[leviTrail.length-1].p.distanceTo(leviHead);
+ const center=leviSample(end-2240);skyLeviathan.position.copy(center.p);skyLeviathan.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),center.dir);
  if(t-levi.poseAt<50)return;levi.poseAt=t;
- for(let i=0;i<leviShape.length;i++){const q=leviShape[i],u=(2240-q.x)/4480,angle=levi.bend*u+Math.sin(t*.00045-u*3.2)*.10*u;
- const bendZ=levi.bend*2240*u*u+Math.sin(t*.00045-u*3.2)*110*u*u;
- sfDummy.position.set(q.x+Math.sin(angle)*q.z,q.y,q.z*Math.cos(angle)+bendZ);
- sfDummy.quaternion.setFromUnitVectors(sfUp,sfDir.set(Math.cos(angle),0,-Math.sin(angle)));sfDummy.scale.setScalar(q.scale);sfDummy.updateMatrix();leviathanMesh.setMatrixAt(i,sfDummy.matrix);}
+ const inv=skyLeviathan.quaternion.clone().invert(),sections=[];
+ for(let i=0;i<=112;i++){const q=leviSample(end-i*40),right=new THREE.Vector3().crossVectors(q.dir,sfUp).normalize(),up=new THREE.Vector3().crossVectors(right,q.dir).normalize();right.applyAxisAngle(q.dir,q.bank);up.applyAxisAngle(q.dir,q.bank);sections.push({p:q.p,dir:q.dir,right,up});}
+ for(let i=0;i<leviShape.length;i++){const q=leviShape[i],k=Math.min(112,Math.round((2240-q.x)/40)),v=sections[k];sfDummy.position.copy(v.p).addScaledVector(v.right,q.z).addScaledVector(v.up,q.y+Math.sin(t*.0005-k*.035)*35*k/112).sub(skyLeviathan.position).applyQuaternion(inv);sfDummy.quaternion.setFromUnitVectors(sfUp,v.dir.clone().applyQuaternion(inv));sfDummy.scale.setScalar(q.scale);sfDummy.updateMatrix();leviathanMesh.setMatrixAt(i,sfDummy.matrix);}
  leviathanMesh.instanceMatrix.needsUpdate=true;
 }
 const leviHud=document.createElement('div');leviHud.style.cssText='position:fixed;top:100px;left:50%;transform:translateX(-50%);width:220px;color:#d7faff;background:#12232ddd;padding:7px;text-align:center;z-index:8;display:none;pointer-events:none';document.body.appendChild(leviHud);
@@ -4583,7 +4595,7 @@ function updateSkyFauna(t){
  }else{let n=0;for(const u of skyWedges){if(u.dead)continue;const a=u.phase+t*.00019;if(!u.waiting){u.x=195+Math.cos(a)*(65+35*Math.sin(u.phase));u.z=160+Math.sin(a)*(65+35*Math.sin(u.phase));u.y=skyMazeY+185+Math.sin(a*2)*18;}sfDummy.position.set(u.x,u.y,u.z);sfDummy.quaternion.setFromUnitVectors(sfUp,sfDir.set(-Math.sin(a),0,Math.cos(a)).normalize());sfDummy.scale.setScalar(1.6);sfDummy.updateMatrix();wedgeMesh.setMatrixAt(n++,sfDummy.matrix);}wedgeMesh.count=n;wedgeMesh.instanceMatrix.needsUpdate=true;
  }
  if(levi.dead)return;
- const pos=skyLeviathan.position;
+ const pos=leviHead;
  if(levi.aggro&&levi.phase==='roam'){levi.phase='turn';levi.at=t;}
  let turn=0;
  function steer(goal,rate){const v=goal.clone().sub(pos),desired=Math.atan2(v.z,v.x),delta=Math.atan2(Math.sin(desired-levi.heading),Math.cos(desired-levi.heading));turn=Math.max(-rate,Math.min(rate,delta/Math.max(dt,.001)));levi.heading+=turn*dt;const pitch=Math.atan2(v.y,Math.hypot(v.x,v.z));levi.pitch+=Math.max(-rate*dt,Math.min(rate*dt,pitch-levi.pitch));levi.dir.set(Math.cos(levi.heading)*Math.cos(levi.pitch),Math.sin(levi.pitch),Math.sin(levi.heading)*Math.cos(levi.pitch));return Math.acos(Math.max(-1,Math.min(1,levi.dir.dot(v.normalize()))));}
@@ -4591,21 +4603,23 @@ function updateSkyFauna(t){
   const angle=steer(p,.075);levi.speed=36;
   if(angle<.09&&t-levi.at>1800){levi.phase='approach';levi.at=t;levi.target.copy(p);}
  }else if(levi.phase==='approach'){
-  steer(levi.target,.045);
-  const ahead=levi.target.clone().sub(pos).dot(levi.dir),gap=Math.max(0,ahead-2240);
+  steer(levi.target,.12);const gap=Math.max(0,levi.target.clone().sub(pos).dot(levi.dir));
   levi.speed=Math.min(2240,levi.speed+Math.max(90,(2240**2-levi.speed**2)/(2*Math.max(gap,100)))*dt);
   if(gap<=Math.max(20,levi.speed*dt)){levi.phase='charge';levi.damageAt=t;levi.at=t;levi.speed=2240;}
  }else if(levi.phase==='charge'){
   levi.speed=2240;
-  const local=skyLeviathan.worldToLocal(p.clone()),inside=Math.abs(local.x)<=2240&&Math.abs(local.y)<340&&Math.abs(local.z)<540;
-  if(inside){const ticks=Math.min(100,Math.floor((t-levi.damageAt)/20));if(ticks>0){levi.damageAt+=ticks*20;applyBeeDamage(2*ticks/3,t);}}else levi.damageAt=t;
-  if(t-levi.at>=2000){levi.phase='recover';levi.at=t;}
- }else if(levi.phase==='recover'){
-  levi.speed=Math.max(36,levi.speed-450*dt);if(levi.speed<=36&&t-levi.at>8000){levi.phase=levi.aggro?'turn':'roam';levi.at=t;}
+  const elapsed=t-levi.at,ticks=Math.min(100,Math.floor((Math.min(t,levi.at+2000)-levi.damageAt)/20));
+  if(ticks>0){levi.damageAt+=ticks*20;const delta=p.clone().sub(levi.target),along=delta.dot(levi.dir);delta.addScaledVector(levi.dir,-along);if(delta.length()<340&&Math.abs(along)<2240)applyBeeDamage(2*ticks,t);}
+  if(elapsed>=2000){levi.phase='loop';levi.at=t;levi.loopStart=pos.clone();levi.loopHeading=levi.heading;levi.loopSide=1;}
+ }else if(levi.phase==='loop'){
+  // Continuous banked return: outward arc, then homeward intercept.
+  const age=(t-levi.at)/1000;
+  if(age<7){turn=levi.loopSide*.44;levi.heading+=turn*dt;levi.pitch*=Math.exp(-dt*.7);levi.dir.set(Math.cos(levi.heading)*Math.cos(levi.pitch),Math.sin(levi.pitch),Math.sin(levi.heading)*Math.cos(levi.pitch));levi.speed=Math.max(750,levi.speed-650*dt);}
+  else{const angle=steer(p,.65),gap=pos.distanceTo(p);levi.speed=Math.min(2240,Math.max(400,gap/Math.max(.5,15-age)));if(angle<.15&&gap<Math.max(40,levi.speed*dt*1.5)){levi.target.copy(p);levi.phase='charge';levi.at=t;levi.damageAt=t;levi.speed=2240;}}
  }else{
   const a=Math.atan2(pos.z-160,pos.x-195)+.65,goal=new THREE.Vector3(195+Math.cos(a)*1450,skyMazeY+460,160+Math.sin(a)*1450);steer(goal,.075);levi.speed=36;
  }
- pos.addScaledVector(levi.dir,levi.speed*dt);skyLeviathan.quaternion.setFromUnitVectors(new THREE.Vector3(1,0,0),levi.dir);poseLeviathan(t,turn,dt);
+ pos.addScaledVector(levi.dir,levi.speed*dt);poseLeviathan(t,turn,dt);
  if(levi.aggro)leviHud.textContent='LEVIATHAN  '+levi.hp+' / 10000';
 }
 function update(t){requestAnimationFrame(update);if(skyMaze.userData.waterfallTime&&player.position.y>skyMazeY+100)skyMaze.userData.waterfallTime.value=t*.001;if(blastRunning){renderBlast(t);return;}updateSkyVegetation(t);updateSkyFauna(t);updateBlastAccess();
