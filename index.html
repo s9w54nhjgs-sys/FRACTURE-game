@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V234 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V235 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3256,16 +3256,46 @@ function mazeBox(x,y,z,w,h,d,mat=0){mazeParts[mat].push([x,y,z,w,h,d]);}
 function mazeFloor(x,z,w,d,h=skyMazeY){mazeBox(x,h-11,z,w,22,d);climbDecks.push({x,z,h,w,d,legacy:true,skyMaze:true});}
 mazeFloor(0,-65,340,340);
 for(let i=0;i<12;i++){const a=i*Math.PI/6;mazeBox(Math.cos(a)*165,skyMazeY-60,-65+Math.sin(a)*165,105,135,105,1);}
-mazeBox(0,skyMazeY+127,-65,370,26,370,1);
-for(const x of [-174,174])mazeBox(x,skyMazeY+57,-65,22,114,370,1);
+mazeBox(-52,skyMazeY+127,-65,266,26,370,1);mazeBox(155,skyMazeY+127,-65,60,26,370,1);
+mazeBox(-174,skyMazeY+57,-65,22,114,370,1);mazeBox(174,skyMazeY+57,-105,22,114,290,1);
 for(const z of [-239,109])mazeBox(0,skyMazeY+57,z,370,114,22,1);
 for(let i=0;i<7;i++){const z=-215+i*50;for(const x of [-110,-55,55,110]){mazeBox(x,skyMazeY+48,z,13,96,15);mazeBox(x,skyMazeY+100,z,26,8,25,1);}mazeBox(0,skyMazeY+112,z,250,10,12,1);}
 for(let i=0;i<14;i++){const a=i*Math.PI/7;mazeBox(Math.cos(a)*48,skyMazeY+55,-65+Math.sin(a)*48,9,110,9);}
 for(let i=0;i<25;i++){const x=-150+(i%5)*75,z=-210+Math.floor(i/5)*70;mazeBox(x,skyMazeY+143,z,12,20+(i%3)*8,12,2);}
-for(let i=0;i<10;i++){const h=skyMazeY+i*16;mazeFloor(62+i*12,46+i*12,40,40,h);}
+
 mazeFloor(195,160,155,155,skyMazeY+160);
 for(let i=0;i<20;i++){const a=i*Math.PI/10,x=195+Math.cos(a)*60,z=160+Math.sin(a)*60;mazeBox(x,skyMazeY+172,z,12,24,12,2);}
 for(let i=0;i<8;i++){const a=i*Math.PI/4;mazeBox(195+Math.cos(a)*48,skyMazeY+182,160+Math.sin(a)*48,12,44,12);}
+// V235: rooted columns, broad switchback ramp and two connected upper zones.
+const rootGeo=new THREE.CylinderGeometry(.7,1,1,6),leafGeo=new THREE.IcosahedronGeometry(1,0);
+const rootMat=new THREE.MeshStandardMaterial({color:0x394c32,roughness:1}),leafMat=new THREE.MeshStandardMaterial({color:0x547c43,roughness:1});
+const roots=[],leaves=[];
+function growColumn(x,z,r,h,seed){
+ for(let j=0;j<5;j++){const a=j*1.256+seed*.7;let prev=new THREE.Vector3(x+Math.cos(a)*r*2,skyMazeY+.4,z+Math.sin(a)*r*2);
+  for(let k=1;k<=12;k++){const u=k/12,ang=a+u*3.8,rr=r*(1.2+.25*Math.sin(k+seed));const next=new THREE.Vector3(x+Math.cos(ang)*rr,skyMazeY+h*u,z+Math.sin(ang)*rr);roots.push([prev.clone(),next.clone(),2.7*(1-u*.55)]);if(k%2===0)leaves.push([next.clone(),5+2*Math.sin(seed+k)]);prev=next;}
+ }
+}
+for(let i=0;i<7;i++)for(const x of [-110,-55,55,110])growColumn(x,-215+i*50,9,96,i+x);
+for(let i=0;i<14;i++){const a=i*Math.PI/7;growColumn(Math.cos(a)*48,-65+Math.sin(a)*48,6,110,i);}
+function vegetationBatch(){const d=new THREE.Object3D(),up=new THREE.Vector3(0,1,0),m=new THREE.InstancedMesh(rootGeo,rootMat,roots.length),l=new THREE.InstancedMesh(leafGeo,leafMat,leaves.length);roots.forEach(([a,b,r],i)=>{const v=b.clone().sub(a);d.position.copy(a).add(b).multiplyScalar(.5);d.quaternion.setFromUnitVectors(up,v.clone().normalize());d.scale.set(r,v.length(),r);d.updateMatrix();m.setMatrixAt(i,d.matrix);});leaves.forEach(([p,r],i)=>{d.position.copy(p);d.rotation.set(i*.7,i*1.3,0);d.scale.set(r,r*.65,r);d.updateMatrix();l.setMatrixAt(i,d.matrix);});for(const o of [m,l]){o.instanceMatrix.needsUpdate=true;o.computeBoundingSphere();skyMaze.add(o);}}
+vegetationBatch();
+function skyRamp(ax,az,ah,bx,bz,bh,w=18){const a=new THREE.Vector3(ax,ah,az),b=new THREE.Vector3(bx,bh,bz),v=b.clone().sub(a),m=new THREE.Mesh(new THREE.BoxGeometry(w,2,v.length()),mazeRock);m.position.copy(a).add(b).multiplyScalar(.5);m.position.y-=1;m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),v.clone().normalize());skyMaze.add(m);climbRamps.push({ax,az,ah,bx,bz,bh,width:w/2,skyMaze:true});}
+const sy=skyMazeY;
+skyRamp(112,-205,sy,112,85,sy+70,20);mazeFloor(112,85,28,28,sy+70);
+skyRamp(112,85,sy+70,112,-205,sy+142,20); // separate parallel lane below
+// Shift the return ramp laterally so the two flights do not overlap.
+const ret=climbRamps[climbRamps.length-1];ret.ax=88;ret.bx=88;skyMaze.children[skyMaze.children.length-1].position.x=88;
+mazeFloor(100,85,48,28,sy+70);mazeFloor(100,-205,50,35,sy+142);
+mazeFloor(0,-65,170,270,sy+142);
+skyRamp(100,-205,sy+142,0,-205,sy+142,20);
+mazeFloor(0,-205,35,45,sy+142);
+// Interior sanctuary with roof, open central doorway and ruined colonnade.
+for(const x of [-72,72])mazeBox(x,sy+166,-65,8,48,170,1);
+mazeBox(0,sy+194,-65,152,8,170,1);
+for(let i=0;i<6;i++)for(const x of [-45,45])mazeBox(x,sy+164,-135+i*28,8,44,8);
+skyRamp(0,60,sy+142,0,145,sy+160,24);mazeFloor(0,145,55,48,sy+160);
+skyRamp(0,145,sy+160,195,160,sy+160,26);
+for(let i=0;i<15;i++){const x=125+(i%5)*32,z=105+Math.floor(i/5)*45;leaves.push([new THREE.Vector3(x,sy+164,z),8]);}
 for(let j=0;j<3;j++){const parts=mazeParts[j],mesh=new THREE.InstancedMesh(mazeGeo,[mazeRock,mazeDark,mazeGreen][j],parts.length),d=new THREE.Object3D();parts.forEach((p,i)=>{d.position.set(p[0],p[1],p[2]);d.scale.set(p[3],p[4],p[5]);d.updateMatrix();mesh.setMatrixAt(i,d.matrix);});mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();skyMaze.add(mesh);}
 const blastButton=document.createElement('button');blastButton.textContent='✦ 爆風転送 / SKY CITADEL';
 Object.assign(blastButton.style,{position:'fixed',left:'50%',bottom:'120px',transform:'translateX(-50%)',zIndex:'9000',padding:'12px 16px',border:'1px solid #b9e9f9',borderRadius:'12px',background:'#102534ee',color:'#f0faff',fontWeight:'bold',display:'none',touchAction:'manipulation'});
@@ -3372,8 +3402,8 @@ const resetTravel=(x,y,z)=>{player.position.set(x,y+1.35,z);climbFloor=y;jumpHei
  if(jumpCount===0){fallPeak=climbFloor+jumpHeight;fallGlideUsed=false;glideInterrupted=false;}jumpVelocity=jumpCount===0?8.8:8.2;jumpCount++;landedJumpCount=jumpCount;
  if(jumpCount===2){verticalDoubleJump=neutral;barrelStart=performance.now();impact(player.position.x,.4,player.position.z)}
 }
-$('jump').addEventListener('pointerdown',e=>{e.preventDefault();if(glideAutoHold){glideAutoHold=false;gliding=false;glideFlightActive=false;glideInterrupted=true;return;}jumpHeld=true;jumpHeldAt=performance.now();jumpNow();});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('jump').addEventListener(ev,releaseJump);
-window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();if(glideAutoHold){glideAutoHold=false;gliding=false;glideFlightActive=false;glideInterrupted=true;}else{jumpHeld=true;jumpHeldAt=performance.now();jumpNow()}}});
+$('jump').addEventListener('pointerdown',e=>{e.preventDefault();if(glideAutoHold){glideAutoHold=false;gliding=false;glideFlightActive=false;releaseJump();return;}jumpHeld=true;jumpHeldAt=performance.now();if(!(jumpCount>0&&jumpVelocity<=0&&!glideInterrupted))jumpNow();});for(const ev of ['pointerup','pointercancel','lostpointercapture'])$('jump').addEventListener(ev,releaseJump);
+window.addEventListener('keydown',e=>{if(e.code==='Space'&&!e.repeat){e.preventDefault();if(glideAutoHold){glideAutoHold=false;gliding=false;glideFlightActive=false;releaseJump();}else{jumpHeld=true;jumpHeldAt=performance.now();if(!(jumpCount>0&&jumpVelocity<=0&&!glideInterrupted))jumpNow()}}});
 window.addEventListener('keyup',e=>{if(e.code==='Space')releaseJump()});
 // V136: physically open the existing tower at the highway entry.
 // Subtract a localized rectangular passage from axis-aligned visible boxes;
