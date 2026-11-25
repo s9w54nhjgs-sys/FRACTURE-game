@@ -266,7 +266,20 @@ if((Number(p.paint)||0)>=500){
  let painted=0;
  group.traverse(obj=>{if(obj.isMesh&&obj.material===metal){if((painted++%3)===1)obj.material=accent}});
 }
-if(cell.leviathan){const color=cell.leviathan.color??0xe8f5ff,count=Math.max(1,Math.min(360,cell.leviathan.count||13));const geo=new THREE.ConeGeometry(.19,3.2,4),mat=new THREE.MeshStandardMaterial({color,metalness:.95,roughness:.19,emissive:color,emissiveIntensity:.23});for(let i=0;i<count;i++){const a=i*2*Math.PI/count,dir=new THREE.Vector3(Math.cos(a),0,Math.sin(a));const m=new THREE.Mesh(geo.clone(),mat.clone());m.position.copy(dir).multiplyScalar(radius+1.1);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);group.add(m);}geo.dispose();mat.dispose();}
+if(cell.leviathan){
+ const color=cell.leviathan.color??0xe8f5ff,count=Math.max(1,Math.min(360,cell.leviathan.count||13)),ring=radius+1.05;
+ // Local -Z is forward. Each blade shares that heading; only its roll varies.
+ const profile=[[-3.0,.012,.015],[-2.0,.18,.13],[-.7,.42,.24],[.55,.66,.33],[1.35,.72,.36],[1.95,.56,.29],[2.18,.28,.15],[2.23,.04,.025]];
+ const verts=[],indices=[],sides=8;
+ for(const [z,h,w] of profile)for(let j=0;j<sides;j++){const a=j*2*Math.PI/sides;verts.push(Math.cos(a)*w,Math.sin(a)*h,z);}
+ for(let k=0;k<profile.length-1;k++)for(let j=0;j<sides;j++){const a=k*sides+j,b=k*sides+(j+1)%sides,c=b+sides,d=a+sides;indices.push(a,b,d,b,c,d);}
+ for(let j=1;j<sides-1;j++){indices.push(0,j+1,j);const e=(profile.length-1)*sides;indices.push(e,e+j,e+j+1);}
+ const geo=new THREE.BufferGeometry();geo.setAttribute('position',new THREE.Float32BufferAttribute(verts,3));geo.setIndex(indices);geo.computeVertexNormals();
+ const mat=new THREE.MeshStandardMaterial({color,metalness:.95,roughness:.19,emissive:color,emissiveIntensity:.12,side:THREE.DoubleSide});
+ const hull=new THREE.InstancedMesh(geo,mat,count),dummy=new THREE.Object3D();hull.name='leviathanOuterHull';hull.userData.leviathanHull=true;
+ for(let i=0;i<count;i++){const a=i*2*Math.PI/count;dummy.position.set(Math.cos(a)*ring,Math.sin(a)*ring,0);dummy.rotation.set(0,0,a-Math.PI/2);dummy.scale.set(Math.min(1,Math.max(.08,2*Math.PI*ring/count/.64)),1,1);dummy.updateMatrix();hull.setMatrixAt(i,dummy.matrix);}
+ hull.instanceMatrix.needsUpdate=true;group.add(hull);
+}
 group.userData.power=power;group.userData.cellHeartbeat=Boolean(heartbeat);group.userData.cellRangedAmount=rangedAmount;group.userData.cellRangedReload=casingEject;group.userData.cellAuraSpin=auraSpin;group.userData.cellAuraSpinChance=auraSpinChance;group.userData.cellCasingChance=casingChance;group.userData.cellAerial=Math.min(1,(Number(p.aerial)||0)/Math.max(1,structureSum));camera.position.set(0,3.2,Math.max(12,5+radius*2+aerialReach*1.6));camera.lookAt(0,0,0);
 info.textContent=cell.name+' / 塗装 '+paintLabel+accentLabel+(heartbeat?' / ♥ 鼓動CELL':'')+' / 骨格 '+({orb:'球状',spire:'縦長尖塔',delta:'三角翼機体',disc:'円盤',prism:'角柱',fork:'双叉',diamond:'結晶多面体'}[hull])+' / 主形態 '+dominant[0]+' / '+sum+'素材 / 形態段階 '+(tier+1)+' / 外装半径 '+radius.toFixed(2)+' / '+Object.entries(p).filter(([,v])=>v>0).map(([k,v])=>k+':'+v).join('・');
 }
