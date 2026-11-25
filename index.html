@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V245 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V246 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3087,6 +3087,7 @@ window.fractureFogStats=()=>({blend:+tier3FogState.blend.toFixed(2),visibleRange
 window.fractureChunkStats=()=>({chunkSize:CHUNK_SIZE,worldChunks:256,active:chunkActiveKey,predicted:chunkPredictedKey,cached:chunkCache.size,loaded:[...chunkCache.values()].filter(c=>c.loaded).length,pending:chunkPending.length,terrainTiles:streamedTerrain.size});
 var climbFloor=0,climbPrevFeet=0;let fallPeak=0,fallGlideUsed=false;
 function resolveFallDamage(ground,t){
+ if(testFlight){fallPeak=ground;return;}
  if(t<slideLandingGrace){fallPeak=ground;fallGlideUsed=false;return;}
  const distance=Math.max(0,fallPeak-ground);
  // 33.6m descent costs about 50 shield; short drops are safe.
@@ -3104,7 +3105,7 @@ function resolveFallDamage(ground,t){
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;
 let testFlight=false,testFlightHeight=0;
 const flightTestButton=document.createElement('button');flightTestButton.textContent='DEV FLIGHT OFF';Object.assign(flightTestButton.style,{position:'fixed',left:'10px',top:'calc(env(safe-area-inset-top) + 170px)',zIndex:'12',background:'#162b43e8',color:'#a8e8ff',border:'1px solid #72bcd9',borderRadius:'9px',padding:'7px 9px',font:'700 11px monospace',touchAction:'manipulation'});document.body.appendChild(flightTestButton);
-flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=climbFloor+jumpHeight+15;notify('FLIGHT TEST // joystick move, JUMP ascend, DASH descend');}else{climbFloor=Math.max(0,testFlightHeight);jumpHeight=0;jumpVelocity=0;jumpCount=1;}});
+flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=Math.max(0,player.position.y-1.35);climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=testFlightHeight;dashUntil=0;glideAutoHold=false;gliding=false;glideFlightActive=false;notify('FLIGHT TEST // joystick move, JUMP ascend, DASH descend');}else{climbFloor=0;jumpHeight=Math.max(0,testFlightHeight);jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=jumpHeight;}});
 let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;let glideAutoHold=false,glideAccelerateAt=0;function releaseJump(){jumpHeld=false;}window.addEventListener("blur",releaseJump);
 // V123: route from the REAL registered roof footprints. Geometry and
 // collision use the same coordinates; no more guessed intermediate rooftops.
@@ -3215,7 +3216,25 @@ let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let g
   o.position.set(p.x,p.h+3.1,p.z);scene.add(o);relics++;
  }
 }
-function skyWalkSupport(x,z,feet){let best=0;for(const p of climbDecks){if(!p.skyMaze||Math.abs(x-p.x)>p.w/2+.35||Math.abs(z-p.z)>p.d/2+.35||Math.abs(p.h-feet)>3.5)continue;best=Math.max(best,p.h);}for(const p of climbRamps){if(!p.skyMaze)continue;const dx=p.bx-p.ax,dz=p.bz-p.az,u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-p.ax-dx*u,z-p.az-dz*u)>p.width+.35)continue;const h=p.ah+(p.bh-p.ah)*u;if(Math.abs(h-feet)<=3.5)best=Math.max(best,h);}return best;}
+// V246: altitude-aware collision directly from rendered stone boxes and tree trunks.
+let skySolidCache=null;
+function skySolids(){if(!skySolidCache){skySolidCache=mazeParts.flat().map(([x,y,z,w,h,d])=>({x,y,z,w,h,d}));for(const q of skyCoverTrees)skySolidCache.push({x:q.x,y:q.y,z:q.z,w:q.r*2,d:q.r*2,h:q.h});}return skySolidCache;}
+function skyBodyDepth(b,x,z,feet){if(feet>=b.y+b.h/2-.12||feet+2.1<=b.y-b.h/2+.08)return 0;return Math.max(0,Math.min(b.w/2+.48-Math.abs(x-b.x),b.d/2+.48-Math.abs(z-b.z)));}
+function playerSafeMove(x,z,nx,nz){
+ const feet=climbFloor+jumpHeight;if(feet<skyMazeY-140)return collisionSafeMove(x,z,nx,nz);
+ if(Math.abs(nx)>1995||Math.abs(nz)>1995)return false;
+ const n=Math.max(1,Math.ceil(Math.hypot(nx-x,nz-z)/.4));
+ for(const b of skySolids()){if(Math.abs(b.x-x)>b.w/2+Math.abs(nx-x)+1||Math.abs(b.z-z)>b.d/2+Math.abs(nz-z)+1)continue;const initial=skyBodyDepth(b,x,z,feet);for(let k=1;k<=n;k++){if(skyBodyDepth(b,x+(nx-x)*k/n,z+(nz-z)*k/n,feet)>initial+.001)return false;}}
+ return true;
+}
+function skyVerticalContact(x,z,oldFeet,newFeet){
+ let result=newFeet;if(Math.max(oldFeet,newFeet)<skyMazeY-140)return result;
+ for(const b of skySolids()){if(Math.abs(x-b.x)>b.w/2+.3||Math.abs(z-b.z)>b.d/2+.3)continue;const top=b.y+b.h/2,bottom=b.y-b.h/2-2.1;
+ if(newFeet<oldFeet&&oldFeet>=top-.08&&newFeet<=top)result=Math.max(result,top);
+ if(newFeet>oldFeet&&oldFeet<=bottom+.08&&newFeet>=bottom)result=Math.min(result,bottom);}
+ return result;
+}
+function skyWalkSupport(x,z,feet){let best=0;for(const b of skySolids()){const h=b.y+b.h/2;if(Math.abs(h-feet)<.4&&Math.abs(x-b.x)<=b.w/2&&Math.abs(z-b.z)<=b.d/2)best=Math.max(best,h);}for(const p of climbDecks){if(!p.skyMaze||Math.abs(x-p.x)>p.w/2+.35||Math.abs(z-p.z)>p.d/2+.35||Math.abs(p.h-feet)>3.5)continue;best=Math.max(best,p.h);}for(const p of climbRamps){if(!p.skyMaze)continue;const dx=p.bx-p.ax,dz=p.bz-p.az,u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-p.ax-dx*u,z-p.az-dz*u)>p.width+.35)continue;const h=p.ah+(p.bh-p.ah)*u;if(Math.abs(h-feet)<=3.5)best=Math.max(best,h);}return best;}
 function climbDeckUnder(x,z,feet){
  let best=0;
  for(const p of climbDecks){
@@ -4869,11 +4888,11 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  // A glide hits a wall only if the COMPLETE forward sweep is blocked.
  // On a diagonal, retain tangential movement instead of killing both axes.
  const sx=player.position.x,sz=player.position.z;
- const full=collisionSafeMove(sx,sz,nx,nz);
+ const full=playerSafeMove(sx,sz,nx,nz);
  if(full){player.position.x=nx;player.position.z=nz;}
  else {
-  const canX=collisionSafeMove(sx,sz,nx,sz);
-  const canZ=collisionSafeMove(sx,sz,sx,nz);
+  const canX=playerSafeMove(sx,sz,nx,sz);
+  const canZ=playerSafeMove(sx,sz,sx,nz);
   // V132: measure how much of the intended glide is stopped by the wall.
   // A strong head-on or oblique impact must hurt even if one axis can slide.
   const intended=Math.hypot(nx-sx,nz-sz);
@@ -4905,13 +4924,13 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  }
  iaiLastHit=iaiUntil;
 }
-if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){if(t<dashBurstUntil&&Math.random()<dt*13&&sparks.length<240)impact(player.position.x,player.position.y,player.position.z);const dashSpeed=t<dashChargeBoostUntil?38:(dashChain===2?34:25);const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(collisionSafeMove(player.position.x,player.position.z,player.position.x+dx,player.position.z))player.position.x+=dx;if(collisionSafeMove(player.position.x,player.position.z,player.position.x,player.position.z+dz))player.position.z+=dz}
- if(jumpCount>0){
+if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x+iaiX*step,iz=player.position.z+iaiZ*step;if(!collides(ix,player.position.z))player.position.x=ix;if(!collides(player.position.x,iz))player.position.z=iz}if(t<dashUntil&&dt>0){if(t<dashBurstUntil&&Math.random()<dt*13&&sparks.length<240)impact(player.position.x,player.position.y,player.position.z);const dashSpeed=t<dashChargeBoostUntil?38:(dashChain===2?34:25);const dx=dashX*dashSpeed*dt,dz=dashZ*dashSpeed*dt;if(playerSafeMove(player.position.x,player.position.z,player.position.x+dx,player.position.z))player.position.x+=dx;if(playerSafeMove(player.position.x,player.position.z,player.position.x,player.position.z+dz))player.position.z+=dz}
+ if(jumpCount>0&&!testFlight){
  // V78: on leaving a raised deck, convert platform elevation to airborne height
  // before integrating gravity. This preserves world-space height across the edge.
  if(climbFloor>=skyMazeY-1&&jumpCount===0){const h=skyWalkSupport(player.position.x,player.position.z,climbFloor);if(h>0){climbFloor=h;jumpHeight=0;climbPrevFeet=h;}}
  if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.85&&!(climbFloor>=skyMazeY-1&&jumpCount===0&&skyWalkSupport(player.position.x,player.position.z,climbFloor)>0)){jumpHeight+=climbFloor;climbFloor=0;}
- gliding=glideAutoHold&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;jumpVelocity=Math.max(glideActive?-5:-34,jumpVelocity-gravity*dt);jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);
+ gliding=glideAutoHold&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;jumpVelocity=Math.max(glideActive?-5:-34,jumpVelocity-gravity*dt);const oldSkyFeet=climbFloor+jumpHeight;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);const newSkyFeet=climbFloor+jumpHeight,contact=skyVerticalContact(player.position.x,player.position.z,oldSkyFeet,newSkyFeet);if(contact!==newSkyFeet){if(jumpVelocity<0){resolveFallDamage(contact,t);climbFloor=contact;jumpHeight=0;jumpCount=0;climbPrevFeet=contact;}else jumpHeight=contact-climbFloor;jumpVelocity=0;}
  // Detect the descending crossing BEFORE the generic ground solver can land the player.
  const tankDist=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z);
  const waterCrossing=waterslideProgress<0&&!testFlight&&tankDist<226&&jumpCount>0&&jumpVelocity<0&&climbFloor+jumpHeight<=elevatedReservoir.waterY+1.5&&climbPrevFeet>=elevatedReservoir.waterY-2;
@@ -4958,7 +4977,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
    if(u===0){waterslideProgress=-1;slideJustFinished=true;slideCooldown=t+3500;waterslideExitUntil=t+2800;slideLandingGrace=t+4000;climbFloor=22;jumpHeight=0;jumpCount=0;jumpVelocity=0;fallPeak=22;climbPrevFeet=22;moveVX=moveVZ=0;notify('INDUSTRIAL RESERVOIR // SAFE ARRIVAL');}
   }
  }
- if(waterslideProgress<0&&!(waterPlungeUntil>t&&Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226)){
+ if(!testFlight&&waterslideProgress<0&&!(waterPlungeUntil>t&&Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z)<226)){
  const feet=climbFloor+jumpHeight;
  const deck=climbDeckUnder(player.position.x,player.position.z,feet);
  // Swept landing: fast dash-jumps can cross a thin slope between rendered frames.
@@ -5067,7 +5086,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  const reservoirInside=reservoirWet(player.position.x,player.position.z,climbFloor+jumpHeight);
  if(waterslideProgress<0&&!testFlight&&reservoirInside&&jumpCount===0&&(t<waterPlungeUntil||climbFloor>elevatedReservoir.waterY-30&&climbFloor<elevatedReservoir.waterY+6)){const age=Math.max(0,(t-waterImpactAt)/1000);const depth=waterImpactAt>0?waterImpactDepth*Math.exp(-age/2.2)*(1-Math.exp(-age*5)):0;climbFloor=elevatedReservoir.waterY;jumpHeight=-1.25-depth+Math.sin(t*.0021)*.14;fallPeak=elevatedReservoir.waterY;climbPrevFeet=climbFloor+jumpHeight;}
  if(!floatingNow&&climbFloor===elevatedReservoir.waterY&&jumpCount===0&&t>waterPlungeUntil){jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0;}
- if(testFlight){testFlightHeight+=((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
+ if(testFlight){testFlightHeight=Math.max(0,testFlightHeight+((jumpHeld?1:0)-(t<dashUntil?1:0))*17*dt);fallPeak=climbPrevFeet=testFlightHeight;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;}
  player.position.y=1.35+climbFloor+jumpHeight+Math.sin(t*.0025)*(floatingNow?.19:.08);
  if(floatingNow){player.rotation.z=Math.sin(t*.0019)*.14;player.rotation.x=Math.sin(t*.0026+1.2)*.12;}else{player.rotation.z*=.87;player.rotation.x*=.87;}
  const yawDelta=Math.atan2(Math.sin(yaw-previousYaw),Math.cos(yaw-previousYaw));
