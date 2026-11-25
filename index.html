@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V251 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V252 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -4772,6 +4772,7 @@ updateBlackTransit(t);chargeLevel=charging?Math.min(1,(t-chargeStart)/1000):0;if
  equippedCellMesh.rotation.y+=(equippedCellMesh.userData.cellAuraSpin?.008+velocity*.018:0);
  equippedCellMesh.rotation.x=Math.sin(t*.0015)*.055-velocity*.12;
  equippedCellMesh.rotation.z=Math.sin(t*.002)*.035+bank*.14;
+ const legacyHull=equippedCellMesh.getObjectByName('leviathanOuterHull');if(legacyHull){legacyHull.quaternion.copy(equippedCellMesh.quaternion).invert();if(Math.hypot(moveVX,moveVZ)>1){const heading=Math.atan2(-moveVX,-moveVZ)-yaw;legacyHull.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0),heading));}}
  equippedCellMesh.scale.setScalar(.43*(1+Math.sin(t*.0023)*.025+morph*.09));
  const phase=(t*.001)%2.15;
  const beat=Math.exp(-Math.pow((phase-.18)/.095,2))+.72*Math.exp(-Math.pow((phase-.48)/.11,2));
@@ -5253,4 +5254,4 @@ async function startupPrewarm(){
  loading.classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
 }
 startupPrewarm().catch(e=>{console.error(e);$('loading').innerHTML='FRACTURE<br>PRELOAD ERROR<br><small>'+String(e.message||e)+'</small>';});
-</script><script src="./rebirth.js?v=2511"></script><script src="./legacy-cells.js?v=2511"></script><script type="module" src="./cell-preview.js?v=2511"></script></body></html>
+</script><script src="./rebirth.js?v=2511"></script><script src="./legacy-cells.js?v=2511"></script><script type="module" src="./cell-preview.js?v=2521"></script></body></html>
