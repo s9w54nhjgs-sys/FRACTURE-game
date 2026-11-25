@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V237 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V238 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3276,7 +3276,29 @@ function growColumn(x,z,r,h,seed){
 }
 for(let i=0;i<7;i++)for(const x of [-110,-55,55,110])growColumn(x,-215+i*50,9,96,i+x);
 for(let i=0;i<14;i++){const a=i*Math.PI/7;growColumn(Math.cos(a)*48,-65+Math.sin(a)*48,6,110,i);}
-function vegetationBatch(){const d=new THREE.Object3D(),up=new THREE.Vector3(0,1,0),m=new THREE.InstancedMesh(rootGeo,rootMat,roots.length),l=new THREE.InstancedMesh(leafGeo,leafMat,leaves.length);roots.forEach(([a,b,r],i)=>{const v=b.clone().sub(a);d.position.copy(a).add(b).multiplyScalar(.5);d.quaternion.setFromUnitVectors(up,v.clone().normalize());d.scale.set(r,v.length(),r);d.updateMatrix();m.setMatrixAt(i,d.matrix);});leaves.forEach(([p,r],i)=>{d.position.copy(p);d.rotation.set(i*.7,i*1.3,0);d.scale.set(r,r*.65,r);d.updateMatrix();l.setMatrixAt(i,d.matrix);});for(const o of [m,l]){o.instanceMatrix.needsUpdate=true;o.computeBoundingSphere();skyMaze.add(o);}}
+// V238: spatial vegetation batches with distance LOD and altitude separation.
+const skyVegetationCells=[];
+function skyBatch(geo,mat,items,positionOf,write,kind){
+ const cells=new Map(),d=new THREE.Object3D();
+ for(const item of items){const p=positionOf(item),key=Math.floor(p.x/90)+','+Math.floor(p.z/90)+','+(p.y>=skyMazeY+130?1:0);if(!cells.has(key))cells.set(key,[]);cells.get(key).push(item);}
+ for(const list of cells.values()){
+  // Deterministic shuffle keeps reduced instance counts spatially distributed.
+  list.sort((a,b)=>{const p=positionOf(a),q=positionOf(b);return Math.sin(p.x*12.9898+p.y*78.233+p.z*37.719)-Math.sin(q.x*12.9898+q.y*78.233+q.z*37.719);});
+  const m=new THREE.InstancedMesh(geo,mat,list.length);list.forEach((p,i)=>{write(d,p,m,i);d.updateMatrix();m.setMatrixAt(i,d.matrix);});m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;m.computeBoundingSphere();skyMaze.add(m);skyVegetationCells.push({m,n:list.length,kind,center:m.boundingSphere.center.clone(),radius:m.boundingSphere.radius});
+ }
+}
+function vegetationBatch(){const up=new THREE.Vector3(0,1,0);skyBatch(rootGeo,rootMat,roots,p=>p[0],(d,[a,b,r])=>{const v=b.clone().sub(a);d.position.copy(a).add(b).multiplyScalar(.5);d.quaternion.setFromUnitVectors(up,v.clone().normalize());d.scale.set(r,v.length(),r);},'root');skyBatch(leafGeo,leafMat,leaves,p=>p[0],(d,[p,r],m,i)=>{d.position.copy(p);d.rotation.set(i*.7,i*1.3,0);d.scale.set(r,r*.65,r);},'leaf');}
+let skyLodStamp=-Infinity;
+function updateSkyVegetation(t){
+ if(t-skyLodStamp<180)return;skyLodStamp=t;
+ const p=player.position,active=p.y>skyMazeY-100;
+ for(const c of skyVegetationCells){const distance=Math.max(0,p.distanceTo(c.center)-c.radius),detail=c.kind==='grass'||c.kind==='flower',upper=c.center.y>=skyMazeY+130;
+  const hidden=!active||distance>(detail?210:390)||(upper&&p.y<skyMazeY+95)||(!upper&&p.y>skyMazeY+155);
+  c.m.visible=!hidden;if(hidden)continue;
+  const ratio=detail?(distance<65?1:distance<125?.55:.2):c.kind==='tree'||c.kind==='root'||c.kind==='leaf'?1:(distance<110?1:distance<220?.7:.35);
+  c.m.count=Math.max(1,Math.ceil(c.n*ratio));
+ }
+}
 // Expanded surrounding galleries and root-covered colonnades.
 for(let ix=-5;ix<=5;ix++)for(let iz=-5;iz<=5;iz++){const x=ix*59,z=-65+iz*59;if(Math.abs(x)<150&&Math.abs(z+65)<175)continue;mazeBox(x,skyMazeY+48,z,15,96,15);mazeBox(x,skyMazeY+101,z,26,10,26,1);growColumn(x,z,9,96,ix*11+iz);}
 for(const x of [-235,235])for(const z of [-290,-110,70,220]){mazeBox(x,skyMazeY+40,z,12,80,80,1);}
@@ -3326,7 +3348,7 @@ skyRamp(0,145,sy+160,195,160,sy+160,26);
  mazeBox(poolX,iy+17,poolZ-39,20,34,5,1);
  const foam=new THREE.Mesh(new THREE.CircleGeometry(1,24),new THREE.MeshBasicMaterial({color:0xc1e4dc,transparent:true,opacity:.45,depthWrite:false}));foam.rotation.x=-Math.PI/2;foam.scale.set(9,5,1);foam.position.set(poolX,poolY+.04,poolZ-35);skyMaze.add(foam);
  skyMaze.userData.waterfallTime=fallsMat.uniforms.time;
- const d=new THREE.Object3D();for(let k=0;k<batches.length;k++){const list=batches[k],m=new THREE.InstancedMesh(geos[k],mats[k],list.length);list.forEach((p,i)=>{d.position.set(p.x,p.y,p.z);d.rotation.set(0,p.ry,p.rz);d.scale.set(p.sx,p.hy,p.sz);d.updateMatrix();m.setMatrixAt(i,d.matrix);if(p.color!==null)m.setColorAt(i,new THREE.Color(p.color));});m.instanceMatrix.needsUpdate=true;if(m.instanceColor)m.instanceColor.needsUpdate=true;m.computeBoundingSphere();skyMaze.add(m);}
+ for(let k=0;k<batches.length;k++){skyBatch(geos[k],mats[k],batches[k],p=>p,(d,p,m,i)=>{d.position.set(p.x,p.y,p.z);d.rotation.set(0,p.ry,p.rz);d.scale.set(p.sx,p.hy,p.sz);if(p.color!==null)m.setColorAt(i,new THREE.Color(p.color));},['tree','tree','leaf','grass','flower'][k]);}
 }
 for(let j=0;j<3;j++){const parts=mazeParts[j],mesh=new THREE.InstancedMesh(mazeGeo,[mazeRock,mazeDark,mazeGreen][j],parts.length),d=new THREE.Object3D();parts.forEach((p,i)=>{d.position.set(p[0],p[1],p[2]);d.scale.set(p[3],p[4],p[5]);d.updateMatrix();mesh.setMatrixAt(i,d.matrix);});mesh.instanceMatrix.needsUpdate=true;mesh.computeBoundingSphere();skyMaze.add(mesh);}
 const blastButton=document.createElement('button');blastButton.textContent='✦ 爆風転送 / SKY CITADEL';
@@ -4451,7 +4473,7 @@ function diagApplyCrystalVisibility(){const hide=fractureDiag.hideCrystals;
   if(infectionTier((cx+.5)*250,(cz+.5)*250)>0)entry.group.visible=hide?false:entry.group.visible;
  }
 }
-function update(t){requestAnimationFrame(update);if(skyMaze.userData.waterfallTime&&player.position.y>skyMazeY+100)skyMaze.userData.waterfallTime.value=t*.001;if(blastRunning){renderBlast(t);return;}updateBlastAccess();
+function update(t){requestAnimationFrame(update);if(skyMaze.userData.waterfallTime&&player.position.y>skyMazeY+100)skyMaze.userData.waterfallTime.value=t*.001;if(blastRunning){renderBlast(t);return;}updateSkyVegetation(t);updateBlastAccess();
  if(fractureDiag.open){
   diagMeasure('radio',()=>updateRadioArray(t));
   if(!fractureDiag.pauseFlocks)diagMeasure('flocks',()=>updateIndustrialAerials(t));
