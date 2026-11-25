@@ -1178,6 +1178,7 @@ function defeatDecoy(dummy,dx,dz){
    notify('DECOY DOWN // 残機 '+state.lives+' / 2 ・ タグ移動なし');
    return false;
  }
+ if(state.leviathanRemnant){const m=new THREE.Mesh(new THREE.ConeGeometry(.4,2.5,4),new THREE.MeshStandardMaterial({color:state.leviathanRemnant.leviathan.color,metalness:.9,emissive:0x667788,emissiveIntensity:1}));m.position.copy(dummy.position);scene.add(m);leviRemnantDrop={m,cell:state.leviathanRemnant};}
  dissolveEnemy(dummy,dx,dz);
  enemies.splice(enemies.indexOf(dummy),1);
  window.fractureAwardDecoyTag?.();
@@ -4581,7 +4582,7 @@ function leviHit(power,t){
  return damageLeviathan(power>1?30:10,t);
 }
 const leviFalling=[],leviDeathMatrix=new THREE.Matrix4(),leviDeathQuat=new THREE.Quaternion(),leviDeathScale=new THREE.Vector3();
-let leviDeathAt=0,leviDeathPrev=0,leviRare=null,leviImpactKnock=null;
+let leviRemnantDrop=null;let leviDeathAt=0,leviDeathPrev=0,leviRare=null,leviImpactKnock=null;
 const leviRareColors=[0xffffff,0x9ca9b8,0x20242b,0xf02030,0x124dff,0x18dc55,0xffd21a];
 function startLeviDeath(t,force=false){
  leviDeathAt=leviDeathPrev=t;skyLeviathan.visible=true;skyLeviathan.updateWorldMatrix(true,true);
@@ -4591,7 +4592,7 @@ function startLeviDeath(t,force=false){
  if(force||Math.random()<.001){const color=leviRareColors[Math.floor(Math.random()*leviRareColors.length)],m=new THREE.Mesh(new THREE.ConeGeometry(.42,3.5,4),new THREE.MeshStandardMaterial({color,metalness:.92,roughness:.17,emissive:color===0x20242b?0x8294ac:color,emissiveIntensity:2}));m.position.copy(leviFalling[Math.floor(leviFalling.length/2)].p);const light=new THREE.PointLight(0xffffff,12,25);m.add(light);scene.add(m);leviRare={m,color,light,vy:0,fuseAt:0,origin:null};notify('RARE SIGNAL // LEGACY CELL');}
 }
 function updateLeviDeath(t){
- if(!leviDeathAt)return;const dt=Math.min(.05,Math.max(0,(t-leviDeathPrev)/1000));leviDeathPrev=t;const age=(t-leviDeathAt)/1000,p=player.position;
+ if(leviRemnantDrop&&!done&&player.position.distanceTo(leviRemnantDrop.m.position)<3){const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');d.leviathanRemnant=leviRemnantDrop.cell;localStorage.setItem('fracture_rebirth_v1',JSON.stringify(d));scene.remove(leviRemnantDrop.m);leviRemnantDrop=null;notify('LEGACY REMNANT // NEXT CELL DRAW');}if(!leviDeathAt)return;const dt=Math.min(.05,Math.max(0,(t-leviDeathPrev)/1000));leviDeathPrev=t;const age=(t-leviDeathAt)/1000,p=player.position;
  if(leviFalling.some(v=>!v.landed)){skyLeviathan.visible=true;leviathanMesh.material.color.copy(levi.deathColor).lerp(new THREE.Color(0x090b0e),Math.min(1,age/3));
  let hit=null;
  for(let i=0;i<leviFalling.length;i++){const v=leviFalling[i];if(!v.landed){if(age<1.8){v.q.multiply(new THREE.Quaternion().setFromAxisAngle(sfUp,Math.sin(t*.045+i)*dt*.07*(1-age/1.8)));}else if(age>1.8+v.delay){v.velocity=Math.min(145,v.velocity+38*dt);v.p.y-=v.velocity*dt;v.q.slerp(new THREE.Quaternion().setFromUnitVectors(sfUp,new THREE.Vector3(0,-1,0)),Math.min(1,dt*1.1));if(v.p.y<=v.scale.y*.15){v.p.y=v.scale.y*.15;v.landed=true;if(!done&&p.y<12&&Math.hypot(p.x-v.p.x,p.z-v.p.z)<Math.max(6,v.scale.x*.65))hit=v;}}}
@@ -4614,6 +4615,7 @@ for(const b of [skyTestWarp,skyTestShot]){Object.assign(b.style,{position:'fixed
 Object.assign(skyTestWarp.style,{right:'12px',top:'294px'});Object.assign(skyTestShot.style,{right:'15px',top:'46%',display:'none'});
 skyTestWarp.addEventListener('click',e=>{e.stopPropagation();if(done||blastRunning)return;const h=skyMazeY+160;if(testFlight)testFlightHeight=h;player.position.set(195,h+1.35,160);climbFloor=h;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=h;fallPeak=h;fallGlideUsed=false;moveVX=moveVZ=dashX=dashZ=0;dashUntil=0;glideAutoHold=false;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();camera.position.set(195,h+5,172);camera.lookAt(player.position);blastFinished=true;notify('DEV WARP // SKY GARDEN');});
 const rareTest=document.createElement('button');rareTest.textContent='TEST LEGACY';Object.assign(rareTest.style,{position:'fixed',right:'12px',top:'330px',zIndex:'9999',background:'#123440ed',color:'#c8faff',padding:'8px',border:'1px solid #82d6e8',borderRadius:'8px'});document.body.appendChild(rareTest);rareTest.addEventListener('pointerdown',e=>e.stopPropagation());rareTest.addEventListener('click',()=>{if(done||levi.dead)return;levi.hp=0;levi.dead=true;levi.aggro=false;startLeviDeath(performance.now(),true);notify('DEV // GUARANTEED LEGACY DROP');});
+const remnantTest=document.createElement('button');remnantTest.textContent='TEST REMNANT';Object.assign(remnantTest.style,{position:'fixed',right:'12px',top:'368px',zIndex:'9999',background:'#123440ed',color:'#c8faff',padding:'8px',border:'1px solid #82d6e8',borderRadius:'8px'});document.body.appendChild(remnantTest);remnantTest.addEventListener('pointerdown',e=>e.stopPropagation());remnantTest.addEventListener('click',()=>{if(!enemies.includes(decoy)){notify('DECOY ALREADY DEAD');return;}decoy.userData.leviathanRemnant={recipe:{basic:20,aerial:35,heavy:12},seed:Math.floor(Math.random()*1e9),leviathan:{color:0x124dff}};decoy.userData.body.material.color.setHex(0x124dff);notify('DEV // DECOY LEGACY REMNANT ENABLED');});
 let skyShotAt=-Infinity;
 skyTestShot.addEventListener('click',e=>{e.stopPropagation();const t=performance.now();if(done||!scopeActive||player.position.y<skyMazeY+115||levi.dead||t-skyShotAt<450)return;skyShotAt=t;
  // Exact ray intersection with the aggregate ellipsoid in boss-local space.
@@ -5251,4 +5253,4 @@ async function startupPrewarm(){
  loading.classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
 }
 startupPrewarm().catch(e=>{console.error(e);$('loading').innerHTML='FRACTURE<br>PRELOAD ERROR<br><small>'+String(e.message||e)+'</small>';});
-</script><script src="./rebirth.js?v=2501"></script><script src="./legacy-cells.js?v=3"></script><script type="module" src="./cell-preview.js?v=2501"></script></body></html>
+</script><script src="./rebirth.js?v=2501"></script><script src="./legacy-cells.js?v=2501"></script><script type="module" src="./cell-preview.js?v=2501"></script></body></html>
