@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V233 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V234 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3270,24 +3270,46 @@ for(let j=0;j<3;j++){const parts=mazeParts[j],mesh=new THREE.InstancedMesh(mazeG
 const blastButton=document.createElement('button');blastButton.textContent='✦ 爆風転送 / SKY CITADEL';
 Object.assign(blastButton.style,{position:'fixed',left:'50%',bottom:'120px',transform:'translateX(-50%)',zIndex:'9000',padding:'12px 16px',border:'1px solid #b9e9f9',borderRadius:'12px',background:'#102534ee',color:'#f0faff',fontWeight:'bold',display:'none',touchAction:'manipulation'});
 document.body.appendChild(blastButton);
-const blastScreen=document.createElement('div');blastScreen.style.cssText='position:fixed;inset:0;z-index:8999;pointer-events:none;display:none;overflow:hidden;opacity:0;background:radial-gradient(ellipse,#eff7fa,#8da6b6 65%,#40586b);transition:opacity .12s linear';document.body.appendChild(blastScreen);
-blastScreen.innerHTML='<div id="blastCloud" style="position:absolute;inset:-30%;background:repeating-radial-gradient(ellipse at 50% 40%,#ffffff9c 0px,#819caa 80px,#d3e0e8 145px);filter:blur(28px);animation:cloudRush .4s linear infinite"></div><div id="blastBow" style="position:absolute;left:50%;top:45%;width:85vw;height:100vh;transform:translate(-50%,-50%) scale(.12);opacity:0;transition:transform .52s ease-in,opacity .15s;background:radial-gradient(ellipse,#e3ffff 0 3%,#8ce1ee 4%,#182f3b 10%,#0c1b25 27%,transparent 28%);border-radius:50%;filter:blur(4px)"></div><div id="blastCaption" style="position:absolute;top:15%;width:100%;text-align:center;color:white;font-size:16px;font-weight:bold;letter-spacing:.13em;text-shadow:0 2px 12px #000"></div><div id="blastBlink" style="position:absolute;inset:0;background:#000;opacity:0;transition:opacity .08s"></div>';
-const blastCSS=document.createElement('style');blastCSS.textContent='@keyframes cloudRush{from{transform:translateY(0)}to{transform:translateY(22%)}}';document.head.appendChild(blastCSS);
-let blastRunning=false,blastFinished=false;
+// V234: continuous world-space ascent and original vessel close flyby.
+const blastScreen=document.createElement('div');blastScreen.style.cssText='position:fixed;inset:0;z-index:8999;pointer-events:none;display:none;opacity:0;background:#000';document.body.appendChild(blastScreen);
+let blastRunning=false,blastFinished=false,blastStart=0,blastOrigin=null,blastFog=null,blastFov=78,blastSavedSky=null,blastVessel=null,blastArrived=false;
+const blastCloudScene=new THREE.Scene();blastCloudScene.background=new THREE.Color(0xa8b7c0);blastCloudScene.fog=new THREE.FogExp2(0xa8b7c0,.013);
+const blastCloudMat=new THREE.ShaderMaterial({depthWrite:false,side:THREE.BackSide,uniforms:{time:{value:0}},vertexShader:'varying vec3 v;void main(){v=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}',fragmentShader:`varying vec3 v;uniform float time;float hash(vec3 p){return fract(sin(dot(p,vec3(127.1,311.7,74.7)))*43758.5453);}float n(vec3 p){vec3 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(mix(hash(i),hash(i+vec3(1,0,0)),f.x),mix(hash(i+vec3(0,1,0)),hash(i+vec3(1,1,0)),f.x),f.y),mix(mix(hash(i+vec3(0,0,1)),hash(i+vec3(1,0,1)),f.x),mix(hash(i+vec3(0,1,1)),hash(i+vec3(1,1,1)),f.x),f.y),f.z);}void main(){vec3 p=normalize(v)*5.+vec3(0,time*5.,0);float c=n(p)*.65+n(p*2.1)*.25+n(p*4.3)*.1;gl_FragColor=vec4(mix(vec3(.43,.54,.61),vec3(.87,.91,.93),smoothstep(.15,.85,c)),1.);}`});
+const blastCloudSphere=new THREE.Mesh(new THREE.SphereGeometry(900,24,16),blastCloudMat);blastCloudScene.add(blastCloudSphere);blastCloudScene.add(new THREE.HemisphereLight(0xbccedb,0x25333c,1.4));
 function updateBlastAccess(){const near=Math.hypot(player.position.x,player.position.z+65)<85;blastButton.style.display=!done&&!blastRunning&&!blastFinished&&near&&climbFloor+jumpHeight>65?'block':'none';}
-blastButton.addEventListener('click',async()=>{
- if(done||blastRunning)return;blastRunning=true;blastButton.style.display='none';
- const sleep=ms=>new Promise(r=>setTimeout(r,ms)),caption=document.getElementById('blastCaption'),bow=document.getElementById('blastBow'),blink=document.getElementById('blastBlink');
- blastScreen.style.display='block';blastScreen.style.opacity='1';caption.textContent='BLAST IGNITION // 垂直射出';await sleep(140);
- const startY=climbFloor+jumpHeight,started=performance.now();
- await new Promise(resolve=>{function ascend(now){const k=Math.min(1,(now-started)/850),ease=1-Math.pow(1-k,3);player.position.set(skyMazeX,startY+(skyMazeY-startY)*ease,skyMazeZ);camera.position.set(skyMazeX,player.position.y+5,skyMazeZ+11);if(k<1)requestAnimationFrame(ascend);else resolve();}requestAnimationFrame(ascend);});
- caption.textContent='CLOUD VELOCITY';await sleep(320);
- bow.style.opacity='1';bow.style.transform='translate(-50%,35%) scale(2.8)';caption.textContent='UNKNOWN VESSEL';await sleep(540);bow.style.opacity='0';await sleep(190);
- for(let i=0;i<3;i++){blink.style.opacity='1';await sleep(100);blink.style.opacity='0';await sleep(130);}
- blink.style.opacity='1';await sleep(250);
- player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();camera.position.set(skyMazeX,skyMazeY+5,skyMazeZ+12);
- blastFinished=true;caption.textContent='SKY CITY // ANCIENT UNDERCROFT';await sleep(360);blastScreen.style.opacity='0';await sleep(150);blastScreen.style.display='none';blastRunning=false;notify('SKY CITY // 第一層・地下迷宮');
+blastButton.addEventListener('click',()=>{
+ if(done||blastRunning)return;blastRunning=true;blastButton.style.display='none';blastStart=performance.now();blastOrigin=player.position.clone();blastFog=scene.fog;blastFov=camera.fov;blastSavedSky=scene.background;blastArrived=false;
+ // Reuse the real airborne vessel geometry and navigation lights, without moving the live vessel.
+ blastVessel=blackVessel.clone(true);const mats=new Map();
+ blastVessel.traverse(o=>{if(!o.isMesh)return;const src=o.material;if(!mats.has(src)){const m=src.clone();m.fog=true;mats.set(src,m);}o.material=mats.get(src);});
+ blastVessel.userData.blastMaterials=[...mats.values()];blastVessel.scale.setScalar(20);blastVessel.rotation.set(0,0,0);blastVessel.position.set(1810,0,-45);blastCloudScene.add(blastVessel);
+ blastScreen.style.display='block';blastScreen.style.opacity='0';scene.fog=new THREE.FogExp2(0xa8b7c0,.0032);
 });
+function renderBlast(t){
+ const sec=Math.max(0,(t-blastStart)/1000),smooth=(a,b,x)=>{const k=THREE.MathUtils.clamp((x-a)/(b-a),0,1);return k*k*(3-2*k);};
+ if(sec<2.5){
+  const rise=1450*(1-Math.exp(-sec*1.65));player.position.set(blastOrigin.x,blastOrigin.y+rise,blastOrigin.z);
+  const shake=1.5*Math.exp(-sec*5);camera.position.set(player.position.x+Math.sin(sec*77)*shake,player.position.y+8,player.position.z+18);
+  camera.lookAt(player.position.x,player.position.y-18-40*smooth(0,1,sec),player.position.z-9);
+  camera.fov=blastFov+24*Math.exp(-sec*1.1);camera.updateProjectionMatrix();
+  scene.fog.density=.0032+.065*smooth(.65,2.3,sec);
+  blastScreen.style.background='#a8b7c0';blastScreen.style.opacity=String(smooth(1.65,2.5,sec));renderer.render(scene,camera);return;
+ }
+ if(sec<5.65){
+  const q=sec-2.5;camera.position.set(0,(q-1.45)*210,0);camera.lookAt(0,camera.position.y+35,-85);camera.fov=88;camera.updateProjectionMatrix();
+  blastCloudSphere.position.copy(camera.position);blastCloudMat.uniforms.time.value=q;
+  blastVessel.visible=q>.45&&q<2.5;blastVessel.position.set(1810,0,-55);
+  blastScreen.style.background='#a8b7c0';blastScreen.style.opacity=String(1-smooth(2.5,2.95,sec));renderer.render(blastCloudScene,camera);return;
+ }
+ if(!blastArrived){
+  blastScreen.style.background='#000';blastScreen.style.opacity='1';
+  if(sec<6.25)return;
+  player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+  camera.position.set(skyMazeX,skyMazeY+5,skyMazeZ+12);camera.lookAt(player.position);camera.fov=blastFov;camera.updateProjectionMatrix();scene.fog=blastFog;scene.background=blastSavedSky;blastArrived=true;
+ }
+ renderer.render(scene,camera);blastScreen.style.opacity=String(1-smooth(6.35,7.1,sec));
+ if(sec>=7.1){blastCloudScene.remove(blastVessel);for(const m of blastVessel.userData.blastMaterials)m.dispose();blastVessel=null;blastScreen.style.display='none';blastRunning=false;blastFinished=true;notify('SKY CITY // 第一層・地下迷宮');}
+}
 // V151: quick industrial vertical-slice access for repeatable mobile QA.
 const industryWarpButton=document.createElement('button');
 industryWarpButton.textContent='TEST ⇧ PARABOLA';
@@ -4367,7 +4389,7 @@ function diagApplyCrystalVisibility(){const hide=fractureDiag.hideCrystals;
   if(infectionTier((cx+.5)*250,(cz+.5)*250)>0)entry.group.visible=hide?false:entry.group.visible;
  }
 }
-function update(t){requestAnimationFrame(update);if(blastRunning){renderer.render(scene,camera);return;}updateBlastAccess();
+function update(t){requestAnimationFrame(update);if(blastRunning){renderBlast(t);return;}updateBlastAccess();
  if(fractureDiag.open){
   diagMeasure('radio',()=>updateRadioArray(t));
   if(!fractureDiag.pauseFlocks)diagMeasure('flocks',()=>updateIndustrialAerials(t));
