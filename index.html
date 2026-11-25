@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V235 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V236 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3214,6 +3214,7 @@ let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let g
   o.position.set(p.x,p.h+3.1,p.z);scene.add(o);relics++;
  }
 }
+function skyWalkSupport(x,z,feet){let best=0;for(const p of climbDecks){if(!p.skyMaze||Math.abs(x-p.x)>p.w/2+.35||Math.abs(z-p.z)>p.d/2+.35||Math.abs(p.h-feet)>3.5)continue;best=Math.max(best,p.h);}for(const p of climbRamps){if(!p.skyMaze)continue;const dx=p.bx-p.ax,dz=p.bz-p.az,u=Math.max(0,Math.min(1,((x-p.ax)*dx+(z-p.az)*dz)/(dx*dx+dz*dz)));if(Math.hypot(x-p.ax-dx*u,z-p.az-dz*u)>p.width+.35)continue;const h=p.ah+(p.bh-p.ah)*u;if(Math.abs(h-feet)<=3.5)best=Math.max(best,h);}return best;}
 function climbDeckUnder(x,z,feet){
  let best=0;
  for(const p of climbDecks){
@@ -3254,11 +3255,11 @@ const mazeRock=new THREE.MeshStandardMaterial({color:0x686d67,roughness:1,flatSh
 const mazeGeo=new THREE.BoxGeometry(1,1,1),mazeParts=[[],[],[]];
 function mazeBox(x,y,z,w,h,d,mat=0){mazeParts[mat].push([x,y,z,w,h,d]);}
 function mazeFloor(x,z,w,d,h=skyMazeY){mazeBox(x,h-11,z,w,22,d);climbDecks.push({x,z,h,w,d,legacy:true,skyMaze:true});}
-mazeFloor(0,-65,340,340);
+mazeFloor(0,-65,680,680);
 for(let i=0;i<12;i++){const a=i*Math.PI/6;mazeBox(Math.cos(a)*165,skyMazeY-60,-65+Math.sin(a)*165,105,135,105,1);}
-mazeBox(-52,skyMazeY+127,-65,266,26,370,1);mazeBox(155,skyMazeY+127,-65,60,26,370,1);
-mazeBox(-174,skyMazeY+57,-65,22,114,370,1);mazeBox(174,skyMazeY+57,-105,22,114,290,1);
-for(const z of [-239,109])mazeBox(0,skyMazeY+57,z,370,114,22,1);
+mazeBox(-139,skyMazeY+127,-65,422,26,700,1);mazeBox(244,skyMazeY+127,-65,212,26,700,1);mazeBox(105,skyMazeY+127,-324,66,26,182,1);mazeBox(105,skyMazeY+127,210,66,26,150,1);
+mazeBox(-344,skyMazeY+57,-65,22,114,700,1);mazeBox(344,skyMazeY+57,-65,22,114,700,1);
+for(const z of [-409,279])mazeBox(0,skyMazeY+57,z,700,114,22,1);
 for(let i=0;i<7;i++){const z=-215+i*50;for(const x of [-110,-55,55,110]){mazeBox(x,skyMazeY+48,z,13,96,15);mazeBox(x,skyMazeY+100,z,26,8,25,1);}mazeBox(0,skyMazeY+112,z,250,10,12,1);}
 for(let i=0;i<14;i++){const a=i*Math.PI/7;mazeBox(Math.cos(a)*48,skyMazeY+55,-65+Math.sin(a)*48,9,110,9);}
 for(let i=0;i<25;i++){const x=-150+(i%5)*75,z=-210+Math.floor(i/5)*70;mazeBox(x,skyMazeY+143,z,12,20+(i%3)*8,12,2);}
@@ -3278,16 +3279,20 @@ function growColumn(x,z,r,h,seed){
 for(let i=0;i<7;i++)for(const x of [-110,-55,55,110])growColumn(x,-215+i*50,9,96,i+x);
 for(let i=0;i<14;i++){const a=i*Math.PI/7;growColumn(Math.cos(a)*48,-65+Math.sin(a)*48,6,110,i);}
 function vegetationBatch(){const d=new THREE.Object3D(),up=new THREE.Vector3(0,1,0),m=new THREE.InstancedMesh(rootGeo,rootMat,roots.length),l=new THREE.InstancedMesh(leafGeo,leafMat,leaves.length);roots.forEach(([a,b,r],i)=>{const v=b.clone().sub(a);d.position.copy(a).add(b).multiplyScalar(.5);d.quaternion.setFromUnitVectors(up,v.clone().normalize());d.scale.set(r,v.length(),r);d.updateMatrix();m.setMatrixAt(i,d.matrix);});leaves.forEach(([p,r],i)=>{d.position.copy(p);d.rotation.set(i*.7,i*1.3,0);d.scale.set(r,r*.65,r);d.updateMatrix();l.setMatrixAt(i,d.matrix);});for(const o of [m,l]){o.instanceMatrix.needsUpdate=true;o.computeBoundingSphere();skyMaze.add(o);}}
+// Expanded surrounding galleries and root-covered colonnades.
+for(let ix=-5;ix<=5;ix++)for(let iz=-5;iz<=5;iz++){const x=ix*59,z=-65+iz*59;if(Math.abs(x)<150&&Math.abs(z+65)<175)continue;mazeBox(x,skyMazeY+48,z,15,96,15);mazeBox(x,skyMazeY+101,z,26,10,26,1);growColumn(x,z,9,96,ix*11+iz);}
+for(const x of [-235,235])for(const z of [-290,-110,70,220]){mazeBox(x,skyMazeY+40,z,12,80,80,1);}
+for(const z of [-295,165])for(const x of [-250,-100,0,180,280])mazeBox(x,skyMazeY+40,z,65,80,12,1);
 vegetationBatch();
 function skyRamp(ax,az,ah,bx,bz,bh,w=18){const a=new THREE.Vector3(ax,ah,az),b=new THREE.Vector3(bx,bh,bz),v=b.clone().sub(a),m=new THREE.Mesh(new THREE.BoxGeometry(w,2,v.length()),mazeRock);m.position.copy(a).add(b).multiplyScalar(.5);m.position.y-=1;m.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),v.clone().normalize());skyMaze.add(m);climbRamps.push({ax,az,ah,bx,bz,bh,width:w/2,skyMaze:true});}
 const sy=skyMazeY;
-skyRamp(112,-205,sy,112,85,sy+70,20);mazeFloor(112,85,28,28,sy+70);
-skyRamp(112,85,sy+70,112,-205,sy+142,20); // separate parallel lane below
-// Shift the return ramp laterally so the two flights do not overlap.
-const ret=climbRamps[climbRamps.length-1];ret.ax=88;ret.bx=88;skyMaze.children[skyMaze.children.length-1].position.x=88;
-mazeFloor(100,85,48,28,sy+70);mazeFloor(100,-205,50,35,sy+142);
+skyRamp(118,-205,sy,118,85,sy+70,30);
+skyRamp(80,85,sy+70,80,-205,sy+142,30);
+// Wide, overlapping landing with matching visible top and collision footprint.
+mazeFloor(99,94,78,60,sy+70);
+mazeFloor(99,-205,78,50,sy+142);
 mazeFloor(0,-65,170,270,sy+142);
-skyRamp(100,-205,sy+142,0,-205,sy+142,20);
+skyRamp(80,-205,sy+142,0,-205,sy+142,30);
 mazeFloor(0,-205,35,45,sy+142);
 // Interior sanctuary with roof, open central doorway and ruined colonnade.
 for(const x of [-72,72])mazeBox(x,sy+166,-65,8,48,170,1);
@@ -4695,7 +4700,8 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  if(jumpCount>0){
  // V78: on leaving a raised deck, convert platform elevation to airborne height
  // before integrating gravity. This preserves world-space height across the edge.
- if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.85){jumpHeight+=climbFloor;climbFloor=0;}
+ if(climbFloor>=skyMazeY-1&&jumpCount===0){const h=skyWalkSupport(player.position.x,player.position.z,climbFloor);if(h>0){climbFloor=h;jumpHeight=0;climbPrevFeet=h;}}
+ if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.85&&!(climbFloor>=skyMazeY-1&&jumpCount===0&&skyWalkSupport(player.position.x,player.position.z,climbFloor)>0)){jumpHeight+=climbFloor;climbFloor=0;}
  gliding=glideAutoHold&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;jumpVelocity=Math.max(glideActive?-5:-34,jumpVelocity-gravity*dt);jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);
  // Detect the descending crossing BEFORE the generic ground solver can land the player.
  const tankDist=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z);
@@ -4769,7 +4775,8 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  climbFloor=rampFloor;jumpHeight=0;jumpCount=0;jumpVelocity=0;landedJumpCount=0;
 }
  if(jumpCount===0&&!inIndustrialWater(player.position.x,player.position.z)){
-  if(rampFloor>0&&Math.abs(feet-rampFloor)<22){climbFloor=rampFloor;jumpHeight=0;jumpVelocity=0;}
+  if(feet>=skyMazeY-1&&skyWalkSupport(player.position.x,player.position.z,feet)>0){climbFloor=skyWalkSupport(player.position.x,player.position.z,feet);jumpHeight=0;jumpVelocity=0;}
+  else if(rampFloor>0&&Math.abs(feet-rampFloor)<22){climbFloor=rampFloor;jumpHeight=0;jumpVelocity=0;}
   else if(deck<climbFloor-.85){fallPeak=climbFloor;fallGlideUsed=false;jumpCount=1;jumpVelocity=0;jumpHeight=climbFloor;climbFloor=0}
   else if(deck>climbFloor+.001&&deck-climbFloor<1.2)climbFloor=deck;
   else if(deck>=climbFloor-.85)climbFloor=deck;
