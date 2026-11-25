@@ -51,8 +51,9 @@ window.fractureAwardDecoyTag=()=>{const gained=decoyTags+1;data.tags+=gained;not
 window.fractureReturnHome=()=>{document.getElementById('result')?.classList.remove('show');show();};
 window.fractureActiveAbility=()=>({name:data.ability?.name,type:data.ability?.type,generation:data.generation});
 window.fractureLivesRemaining=()=>data.lives;
-window.fractureAwardLeviathan=()=>{data.lives++;data.leviathanCores=(data.leviathanCores||0)+1;save();note='LEVIATHAN CORE × '+data.leviathanCores+' / 残機 +1';render();};
-window.fractureFinish=(success,kills)=>{if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;
+window.fractureAwardLeviathan=()=>{data=JSON.parse(localStorage.getItem(KEY)||'null')||data;data.lives++;data.leviathanCores=(data.leviathanCores||0)+1;save();note='LEVIATHAN CORE × '+data.leviathanCores+' / 残機 +1';render();};
+window.fractureFuseLeviathan=(color)=>{data=JSON.parse(localStorage.getItem(KEY)||'null')||data;const old=(data.cells||[]).find(c=>String(c.seed)===localStorage.getItem('fracture_equipped_cell_seed'));const seed=old?.seed??Math.floor(Math.random()*1e9);const c=old||{name:'CELL',recipe:{basic:1},seed};if(!old)(data.cells??=[]).push(c);c.leviathan={color};c.name='LEGACY CELL / LEVIATHAN #'+String(seed).slice(-4);localStorage.setItem('fracture_equipped_cell_seed',String(seed));save();window.dispatchEvent(new Event('fracture-cell-updated'));window.dispatchEvent(new Event('fracture-cell-equipped'));note='LEGACY CELL 獲得';render();};
+window.fractureFinish=(success,kills)=>{data=JSON.parse(localStorage.getItem(KEY)||'null')||data;if(success){note='脱出成功。個性と残機は維持されます。'}else{data.lives--;if(data.lives<=0){const lost=data.tags;data.tags=0;data.generation++;data.lives=2;data.ability=roll();data.bonus=null;
 // Preserve the original procedural workshop: each reincarnation receives a newly generated recipe/seed.
 const parts=['basic','heavy','aerial','swarm','stalker','paint','aura'];
 const recipe={};for(const part of parts)recipe[part]=Math.floor(Math.random()*9)+(Math.random()<.3?Math.floor(Math.random()*15):0);
