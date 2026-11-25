@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V253 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V255 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -2362,6 +2362,7 @@ backdrop(0,2160,0,infectedPanoramaMat);
 // V178: removed ground-level abyss and canal.
 // V151 industrial vertical slice: structural scenery and matching climb collision.
 // The original city's bridge, roof, movement and rebirth logic are untouched.
+const industrialSharedPipeGeo=new THREE.CylinderGeometry(1,1,1,9);
 const industrialPipeMat=new THREE.MeshStandardMaterial({color:0x62717a,metalness:.8,roughness:.48});
 const industrialRustMat=new THREE.MeshStandardMaterial({color:0x74564a,metalness:.58,roughness:.78});
 const industrialDarkMat=new THREE.MeshStandardMaterial({color:0x27343a,metalness:.48,roughness:.88});
@@ -2478,8 +2479,8 @@ function createStreamedTerrain(key){
   }
   function pipe(a,b,r=2.8){
    const va=new THREE.Vector3(...a),vb=new THREE.Vector3(...b),delta=vb.clone().sub(va);
-   const m=new THREE.Mesh(new THREE.CylinderGeometry(r,r,delta.length(),9),industrialPipeMat);
-   m.position.copy(va.add(vb).multiplyScalar(.5));
+   const m=new THREE.Mesh(industrialSharedPipeGeo,industrialPipeMat);
+   m.scale.set(r,delta.length(),r);m.position.copy(va.add(vb).multiplyScalar(.5));
    m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),delta.clone().normalize());group.add(m);
    // Conservative AABB for horizontal/vertical pipe collision; same geometry endpoints.
    const w=Math.abs(a[0]-b[0])+r*1.7,h=Math.abs(a[1]-b[1])+r*1.7,d=Math.abs(a[2]-b[2])+r*1.7;
@@ -2958,13 +2959,13 @@ if(tier===3){
  }
  const staticGroups=new Map();
  for(const mesh of [...group.children]){
-  if(!mesh.isMesh||mesh.isInstancedMesh||mesh.geometry!==terrainLandmarkGeo||mesh.children.length||Object.keys(mesh.userData).length)continue;
-  const k=mesh.material.uuid;let arr=staticGroups.get(k);if(!arr){arr=[];staticGroups.set(k,arr);}arr.push(mesh);
+  if(!mesh.isMesh||mesh.isInstancedMesh||(mesh.geometry!==terrainLandmarkGeo&&mesh.geometry!==industrialSharedPipeGeo)||mesh.children.length||Object.keys(mesh.userData).length)continue;
+  const k=mesh.geometry.uuid+':'+mesh.material.uuid;let arr=staticGroups.get(k);if(!arr){arr=[];staticGroups.set(k,arr);}arr.push(mesh);
  }
  for(const arr of staticGroups.values())if(arr.length>=3){
-  const inst=new THREE.InstancedMesh(terrainLandmarkGeo,arr[0].material,arr.length);
+  const inst=new THREE.InstancedMesh(arr[0].geometry,arr[0].material,arr.length);
   for(let i=0;i<arr.length;i++){arr[i].updateMatrix();inst.setMatrixAt(i,arr[i].matrix);group.remove(arr[i]);}
-  inst.instanceMatrix.needsUpdate=true;inst.frustumCulled=false;group.add(inst);
+  inst.instanceMatrix.needsUpdate=true;inst.computeBoundingSphere();inst.frustumCulled=true;group.add(inst);
  }
  const infectionLevel=infectionTier((cx+.5)*250,(cz+.5)*250);
  const infectionMeshes=infectionLevel?[...group.children].filter(o=>o.isInstancedMesh):[];
@@ -3889,7 +3890,9 @@ function updateBeehives(t){
   applyBeeDamage(ticks*2,t);
  }
 }
+const industrialViewFrustum=new THREE.Frustum(),industrialViewMatrix=new THREE.Matrix4(),industrialViewSphere=new THREE.Sphere(new THREE.Vector3(),5);
 function updateIndustrialAerials(t){
+ camera.updateMatrixWorld();industrialViewFrustum.setFromProjectionMatrix(industrialViewMatrix.multiplyMatrices(camera.projectionMatrix,camera.matrixWorldInverse));
  // Render positions every animation frame. Only the 15 flock leaders steer at 30Hz.
  const dt=Math.min(.05,(t-(updateIndustrialAerials.prev||t))/1000||.016);
  updateIndustrialAerials.prev=t;
@@ -4144,6 +4147,7 @@ function updateIndustrialAerials(t){
    if(dist>.001){d.x+=(tx-d.x)/dist*step;d.y+=(ty-d.y)/dist*step;d.z+=(tz-d.z)/dist*step;}
    if(f.originEmbedded&&d.mode==='roam')boidVelocity.set(d,{x:(d.x-ox)/Math.max(.001,dt),z:(d.z-oz)/Math.max(.001,dt)});
   }
+  industrialViewSphere.center.set(d.x,d.y,d.z);if(industrialViewSphere.center.distanceToSquared(player.position)>35*35&&!industrialViewFrustum.intersectsSphere(industrialViewSphere))continue;
   const i=counts[d.type]++,mesh=industrialAerialMeshes[d.type];
   industrialDummy.position.set(d.x,d.y,d.z);
   // Cone tip is +Y. Rotate its tip to actual travel direction, never sideways.
@@ -4584,7 +4588,7 @@ function leviHit(power,t){
 const leviFalling=[],leviDeathMatrix=new THREE.Matrix4(),leviDeathQuat=new THREE.Quaternion(),leviDeathScale=new THREE.Vector3();
 let leviRemnantDrop=null;let leviDeathAt=0,leviDeathPrev=0,leviRare=null,leviImpactKnock=null;
 const leviDeathDark=new THREE.Color(0x090b0e),leviDeathDown=new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1,0,0),Math.PI),leviDeathWobble=new THREE.Quaternion();
-const leviRareColors=[0xffffff,0x9ca9b8,0x20242b,0xf02030,0x124dff,0x18dc55,0xffd21a];
+const leviRareColors=[0x9ca4ae,0x505b68,0x20242b,0x49252e,0x26374e,0x24443d,0x59482e];
 const legacyGuideGeo=new THREE.CylinderGeometry(.045,.045,1,8),legacyGuideMat=new THREE.MeshBasicMaterial({color:0x8eeaff,transparent:true,opacity:.85,depthTest:false,depthWrite:false,fog:false});
 const legacyGuide=new THREE.Mesh(legacyGuideGeo,legacyGuideMat);legacyGuide.frustumCulled=false;legacyGuide.renderOrder=999;legacyGuide.visible=false;scene.add(legacyGuide);
 const legacyMarker=document.createElement('div');legacyMarker.style.cssText='position:fixed;z-index:100;pointer-events:none;color:#bffaff;text-align:center;font:bold 12px system-ui;text-shadow:0 0 8px #00cfff,0 1px 3px black;display:none';document.body.appendChild(legacyMarker);
@@ -5075,6 +5079,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  const slidingRapids=waterslideProgress>=0&&slideIntake<=0;
  slideFlowTime.value=slidingRapids?t*.005:0; // Flow texture races ahead of the rider only during the slide.
  if(slideRapidMat.userData.active!==slidingRapids){slideRapidMat.userData.active=slidingRapids;for(const bed of slideRapidBeds)bed.material=slidingRapids?slideRapidMat:slideCalmMat;}
+ for(const bed of slideRapidBeds){bed.visible=slidingRapids;}
  slideWake.visible=slidingRapids;
  if(slidingRapids){
  // A broad, randomized 360-degree cone, narrow at the rider and wide near the camera.
@@ -5119,7 +5124,7 @@ if(rampFloor>0&&feet<rampFloor&&(climbPrevFeet>=rampFloor-2.5||climbRamps.some(p
  playerBubbles.visible=fullySubmerged;
  if(playerBubbles.visible){for(let i=0;i<bubbleCount;i++){const phase=(t*.00047+i*.61803398875)%1,ang=i*2.399963;const radius=.3+(i%7)*.12;bubbleDummy.position.set(player.position.x+Math.cos(ang)*radius+Math.sin(t*.001+i)*.14,player.position.y+.2+phase*4.2,player.position.z+Math.sin(ang)*radius);bubbleDummy.scale.setScalar(.55+(i%5)*.19);bubbleDummy.updateMatrix();playerBubbles.setMatrixAt(i,bubbleDummy.matrix);}playerBubbles.instanceMatrix.needsUpdate=true;}
  for(let i=splashRings.length-1;i>=0;i--){const ring=splashRings[i],age=t-ring.born;if(age>1150){scene.remove(ring.mesh);ring.mesh.material.dispose();splashRings.splice(i,1);}else if(age>=0){ring.mesh.scale.setScalar(.6+age*.012);ring.mesh.material.opacity=.55*(1-age/1150);}}
- for(const surface of canalWaterSurfaces){if(surface.userData.vortex){surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
+ for(const surface of canalWaterSurfaces){if(surface.userData.vortex){const nearVortex=Math.abs(player.position.y-elevatedReservoir.waterY)<100&&Math.hypot(player.position.x-vortexCenter.x,player.position.z-vortexCenter.z)<260;surface.visible=nearVortex;if(!nearVortex)continue;surface.rotation.y+=dt*2.5;surface.position.y=elevatedReservoir.waterY+.18+Math.sin(t*.003)*.18;const spray=surface.userData.spray,dummy=surface.userData.sprayDummy;if(spray){for(let i=0;i<spray.count;i++){const phase=(i*.61803398875+t*.00048)%1,angle=i*2.399963+t*.003*(.5+phase),radius=2+22*(1-phase);dummy.position.set(Math.cos(angle)*radius,-2+phase*7+Math.sin(t*.008+i)*1.1,Math.sin(angle)*radius);dummy.scale.setScalar(.35+phase*.95);dummy.rotation.set(t*.003+i,t*.005+i*.7,0);dummy.updateMatrix();spray.setMatrixAt(i,dummy.matrix);}spray.instanceMatrix.needsUpdate=true;}}}
  if(!testFlight&&t>portalCooldown&&waterslideProgress<0&&Math.hypot(player.position.x-industrialPortalLocation.x,player.position.z-industrialPortalLocation.z)<9&&climbFloor<15){resetTravel(1125,613,1100);portalCooldown=t+3000;notify('TANK CROWN // STEP OFF TO DIVE');}
 
  if(scene.fog){const nearSecret=Math.hypot(player.position.x-1125,player.position.z-1100)<850;const fogBlend=tier3FogBlend(player.position.x,player.position.z);tier3FogState.blend=fogBlend;
