@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V258 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V259 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3116,7 +3116,7 @@ function resolveFallDamage(ground,t){
 let glideWasActive=false,landingSkidUntil=0,landingSkidStart=0;
 let testFlight=false,testFlightHeight=0;
 const flightTestButton=document.createElement('button');flightTestButton.textContent='DEV FLIGHT OFF';Object.assign(flightTestButton.style,{position:'fixed',left:'10px',top:'calc(env(safe-area-inset-top) + 170px)',zIndex:'12',background:'#162b43e8',color:'#a8e8ff',border:'1px solid #72bcd9',borderRadius:'9px',padding:'7px 9px',font:'700 11px monospace',touchAction:'manipulation'});document.body.appendChild(flightTestButton);
-flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=Math.max(0,player.position.y-1.35,climbFloor+jumpHeight);releaseJump();radioLaunchUntil=0;waterslideProgress=-1;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=testFlightHeight;dashUntil=0;glideAutoHold=false;gliding=false;glideFlightActive=false;notify('FLIGHT TEST // ALT '+Math.round(testFlightHeight)+'m');}else{climbFloor=0;jumpHeight=Math.max(0,testFlightHeight);jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=jumpHeight;}});
+flightTestButton.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();if(blastRunning||done)return;testFlight=!testFlight;testFlightButton.textContent=testFlight?'DEV FLIGHT ON':'DEV FLIGHT OFF';if(testFlight){testFlightHeight=Math.max(0,player.position.y-1.35);releaseJump();radioLaunchUntil=0;waterslideProgress=-1;climbFloor=testFlightHeight;jumpHeight=0;jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=testFlightHeight;dashUntil=0;glideAutoHold=false;gliding=false;glideFlightActive=false;notify('FLIGHT TEST // ALT '+Math.round(testFlightHeight)+'m');}else{climbFloor=0;jumpHeight=Math.max(0,testFlightHeight);jumpVelocity=0;jumpCount=1;fallPeak=climbPrevFeet=jumpHeight;}});
 let glideInterrupted=false,glideFlightActive=false,lastGlideWallHit=-10000;let gliding=false,jumpHeld=false,jumpHeldAt=0,glideMorph=0;let glideAutoHold=false,glideAccelerateAt=0;function releaseJump(){jumpHeld=false;}window.addEventListener("blur",releaseJump);
 // V123: route from the REAL registered roof footprints. Geometry and
 // collision use the same coordinates; no more guessed intermediate rooftops.
@@ -3423,7 +3423,7 @@ function renderBlast(t){
  if(!blastArrived){
   blastScreen.style.background='#000';blastScreen.style.opacity='1';
   if(sec<6.25)return;
-  if(testFlight)testFlightHeight=skyMazeY;player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
+  testFlightHeight=skyMazeY;radioLaunchUntil=0;waterslideProgress=-1;waterPlungeUntil=0;dashUntil=0;iaiUntil=0;landingSkidUntil=0;player.position.set(skyMazeX,skyMazeY+1.35,skyMazeZ);climbFloor=skyMazeY;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=skyMazeY;fallPeak=skyMazeY;fallGlideUsed=false;moveVX=0;moveVZ=0;dashX=0;dashZ=0;glideFlightActive=false;gliding=false;glideInterrupted=false;releaseJump();
   camera.position.set(skyMazeX,skyMazeY+5,skyMazeZ+12);camera.lookAt(player.position);camera.fov=blastFov;camera.updateProjectionMatrix();scene.fog=blastFog;scene.background=blastSavedSky;blastArrived=true;
  }
  renderer.render(scene,camera);blastScreen.style.opacity=String(1-smooth(6.35,7.1,sec));
@@ -3477,7 +3477,7 @@ const portalGeo=new THREE.TorusGeometry(12,1.7,10,32);const portalMat=new THREE.
 const industryPortal=new THREE.Mesh(portalGeo,portalMat);industryPortal.position.set(industrialPortalLocation.x,industrialPortalLocation.y+9,industrialPortalLocation.z);scene.add(industryPortal);
 const crownPortalMesh=new THREE.Mesh(portalGeo,portalMat);crownPortalMesh.position.set(1125,624,1100);scene.add(crownPortalMesh);
 const crownDeck=new THREE.Mesh(new THREE.CylinderGeometry(85,85,3,48,1,false,0,Math.PI),new THREE.MeshStandardMaterial({color:0x5d737e,metalness:.65,roughness:.55,side:THREE.DoubleSide}));crownDeck.position.set(1125,613,1100);scene.add(crownDeck);climbDecks.push({x:1125,z:1100,h:614.5,w:150,d:110});
-const resetTravel=(x,y,z)=>{player.position.set(x,y+1.35,z);climbFloor=y;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=y;fallPeak=y;moveVX=moveVZ=dashX=dashZ=0;landingSkidUntil=0;gliding=false;glideFlightActive=false;glideInterrupted=false;releaseJump();};
+const resetTravel=(x,y,z)=>{testFlightHeight=y;player.position.set(x,y+1.35,z);climbFloor=y;jumpHeight=0;jumpVelocity=0;jumpCount=0;climbPrevFeet=y;fallPeak=y;moveVX=moveVZ=dashX=dashZ=0;landingSkidUntil=0;gliding=false;glideFlightActive=false;glideInterrupted=false;releaseJump();};
  function jumpNow(){if(testFlight)return;if(done||inIndustrialWater(player.position.x,player.position.z)||jumpCount>=(beehiveDebuffLevel(performance.now())>=1?1:2))return;
  // V108: before jumping after a glide landing, anchor to the actual roof
  // instead of carrying a stale ground-level climbFloor into the new jump.
@@ -4713,7 +4713,7 @@ function updateSkyFauna(t){
  pos.addScaledVector(levi.dir,levi.speed*dt);poseLeviathan(t,turn,dt);
  if(levi.aggro)leviHud.textContent='LEVIATHAN  '+levi.hp+' / 10000';
 }
-function update(t){requestAnimationFrame(update);if(skyMaze.userData.waterfallTime&&player.position.y>skyMazeY+100)skyMaze.userData.waterfallTime.value=t*.001;if(blastRunning){renderBlast(t);return;}updateSkyVegetation(t);updateSkyFauna(t);updateLeviDeath(t);updateLegacyGuide(t);updateFieldMaterials(t);updateBlastAccess();
+let framePrev=0,frameSamples=[];function update(t){requestAnimationFrame(update);if(framePrev&&t-framePrev<1000)frameSamples.push(t-framePrev);framePrev=t;if(skyMaze.userData.waterfallTime&&player.position.y>skyMazeY+100)skyMaze.userData.waterfallTime.value=t*.001;if(blastRunning){renderBlast(t);return;}updateSkyVegetation(t);updateSkyFauna(t);updateLeviDeath(t);updateLegacyGuide(t);updateFieldMaterials(t);updateBlastAccess();
  if(fractureDiag.open){
   diagMeasure('radio',()=>updateRadioArray(t));
   if(!fractureDiag.pauseFlocks)diagMeasure('flocks',()=>updateIndustrialAerials(t));
@@ -5217,7 +5217,7 @@ if(fractureDiag.open)diagMeasure('stream',()=>{streamGroundDetails(t);updateChun
  if(adaptiveQuality.enabled){adaptiveQuality.frames++;
   if(!adaptiveQuality.last)adaptiveQuality.last=t;
   if(t-adaptiveQuality.last>4500){const fps=adaptiveQuality.frames*1000/(t-adaptiveQuality.last);
-   const target=fps<38?Math.max(.85,adaptiveQuality.ratio-.15):fps>57?Math.min(Math.min(devicePixelRatio,1.6),adaptiveQuality.ratio+.1):adaptiveQuality.ratio;
+   const target=fps<53?Math.max(.85,adaptiveQuality.ratio-.1):fps>59?Math.min(Math.min(devicePixelRatio,1.6),adaptiveQuality.ratio+.1):adaptiveQuality.ratio;
    if(Math.abs(target-adaptiveQuality.ratio)>.01){adaptiveQuality.ratio=target;renderer.setPixelRatio(target);renderer.setSize(innerWidth,innerHeight);}
    adaptiveQuality.frames=0;adaptiveQuality.last=t;
   }
@@ -5227,7 +5227,7 @@ if(fractureDiag.open)diagMeasure('stream',()=>{streamGroundDetails(t);updateChun
  if(t-(window.__perfLast||0)>1000){
   window.__perfLast=t;
   const dtFrame=t-(window.__perfPrev||t);window.__perfPrev=t;
-  window.fracturePerf={fps:Math.round(window.__perfFrames||0),pixelRatio:+adaptiveQuality.ratio.toFixed(2),renderMs:+(performance.now()-renderStart).toFixed(1),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,sceneObjects:scene.children.length,loadedChunks:[...chunkCache.values()].filter(c=>c.loaded).length,eggs:infectionBrood.length,juveniles:infectionYoung.length,enemies:specialEnemies.length};
+  const sortedFrames=frameSamples.sort((a,b)=>a-b);const frameP95=sortedFrames[Math.max(0,Math.ceil(sortedFrames.length*.95)-1)]||0,frameMax=sortedFrames[sortedFrames.length-1]||0;frameSamples=[];window.fracturePerf={frameP95,frameMax,fps:Math.round(window.__perfFrames||0),pixelRatio:+adaptiveQuality.ratio.toFixed(2),renderMs:+(performance.now()-renderStart).toFixed(1),drawCalls:renderer.info.render.calls,triangles:renderer.info.render.triangles,sceneObjects:scene.children.length,loadedChunks:[...chunkCache.values()].filter(c=>c.loaded).length,eggs:infectionBrood.length,juveniles:infectionYoung.length,enemies:specialEnemies.length};
   window.__perfFrames=0;
   if(window.__perfOverlay)window.__perfOverlay.textContent=JSON.stringify(window.fracturePerf);
   if(fractureDiag.open)diagRefreshPanel();
@@ -5241,7 +5241,7 @@ window.fracturePerfPanel=()=>{
 };
 const diagUI=document.createElement('div');
 diagUI.style.cssText='position:fixed;left:8px;top:calc(90px + env(safe-area-inset-top));z-index:9998;font:12px monospace;color:#e7e9ff;pointer-events:none';
-diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V228</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagReset">すべて戻す</button></div>';
+diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V259</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagReset">すべて戻す</button></div>';
 document.body.appendChild(diagUI);
 const diagBody=diagUI.querySelector('#diagBody'),diagReadout=diagUI.querySelector('#diagReadout');
 diagUI.querySelectorAll('#diagBody button').forEach(b=>b.style.cssText='display:block;width:100%;margin-top:6px;background:#30264b;color:white;border:1px solid #8874bb;border-radius:5px;padding:7px;text-align:left;font:11px sans-serif');
@@ -5251,7 +5251,7 @@ diagUI.querySelector('#diagBrood').onclick=()=>{fractureDiag.pauseBrood=!fractur
 diagUI.querySelector('#diagFlocks').onclick=()=>{fractureDiag.pauseFlocks=!fractureDiag.pauseFlocks;updateIndustrialAerials.prev=performance.now();};
 diagUI.querySelector('#diagReset').onclick=()=>{fractureDiag.hideCrystals=false;fractureDiag.pauseBrood=false;fractureDiag.pauseFlocks=false;ancientCrystal.visible=true;infectionLastUpdate=performance.now();updateIndustrialAerials.prev=performance.now();};
 function diagRefreshPanel(){const m=fractureDiag.metrics,p=window.fracturePerf||{};
- diagReadout.textContent='FPS '+(p.fps??'?')+' | calls '+(p.drawCalls??'?')+' | triangles '+(p.triangles??'?')+'\\nCPU JS averages (ms):\\n'+
+ diagReadout.textContent='FPS '+(p.fps??'?')+' | calls '+(p.drawCalls??'?')+' | triangles '+(p.triangles??'?')+' | DPR '+(p.pixelRatio??'?')+' | P95 '+(p.frameP95||0).toFixed(1)+'ms | MAX '+(p.frameMax||0).toFixed(1)+'ms'+'\\nCPU JS averages (ms):\\n'+
  ['radio','flocks','water','brood','navigation','stream','render'].map(k=>k+': '+(m[k]||0).toFixed(2)).join(' | ')+'\\n'+
  'eggs '+infectionBrood.length+' / young '+infectionYoung.length+' / enemies '+specialEnemies.length+'\\n'+
  '結晶 '+(fractureDiag.hideCrystals?'OFF':'ON')+' | BEE '+(fractureDiag.pauseBrood?'PAUSED':'ON')+' | drones '+(fractureDiag.pauseFlocks?'PAUSED':'ON')+'\\n'+
