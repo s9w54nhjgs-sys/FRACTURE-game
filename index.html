@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V261 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V262 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -1512,6 +1512,7 @@ function cellDeathBurst(permadeath){
  }
  player.visible=false;
 }
+const pendingLeviCargo=[];
 function finish(success){
  if(done)return;
  clearSkyAggro();
@@ -1526,7 +1527,7 @@ function finish(success){
  }
  const lived=Math.floor((performance.now()-cellStarted)/1000);
  $('cellRecord').textContent='CELL RECORD\\n撃破数  '+kills+' KILLS\\n総与ダメージ  '+Math.round(cellDamage)+' DMG\\n移動距離  '+Math.round(cellDistance)+' m\\n生存時間  '+Math.floor(lived/60)+'m '+String(lived%60).padStart(2,'0')+'s';
- if(success){bankFieldCargo();window.fractureFinish?.(true,kills);}
+ if(success){bankFieldCargo();const key='fracture_rebirth_v1',d=JSON.parse(localStorage.getItem(key)||'{}');(d.leviathanWarehouse??=[]).push(...pendingLeviCargo);localStorage.setItem(key,JSON.stringify(d));window.fractureFinish?.(true,kills);}pendingLeviCargo.length=0;
  $('resultTitle').textContent=success?'EXTRACTION SUCCESS':finalCellDeath?'CELL LOST':'CELL TRANSFER';
  $('restart').textContent=finalCellDeath?'新しいCELLで転生':'残機で再出撃';
  $('resultText').textContent=success?'素材 '+loot+' 個回収 / 敵 '+kills+' 体撃破':finalCellDeath?'残機消失。CELLの記録を確定した。':'光学転送完了。残機を1消費して再出撃可能。';
@@ -1537,11 +1538,11 @@ let finalHomeReturnAt=0;
 let cellLogRevealAt=0;const deathCameraPosition=new THREE.Vector3(),deathCameraQuaternion=new THREE.Quaternion();let landingStrike=false,landingStrikePower=1;
 const shockwaves=[],shockGeo=new THREE.RingGeometry(.86,1,48),shockMat=new THREE.MeshBasicMaterial({color:0x8ffaff,transparent:true,opacity:.85,side:THREE.DoubleSide,depthWrite:false});
 function shockRing(x,z,radius,t){const m=new THREE.Mesh(shockGeo,shockMat.clone());m.rotation.x=-Math.PI/2;m.position.set(x,.11,z);scene.add(m);shockwaves.push({m,born:t,radius});}
-function aerialSlash(power,now){
+function aerialSlash(power,now){const diveDamage=(power>1?3:1)*(1+Math.max(0,-jumpVelocity-5)/25);
  const forwardX=-Math.sin(yaw),forwardZ=-Math.cos(yaw),radius=power>1?5.7:4.5;
  let hits=0;shockRing(player.position.x,player.position.z,2.3,now);
- for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz),front=(dx*forwardX+dz*forwardZ)/(d||1);if(d<radius&&front>-.15){e.userData.dormant=false;cellDamage+=power>1?3:1;e.userData.hp-=power>1?3:1;e.userData.stagger=now+700;e.userData.knockX=forwardX*18;e.userData.knockZ=forwardZ*18;enemyDebris(e.position.x,e.position.y,e.position.z,power>1,forwardX,forwardZ);impact(e.position.x,e.position.y,e.position.z);hits++;if(e.userData.hp<=0){if(e.userData.type==='decoy'){defeatDecoy(e,forwardX,forwardZ)}else{dissolveEnemy(e,forwardX,forwardZ);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}}
- for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z,d=Math.hypot(dx,dz),front=(dx*forwardX+dz*forwardZ)/(d||1);if(d<radius&&front>-.15&&Math.abs(u.g.position.y-player.position.y)<4){u.hp-=power>1?3:1;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,power>1,forwardX,forwardZ,0,false,u.type==='pursuer');impact(u.g.position.x,u.g.position.y,u.g.position.z);hits++;if(u.hp<=0){dissolveEnemy(u.g,forwardX,forwardZ,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}
+ for(const e of [...enemies]){const dx=e.position.x-player.position.x,dz=e.position.z-player.position.z,d=Math.hypot(dx,dz),front=(dx*forwardX+dz*forwardZ)/(d||1);if(d<radius&&front>-.15&&Math.abs(e.position.y-player.position.y)<4){e.userData.dormant=false;cellDamage+=diveDamage;e.userData.hp-=diveDamage;e.userData.stagger=now+700;e.userData.knockX=forwardX*18;e.userData.knockZ=forwardZ*18;enemyDebris(e.position.x,e.position.y,e.position.z,power>1,forwardX,forwardZ);impact(e.position.x,e.position.y,e.position.z);hits++;if(e.userData.hp<=0){if(e.userData.type==='decoy'){defeatDecoy(e,forwardX,forwardZ)}else{dissolveEnemy(e,forwardX,forwardZ);enemies.splice(enemies.indexOf(e),1);kills++;$('kills').textContent=kills}}}}
+ for(const u of [...specialEnemies]){const dx=u.g.position.x-player.position.x,dz=u.g.position.z-player.position.z,d=Math.hypot(dx,dz),front=(dx*forwardX+dz*forwardZ)/(d||1);if(d<radius&&front>-.15&&Math.abs(u.g.position.y-player.position.y)<4){u.hp-=diveDamage;enemyDebris(u.g.position.x,u.g.position.y,u.g.position.z,power>1,forwardX,forwardZ,0,false,u.type==='pursuer');impact(u.g.position.x,u.g.position.y,u.g.position.z);hits++;if(u.hp<=0){dissolveEnemy(u.g,forwardX,forwardZ,u.type==='pursuer');specialEnemies.splice(specialEnemies.indexOf(u),1);if(u.nest)u.nest.alive=Math.max(0,u.nest.alive-1);kills++;$('kills').textContent=kills}}}
  if(hits)hitStopUntil=Math.max(hitStopUntil,now+(power>1?240:185));notify('AIR SLASH');
 }
 function attack(power=1){const now=performance.now();if(done||now-lastAttack<210)return;if(hitSkyFauna(power,now)){lastAttack=now;return;}
@@ -1556,7 +1557,7 @@ function attack(power=1){const now=performance.now();if(done||now-lastAttack<210
  if(now<legacyEchoUntil)power=Math.max(power,1.6);
  if(hitBeehive(power,now)){lastAttack=now;return;}
  if(power>1)pendingCasingEject='charge'; // Only charged attacks eject molten shards.
- if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
+ if(jumpCount>0&&now>=dashUntil){lastAttack=now;attackPower=power;const timeToLand=(jumpVelocity+Math.sqrt(jumpVelocity*jumpVelocity+44*jumpHeight))/22;const landingWindow=jumpVelocity<0&&timeToLand<.23;if(landingWindow&&!glideFlightActive){landingStrike=true;landingStrikePower=power;notify('PERFECT LANDING // 衝撃波')}else aerialSlash(power,now);return}
  if(now<dashUntil){
   iaiUntil=now+185;iaiLastHit=0;iaiPower=power;
   const d=Math.hypot(dashX,dashZ);iaiX=d>.01?dashX:-Math.sin(yaw);iaiZ=d>.01?dashZ:-Math.cos(yaw);
@@ -3676,7 +3677,7 @@ function glideWallImpact(t,speed){
   if(hp<=0)finish(false);
  }
  // Lock glide for this entire airborne episode, even if the button is released.
- glideInterrupted=true;gliding=false;glideWasActive=false;glideFlightActive=false;
+ glideInterrupted=false;glideAutoHold=false;gliding=false;glideWasActive=false;glideFlightActive=false;
  jumpHeld=false;fallGlideUsed=false;
  hitStopUntil=Math.max(hitStopUntil,t+95);
  const vx=moveVX,vz=moveVZ,v=Math.hypot(vx,vz)||1;
@@ -4597,14 +4598,14 @@ const leviDeathDark=new THREE.Color(0x090b0e),leviDeathDown=new THREE.Quaternion
 const leviRareColors=[0x9ca4ae,0x505b68,0x20242b,0x49252e,0x26374e,0x24443d,0x59482e];
 const legacyGuideGeo=new THREE.CylinderGeometry(.045,.045,1,8),legacyGuideMat=new THREE.MeshBasicMaterial({color:0x8eeaff,transparent:true,opacity:.85,depthTest:false,depthWrite:false,fog:false});
 const legacyGuide=new THREE.Mesh(legacyGuideGeo,legacyGuideMat);legacyGuide.frustumCulled=false;legacyGuide.renderOrder=999;legacyGuide.visible=false;scene.add(legacyGuide);
-const legacyMarker=document.createElement('div');legacyMarker.style.cssText='position:fixed;z-index:100;pointer-events:none;color:#bffaff;text-align:center;font:bold 12px system-ui;text-shadow:0 0 8px #00cfff,0 1px 3px black;display:none';document.body.appendChild(legacyMarker);
+const legacyMarker=document.createElement('div');legacyMarker.style.cssText='position:fixed;z-index:100;pointer-events:none;color:#bffaff;text-align:center;font:bold 12px system-ui;text-shadow:0 1px 3px black;display:none';document.body.appendChild(legacyMarker);
 const legacyGlowHud=document.createElement('div');legacyGlowHud.style.cssText='position:fixed;pointer-events:none;z-index:99;width:42px;height:42px;left:0;top:0;background:radial-gradient(circle,white 0%,white 8%,rgba(255,255,255,.85) 20%,rgba(235,245,255,.25) 48%,rgba(255,255,255,0) 72%);display:none;will-change:transform';document.body.appendChild(legacyGlowHud);let legacyHudAt=0;const legacyGuideDir=new THREE.Vector3(),legacyGuideOrigin=new THREE.Vector3(),legacyGuideScreen=new THREE.Vector3();
 function updateLegacyGuide(t){
  const a=leviRare;if(!a||a.fuseAt||done){legacyGuide.visible=false;legacyMarker.style.display='none';legacyGlowHud.style.display='none';return;}
  legacyGuideOrigin.copy(player.position);legacyGuideDir.copy(a.m.position).sub(legacyGuideOrigin);const d=legacyGuideDir.length();
- legacyGuide.visible=d>12;legacyGuide.position.copy(legacyGuideOrigin).addScaledVector(legacyGuideDir,.5);legacyGuide.quaternion.setFromUnitVectors(sfUp,legacyGuideDir.normalize());legacyGuide.scale.set(Math.max(1,d*.008),d,Math.max(1,d*.008));
+ legacyGuide.visible=false;legacyGuide.position.copy(legacyGuideOrigin).addScaledVector(legacyGuideDir,.5);legacyGuide.quaternion.setFromUnitVectors(sfUp,legacyGuideDir.normalize());legacyGuide.scale.set(Math.max(1,d*.008),d,Math.max(1,d*.008));
  camera.updateMatrixWorld();legacyGuideScreen.copy(a.m.position).project(camera);let x=legacyGuideScreen.x,y=legacyGuideScreen.y;const behind=legacyGuideScreen.z>1||legacyGuideScreen.z< -1;if(behind){x=-x;y=-y;}if(!Number.isFinite(x)||!Number.isFinite(y)){x=0;y=0;}
- if(t-legacyHudAt<50)return;legacyHudAt=t;const edge=behind||Math.abs(x)>.85||Math.abs(y)>.75;legacyGlowHud.style.display=edge?'none':'block';if(!edge)legacyGlowHud.style.transform='translate3d('+((x+1)*innerWidth/2-21)+'px,'+((1-y)*innerHeight/2-21)+'px,0) scale('+Math.max(.35,Math.min(1.5,80/d))+')';const k=Math.max(1,Math.abs(x)/.85,Math.abs(y)/.75);x/=k;y/=k;if(behind&&Math.abs(x)+Math.abs(y)<.05)y=-.75;
+ if(t-legacyHudAt<50)return;legacyHudAt=t;const edge=behind||Math.abs(x)>.85||Math.abs(y)>.75;legacyGlowHud.style.display='none';const k=Math.max(1,Math.abs(x)/.85,Math.abs(y)/.75);x/=k;y/=k;if(behind&&Math.abs(x)+Math.abs(y)<.05)y=-.75;
  legacyMarker.style.display='block';legacyMarker.style.left=Math.max(55,Math.min(innerWidth-55,(x+1)*innerWidth/2))+'px';legacyMarker.style.top=Math.max(85,Math.min(innerHeight-90,(1-y)*innerHeight/2))+'px';legacyMarker.style.transform='translate(-50%,-50%)';const label=(edge?'➤':'◇')+'<br>LEGACY CELL<br>'+Math.round(d)+' m';if(legacyMarker.dataset.label!==label){legacyMarker.dataset.label=label;legacyMarker.innerHTML=label;}
 }
 function startLeviDeath(t,force=false){
@@ -4612,16 +4613,14 @@ function startLeviDeath(t,force=false){
  leviathanMesh.material=leviathanMesh.material.clone();const mat=leviathanMesh.material;mat.color.setHex(0xc5d1da);levi.deathColor=mat.color.clone();
  for(let i=0;i<leviShape.length;i++){leviathanMesh.getMatrixAt(i,leviDeathMatrix);leviDeathMatrix.premultiply(skyLeviathan.matrixWorld);const p=new THREE.Vector3(),q=new THREE.Quaternion(),scale=new THREE.Vector3();leviDeathMatrix.decompose(p,q,scale);const distance=p.distanceTo(leviBurstCenter),delay=(i%19)*.018;leviBurstDuration=Math.max(leviBurstDuration,delay+distance/38);leviFalling.push({p,q,scale,distance,delay,dir:p.clone().sub(leviBurstCenter).normalize()});}
  skyLeviathan.position.set(0,0,0);skyLeviathan.quaternion.identity();skyLeviathan.updateMatrixWorld(true);
- {const heartbeat=Math.random()<.001;const color=leviRareColors[Math.floor(Math.random()*leviRareColors.length)],m=new THREE.Mesh(new THREE.ConeGeometry(.42,3.5,4),new THREE.MeshStandardMaterial({color,metalness:.92,roughness:.17,emissive:color===0x20242b?0x8294ac:color,emissiveIntensity:2}));m.position.copy(dropOrigin);m.position.y=Math.max(10,m.position.y);m.material.fog=false;const halo=new THREE.Mesh(new THREE.SphereGeometry(2.8,12,8),new THREE.MeshBasicMaterial({color:0x8eeaff,transparent:true,opacity:.2,depthTest:false,depthWrite:false,fog:false}));halo.renderOrder=998;halo.visible=false;m.add(halo);const glowCanvas=document.createElement('canvas');glowCanvas.width=glowCanvas.height=128;const ctx=glowCanvas.getContext('2d'),g=ctx.createRadialGradient(64,64,0,64,64,64);g.addColorStop(0,'rgba(255,255,255,1)');g.addColorStop(.12,'rgba(255,255,255,1)');g.addColorStop(.3,'rgba(225,240,255,.55)');g.addColorStop(1,'rgba(180,210,255,0)');ctx.fillStyle=g;ctx.fillRect(0,0,128,128);const glowTex=new THREE.CanvasTexture(glowCanvas),glow=new THREE.Sprite(new THREE.SpriteMaterial({map:glowTex,color:0xffffff,blending:THREE.AdditiveBlending,depthTest:false,depthWrite:false,fog:false}));glow.scale.set(28,28,1);glow.renderOrder=997;glow.visible=false;m.add(glow);scene.add(m);leviRare={m,color,heartbeat,glow,glowTex,halo,vy:0,fuseAt:0,origin:null,flight:null};notify('RARE SIGNAL // LEGACY CELL');}
+ {const heartbeat=Math.random()<.001;const color=leviRareColors[Math.floor(Math.random()*leviRareColors.length)],m=new THREE.Mesh(new THREE.ConeGeometry(.42,3.5,4),new THREE.MeshBasicMaterial({color}));m.position.copy(dropOrigin);m.position.y=Math.max(10,m.position.y);scene.add(m);leviRare={m,color,heartbeat,vy:0,flight:null};notify('RARE SIGNAL // LEGACY CELL');}
 }
 function updateLeviDeath(t){
  if(leviRemnantDrop&&!done&&player.position.distanceTo(leviRemnantDrop.m.position)<3){const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');d.leviathanRemnant=leviRemnantDrop.cell;localStorage.setItem('fracture_rebirth_v1',JSON.stringify(d));scene.remove(leviRemnantDrop.m);leviRemnantDrop=null;notify('LEGACY REMNANT // NEXT CELL DRAW');}if(!leviDeathAt)return;const dt=Math.min(.05,Math.max(0,(t-leviDeathPrev)/1000));leviDeathPrev=t;const age=(t-leviDeathAt)/1000,p=player.position;
  if(!leviBurstDone){const burstAge=age-leviBurstDuration;skyLeviathan.visible=true;leviathanMesh.material.color.copy(levi.deathColor).lerp(leviDeathDark,Math.min(1,age/3));
  if(burstAge>2.2){leviBurstDone=true;skyLeviathan.visible=false;leviFalling.length=0;}else{for(let i=0;i<leviFalling.length;i++){const v=leviFalling[i];if(burstAge<0){const u=Math.min(1,Math.max(0,(age-v.delay)*38/Math.max(.01,v.distance)));leviBurstPos.copy(v.p).lerp(leviBurstCenter,u);leviDeathQuat.setFromUnitVectors(sfUp,leviBurstDir.copy(v.dir).negate());leviDeathScale.copy(v.scale).multiplyScalar(Math.max(.02,1-u*.95));}else{const u=burstAge/2.2;leviBurstPos.copy(leviBurstCenter).addScaledVector(v.dir,burstAge*(85+(i%17)*5));leviDeathQuat.setFromUnitVectors(sfUp,v.dir);leviDeathScale.copy(v.scale).multiplyScalar(Math.max(.001,(1-u)*.45));}leviDeathMatrix.compose(leviBurstPos,leviDeathQuat,leviDeathScale);leviathanMesh.setMatrixAt(i,leviDeathMatrix);}leviathanMesh.instanceMatrix.needsUpdate=true;}}
  if(leviImpactKnock&&!done){const k=leviImpactKnock,d=Math.min(k.left,dt*100),nx=p.x+k.x*d,nz=p.z+k.z*d;if(playerSafeMove(p.x,p.z,nx,nz)){p.x=nx;p.z=nz;k.left-=d;}else k.left=0;if(k.left<=0)leviImpactKnock=null;}
- if(leviRare){const a=leviRare,m=a.m,beat=a.heartbeat?Math.pow(.5+.5*Math.sin(t*.007),5):0;m.material.emissiveIntensity=1+beat*4;
- if(a.fuseAt){const u=Math.min(1,(t-a.fuseAt)/750);m.position.copy(a.origin).lerp(p,u);m.scale.setScalar(1-u*.85);if(u>=1){window.fractureFuseLeviathan?.(a.color,a.heartbeat);scene.remove(m);m.geometry.dispose();m.material.dispose();a.glow.material.dispose();a.glowTex.dispose();a.halo.geometry.dispose();a.halo.material.dispose();leviRare=null;notify('LEGACY CELL // FUSION COMPLETE');}}
- else{if(!a.flight&&(Math.abs(m.position.x)>2000||Math.abs(m.position.z)>2000)){a.flight={from:m.position.clone(),to:new THREE.Vector3((Math.random()-.5)*3400,Math.max(80,m.position.y), (Math.random()-.5)*3400),elapsed:0};a.vy=0;}if(a.flight){const f=a.flight;f.elapsed+=dt;const u=Math.min(1,f.elapsed/6);m.position.copy(f.from).lerp(f.to,u);m.position.y+=Math.sin(Math.PI*u)*350;if(u>=1)a.flight=null;return;}if(!leviBurstDone)return;a.vy=Math.min(23,a.vy+8*dt);m.position.y=Math.max(.55,m.position.y-a.vy*dt);if(m.position.y<=.55)m.position.y=.55+Math.sin(t*.003)*.13;m.rotation.y+=dt*.6;if(!done&&p.distanceTo(m.position)<2.8){a.fuseAt=t;a.origin=m.position.clone();notify('LEGACY CELL // IMPALING');}}}
+ if(leviRare){const a=leviRare,m=a.m;{if(!a.flight&&(Math.abs(m.position.x)>2000||Math.abs(m.position.z)>2000)){a.flight={from:m.position.clone(),to:new THREE.Vector3((Math.random()-.5)*3400,Math.max(80,m.position.y), (Math.random()-.5)*3400),elapsed:0};a.vy=0;}if(a.flight){const f=a.flight;f.elapsed+=dt;const u=Math.min(1,f.elapsed/6);m.position.copy(f.from).lerp(f.to,u);m.position.y+=Math.sin(Math.PI*u)*350;if(u>=1)a.flight=null;return;}if(!leviBurstDone)return;a.vy=Math.min(23,a.vy+8*dt);m.position.y=Math.max(.55,m.position.y-a.vy*dt);if(m.position.y<=.55)m.position.y=.55+Math.sin(t*.003)*.13;m.rotation.y+=dt*.6;if(!done&&p.distanceTo(m.position)<2.8){pendingLeviCargo.push({id:crypto.randomUUID(),seed:Math.floor(Math.random()*1e9),color:a.color,heartbeat:a.heartbeat,acquiredAt:Date.now()});scene.remove(m);m.geometry.dispose();m.material.dispose();leviRare=null;notify('LEGACY CELL // CARGO SECURED - EXTRACT');}}}
 }
 function damageLeviathan(damage,t){if(levi.dead)return false;const p=player.position;levi.hp=Math.max(0,levi.hp-damage);cellDamage+=damage;levi.aggro=true;
  if(levi.hp===0){levi.dead=true;levi.aggro=false;startLeviDeath(t);kills++;$('kills').textContent=kills;const m=new THREE.Mesh(new THREE.IcosahedronGeometry(2,1),new THREE.MeshStandardMaterial({color:0x66ddff,emissive:0x167b9c,emissiveIntensity:1.5}));m.position.copy(p);m.position.y+=.5;scene.add(m);levi.core=m;notify('LEVIATHAN DOWN // CORE DROP');}
@@ -4988,7 +4987,7 @@ if(t<iaiUntil&&dt>0){const step=(iaiPower>1?18:11)*dt;const ix=player.position.x
  // before integrating gravity. This preserves world-space height across the edge.
  if(climbFloor>=skyMazeY-1&&jumpCount===0){const h=skyWalkSupport(player.position.x,player.position.z,climbFloor);if(h>0){climbFloor=h;jumpHeight=0;climbPrevFeet=h;}}
  if(climbFloor>0&&climbDeckUnder(player.position.x,player.position.z,climbFloor+jumpHeight)<climbFloor-.85&&!(climbFloor>=skyMazeY-1&&jumpCount===0&&skyWalkSupport(player.position.x,player.position.z,climbFloor)>0)){jumpHeight+=climbFloor;climbFloor=0;}
- gliding=glideAutoHold&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;if(glideActive){const target=-5+glideLift*3.5-glideDive*65;jumpVelocity+=(target-jumpVelocity)*(1-Math.exp(-3.2*dt));}else jumpVelocity=Math.max(-34,jumpVelocity-gravity*dt);const oldSkyFeet=climbFloor+jumpHeight;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);const newSkyFeet=climbFloor+jumpHeight,contact=skyVerticalContact(player.position.x,player.position.z,oldSkyFeet,newSkyFeet);if(contact!==newSkyFeet){if(jumpVelocity<0){resolveFallDamage(contact,t);climbFloor=contact;jumpHeight=0;jumpCount=0;climbPrevFeet=contact;}else jumpHeight=contact-climbFloor;jumpVelocity=0;}
+ gliding=glideAutoHold&&jumpCount>0;fallPeak=Math.max(fallPeak,climbFloor+jumpHeight);const glideActive=gliding&&jumpVelocity<0&&(climbFloor+jumpHeight)>1.5;fallGlideUsed=glideActive;const gravity=glideActive?5:25;if(glideActive){if(glideDive>.12)jumpVelocity=Math.max(-350,jumpVelocity-(18+glideDive*85)*dt);else{const target=-5+glideLift*3.5;jumpVelocity+=(target-jumpVelocity)*(1-Math.exp(-3.2*dt));}}else jumpVelocity=Math.max(-34,jumpVelocity-gravity*dt);const oldSkyFeet=climbFloor+jumpHeight;jumpHeight=Math.max(0,jumpHeight+jumpVelocity*dt);const newSkyFeet=climbFloor+jumpHeight,contact=skyVerticalContact(player.position.x,player.position.z,oldSkyFeet,newSkyFeet);if(contact!==newSkyFeet){if(jumpVelocity<0){resolveFallDamage(contact,t);climbFloor=contact;jumpHeight=0;jumpCount=0;climbPrevFeet=contact;}else jumpHeight=contact-climbFloor;jumpVelocity=0;}
  // Detect the descending crossing BEFORE the generic ground solver can land the player.
  const tankDist=Math.hypot(player.position.x-elevatedReservoir.x,player.position.z-elevatedReservoir.z);
  const waterCrossing=waterslideProgress<0&&!testFlight&&tankDist<226&&jumpCount>0&&jumpVelocity<0&&climbFloor+jumpHeight<=elevatedReservoir.waterY+1.5&&climbPrevFeet>=elevatedReservoir.waterY-2;
@@ -5237,7 +5236,7 @@ window.fracturePerfPanel=()=>{
 };
 const diagUI=document.createElement('div');
 diagUI.style.cssText='position:fixed;left:8px;top:calc(90px + env(safe-area-inset-top));z-index:9998;font:12px monospace;color:#e7e9ff;pointer-events:none';
-diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V261</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagReset">すべて戻す</button></div>';
+diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V262</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagReset">すべて戻す</button></div>';
 document.body.appendChild(diagUI);
 const diagBody=diagUI.querySelector('#diagBody'),diagReadout=diagUI.querySelector('#diagReadout');
 diagUI.querySelectorAll('#diagBody button').forEach(b=>b.style.cssText='display:block;width:100%;margin-top:6px;background:#30264b;color:white;border:1px solid #8874bb;border-radius:5px;padding:7px;text-align:left;font:11px sans-serif');
@@ -5274,4 +5273,4 @@ async function startupPrewarm(){
  loading.classList.add('hidden');notify('素材を3つ集め、緑の出口へ');requestAnimationFrame(update);
 }
 startupPrewarm().catch(e=>{console.error(e);$('loading').innerHTML='FRACTURE<br>PRELOAD ERROR<br><small>'+String(e.message||e)+'</small>';});
-</script><script src="./rebirth.js?v=2511"></script><script src="./legacy-cells.js?v=257"></script><script type="module" src="./cell-preview.js?v=2521"></script></body></html>
+</script><script src="./rebirth.js?v=262"></script><script src="./legacy-cells.js?v=257"></script><script type="module" src="./cell-preview.js?v=2521"></script></body></html>
