@@ -15,7 +15,7 @@
  setTimeout(()=>{if(!loading.classList.contains('hidden')&&!loading.textContent.includes('STARTUP ERROR'))show('読み込みタイムアウト：外部3Dライブラリの通信または起動処理を確認してください')},60000);
 })();
 </script>
-<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V264 ✓</div>
+<div id="buildProof36" style="position:fixed;top:calc(env(safe-area-inset-top) + 8px);right:8px;z-index:2147483647;background:#003b42;color:#ffffff;border:2px solid #00ffff;border-radius:8px;padding:9px;font:700 13px system-ui;pointer-events:none">BUILD V265 ✓</div>
 <button id="scopeTest" type="button">SCOPE ×5</button><div id="scopeReticle"><span>＋</span></div>
 <script type="module">
 import * as THREE from 'https://cdn.jsdelivr.net/npm/three@0.160.1/build/three.module.js';
@@ -3343,8 +3343,8 @@ const sy=skyMazeY;
 // Clear the two stair corridors of intersecting pillars and crossbeams.
 for(const parts of mazeParts)for(let i=parts.length-1;i>=0;i--){const [x,y,z,w,h,d]=parts[i];if(h>=8&&y-h/2>=sy-.1&&y+h/2<sy+120&&z+d/2>=-220&&z-d/2<=100&&((Math.abs(x-118)<w/2+16)||(Math.abs(x-80)<w/2+16)))parts.splice(i,1);}
 function skyStair(x,z0,z1,h0,h1){const n=Math.ceil((h1-h0)/.65),run=(z1-z0)/n;for(let i=0;i<n;i++){const h=h0+(h1-h0)*(i+1)/n,z=z0+run*(i+.5);mazeBox(x,h-.6,z,30,1.2,Math.abs(run)+.05);climbDecks.push({x,z,h,w:30,d:Math.abs(run)+.05,legacy:true,skyMaze:true});}climbRamps.push({ax:x,az:z0,ah:h0,bx:x,bz:z1,bh:h1,width:15,skyMaze:true});}
-skyStair(118,-205,85,sy,sy+70);
-skyStair(80,85,-205,sy+70,sy+142);
+skyRamp(118,-205,sy,118,85,sy+70,30);
+skyRamp(80,85,sy+70,80,-205,sy+142,30);
 // Wide, overlapping landing with matching visible top and collision footprint.
 mazeFloor(99,94,78,60,sy+70);
 mazeFloor(99,-205,78,50,sy+142);
@@ -4175,7 +4175,7 @@ function updateIndustrialAerials(t){
   industrialEyes[d.type].setColorAt(i,industrialEyeTint);
  }
  for(let k=0;k<3;k++){
-  const m=industrialAerialMeshes[k];m.count=counts[k];m.visible=counts[k]>0;
+  const m=industrialAerialMeshes[k];m.count=counts[k];m.visible=counts[k]>0&&!fractureDiag.hideDrones;
   if(counts[k]){m.instanceMatrix.needsUpdate=true;industrialEyes[k].instanceMatrix.needsUpdate=true;if(industrialEyes[k].instanceColor)industrialEyes[k].instanceColor.needsUpdate=true;}
   industrialEyes[k].count=counts[k];industrialEyes[k].visible=counts[k]>0;
  }
@@ -4511,7 +4511,7 @@ for(let i=0;i<15;i++){
  u.alert=false;u.worldPatrol=true;worldPatrols.push(u);
 }
 // V228: opt-in on-device diagnostics; no world or save-data changes.
-const fractureDiag={open:false,hideCrystals:false,pauseBrood:false,pauseFlocks:false,metrics:{},samples:{},lastStamp:0};
+const fractureDiag={open:false,hideCrystals:false,pauseBrood:false,pauseFlocks:false,hideDrones:false,metrics:{},samples:{},lastStamp:0};
 function diagMeasure(name,fn){const a=performance.now();fn();const dt=performance.now()-a;const m=fractureDiag.metrics;m[name]=(m[name]||0)*.92+dt*.08;}
 function diagApplyCrystalVisibility(){const hide=fractureDiag.hideCrystals;
  ancientCrystal.visible=!hide;
@@ -4619,7 +4619,7 @@ function startLeviDeath(t,force=false){
 function updateLeviDeath(t){
  if(leviRemnantDrop&&!done&&player.position.distanceTo(leviRemnantDrop.m.position)<3){const d=JSON.parse(localStorage.getItem('fracture_rebirth_v1')||'{}');d.leviathanRemnant=leviRemnantDrop.cell;localStorage.setItem('fracture_rebirth_v1',JSON.stringify(d));scene.remove(leviRemnantDrop.m);leviRemnantDrop=null;notify('LEGACY REMNANT // NEXT CELL DRAW');}if(!leviDeathAt)return;const dt=Math.min(.05,Math.max(0,(t-leviDeathPrev)/1000));leviDeathPrev=t;const age=(t-leviDeathAt)/1000,p=player.position;
  if(!leviBurstDone){const burstAge=age-leviBurstDuration;skyLeviathan.visible=true;leviathanMesh.material.color.copy(levi.deathColor).lerp(leviDeathDark,Math.min(1,age/1));if(leviathanMesh.material.emissive){leviathanMesh.material.emissive.setHex(burstAge>=0?0xff5410:0x000000);leviathanMesh.material.emissiveIntensity=burstAge>=0?Math.max(.08,1.5*Math.exp(-burstAge*.4)):0;}
- if(burstAge>14){leviBurstDone=true;skyLeviathan.visible=false;leviFalling.length=0;}else{for(let i=0;i<leviFalling.length;i++){const v=leviFalling[i];if(burstAge<0){const u=Math.min(1,Math.max(0,(age-1.12-v.delay)/.47));leviBurstPos.copy(v.p).lerp(leviBurstCenter,u);if(age<1)leviDeathQuat.copy(v.q);else leviDeathQuat.setFromUnitVectors(sfUp,leviBurstDir.copy(v.dir).negate());leviDeathScale.copy(v.scale).multiplyScalar(Math.max(.04,1-u*.96));}else{const u=burstAge/14,spread=(1-Math.exp(-burstAge*2.8))*(55+(i%17)*7);leviBurstPos.copy(leviBurstCenter).addScaledVector(v.dir,spread);leviBurstPos.y-=Math.max(0,burstAge-.35)*(9+i%9);leviDeathQuat.setFromAxisAngle(v.dir,burstAge*(.6+i%5*.3));leviDeathScale.copy(v.scale).multiplyScalar(i%4===0?Math.max(.001,Math.min(1,(14-burstAge)/2)*.55):Math.max(.001,(1-burstAge/1.2)*.45));}leviDeathMatrix.compose(leviBurstPos,leviDeathQuat,leviDeathScale);leviathanMesh.setMatrixAt(i,leviDeathMatrix);}leviathanMesh.instanceMatrix.needsUpdate=true;}}
+ if(burstAge>14){leviBurstDone=true;skyLeviathan.visible=false;leviFalling.length=0;}else{for(let i=0;i<leviFalling.length;i++){const v=leviFalling[i];if(age<1){leviDeathMatrix.compose(v.p,v.q,v.scale);leviathanMesh.setMatrixAt(i,leviDeathMatrix);continue;}if(burstAge<0){const u=Math.min(1,Math.max(0,(age-1.12-v.delay)/.47));leviBurstPos.copy(v.p).lerp(leviBurstCenter,u);if(age<1)leviDeathQuat.copy(v.q);else leviDeathQuat.setFromUnitVectors(sfUp,leviBurstDir.copy(v.dir).negate());leviDeathScale.copy(v.scale).multiplyScalar(Math.max(.04,1-u*.96));}else{const u=burstAge/14,spread=(1-Math.exp(-burstAge*2.8))*(55+(i%17)*7);leviBurstPos.copy(leviBurstCenter).addScaledVector(v.dir,spread);leviBurstPos.y-=Math.max(0,burstAge-.35)*(9+i%9);leviDeathQuat.setFromAxisAngle(v.dir,burstAge*(.6+i%5*.3));leviDeathScale.copy(v.scale).multiplyScalar(i%4===0?Math.max(.001,Math.min(1,(14-burstAge)/2)*.55):Math.max(.001,(1-burstAge/1.2)*.45));}leviDeathMatrix.compose(leviBurstPos,leviDeathQuat,leviDeathScale);leviathanMesh.setMatrixAt(i,leviDeathMatrix);}leviathanMesh.instanceMatrix.needsUpdate=true;}}
  if(leviImpactKnock&&!done){const k=leviImpactKnock,d=Math.min(k.left,dt*100),nx=p.x+k.x*d,nz=p.z+k.z*d;if(playerSafeMove(p.x,p.z,nx,nz)){p.x=nx;p.z=nz;k.left-=d;}else k.left=0;if(k.left<=0)leviImpactKnock=null;}
  if(leviRare){const a=leviRare,m=a.m;{if(!a.flight&&(Math.abs(m.position.x)>2000||Math.abs(m.position.z)>2000)){a.flight={from:m.position.clone(),to:new THREE.Vector3((Math.random()-.5)*3400,Math.max(80,m.position.y), (Math.random()-.5)*3400),elapsed:0};a.vy=0;}if(a.flight){const f=a.flight;f.elapsed+=dt;const u=Math.min(1,f.elapsed/6);m.position.copy(f.from).lerp(f.to,u);m.position.y+=Math.sin(Math.PI*u)*350;if(u>=1)a.flight=null;return;}if(age<leviBurstDuration)return;a.vy=Math.min(23,a.vy+8*dt);m.position.y=Math.max(.55,m.position.y-a.vy*dt);if(m.position.y<=.55)m.position.y=.55;if(!done&&p.distanceTo(m.position)<2.8){pendingLeviCargo.push({id:crypto.randomUUID(),seed:Math.floor(Math.random()*1e9),color:a.color,heartbeat:a.heartbeat,sealed:true,acquiredAt:Date.now()});scene.remove(m);m.geometry.dispose();m.material.dispose();leviRare=null;notify('LEGACY CELL // CARGO SECURED - EXTRACT');}}}
 }
@@ -5237,7 +5237,7 @@ window.fracturePerfPanel=()=>{
 };
 const diagUI=document.createElement('div');
 diagUI.style.cssText='position:fixed;left:8px;top:calc(90px + env(safe-area-inset-top));z-index:9998;font:12px monospace;color:#e7e9ff;pointer-events:none';
-diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V264</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagReset">すべて戻す</button></div>';
+diagUI.innerHTML='<button id="diagToggle" style="pointer-events:auto;background:#211c39ee;color:#e8e6ff;border:1px solid #ac91ff;border-radius:7px;padding:8px;font-weight:bold">DIAG V265</button><div id="diagBody" style="display:none;pointer-events:auto;margin-top:5px;background:#0c0d1eea;border:1px solid #806eaa;border-radius:9px;padding:10px;max-width:245px;max-height:55vh;overflow:auto"><div id="diagReadout" style="white-space:pre-wrap;line-height:1.4"></div><button id="diagCrystals">結晶描画 OFF</button><button id="diagBrood">水BEE・卵AI 停止</button><button id="diagFlocks">ドローンAI 停止</button><button id="diagDroneDraw">ドローン描画 ON/OFF</button><button id="diagReset">すべて戻す</button></div>';
 document.body.appendChild(diagUI);
 const diagBody=diagUI.querySelector('#diagBody'),diagReadout=diagUI.querySelector('#diagReadout');
 diagUI.querySelectorAll('#diagBody button').forEach(b=>b.style.cssText='display:block;width:100%;margin-top:6px;background:#30264b;color:white;border:1px solid #8874bb;border-radius:5px;padding:7px;text-align:left;font:11px sans-serif');
@@ -5245,7 +5245,8 @@ diagUI.querySelector('#diagToggle').onclick=()=>{fractureDiag.open=!fractureDiag
 diagUI.querySelector('#diagCrystals').onclick=()=>{fractureDiag.hideCrystals=!fractureDiag.hideCrystals;ancientCrystal.visible=!fractureDiag.hideCrystals;};
 diagUI.querySelector('#diagBrood').onclick=()=>{fractureDiag.pauseBrood=!fractureDiag.pauseBrood;infectionLastUpdate=performance.now();};
 diagUI.querySelector('#diagFlocks').onclick=()=>{fractureDiag.pauseFlocks=!fractureDiag.pauseFlocks;updateIndustrialAerials.prev=performance.now();};
-diagUI.querySelector('#diagReset').onclick=()=>{fractureDiag.hideCrystals=false;fractureDiag.pauseBrood=false;fractureDiag.pauseFlocks=false;ancientCrystal.visible=true;infectionLastUpdate=performance.now();updateIndustrialAerials.prev=performance.now();};
+diagUI.querySelector('#diagDroneDraw').onclick=()=>{fractureDiag.hideDrones=!fractureDiag.hideDrones;for(const m of industrialAerialMeshes)m.visible=!fractureDiag.hideDrones&&m.count>0;};
+diagUI.querySelector('#diagReset').onclick=()=>{fractureDiag.hideCrystals=false;fractureDiag.pauseBrood=false;fractureDiag.pauseFlocks=false;fractureDiag.hideDrones=false;for(const m of industrialAerialMeshes)m.visible=m.count>0;ancientCrystal.visible=true;infectionLastUpdate=performance.now();updateIndustrialAerials.prev=performance.now();};
 function diagRefreshPanel(){const m=fractureDiag.metrics,p=window.fracturePerf||{};
  diagReadout.textContent='FPS '+(p.fps??'?')+' | calls '+(p.drawCalls??'?')+' | triangles '+(p.triangles??'?')+' | DPR '+(p.pixelRatio??'?')+' | P95 '+(p.frameP95||0).toFixed(1)+'ms | MAX '+(p.frameMax||0).toFixed(1)+'ms'+'\\nCPU JS averages (ms):\\n'+
  ['radio','flocks','water','brood','navigation','stream','render'].map(k=>k+': '+(m[k]||0).toFixed(2)).join(' | ')+'\\n'+
